@@ -417,10 +417,9 @@ describe("MuseAdapterV2", () => {
         yield* sessions.clear(THREAD_ID);
         yield* harness.runtime.startTurn({
           ...(yield* turnInput(harness.providerThread, 1, harness.policy)),
-          agentFeedback: "auto",
         });
         const turn = yield* fake.takeCall("turn/start");
-        assert.match(JSON.stringify(turn.params.input), /t3_feedback/);
+        assert.match(JSON.stringify(turn.params.input), /<runtime_info>/);
       }
     }).pipe(Effect.scoped, Effect.provide(testLayer)),
   );

@@ -72,7 +72,6 @@ export interface SettingsSearchItem {
   readonly managedTunnelOnly?: boolean;
   readonly peerLinksOnly?: boolean;
   readonly fastWorktreeCheckoutOnly?: boolean;
-  readonly agentFeedbackOnly?: boolean;
   readonly textGeneratorsOnly?: boolean;
   readonly secondary?: boolean;
   readonly requiresThreadAutoSettlement?: boolean;
@@ -89,7 +88,6 @@ export interface SettingsSearchAvailability {
   readonly managedTunnelActive?: boolean;
   readonly hasPeerLinkHost?: boolean;
   readonly hasFastWorktreeCheckoutEnvironment?: boolean;
-  readonly hasAgentFeedbackEnvironment?: boolean;
   /** An environment without a provider allow-list, which hides text generators. */
   readonly hasTextGeneratorsEnvironment?: boolean;
   readonly hasPrimaryEnvironment?: boolean;
@@ -1023,16 +1021,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("logs traces processes resource history failures spans cpu memory")],
   },
   {
-    id: "agent-feedback",
-    title: msg("Agent feedback"),
-    to: "/settings/labs",
-    scope: "environment-defaults",
-    agentFeedbackOnly: true,
-    searchTerms: [
-      msg("report bug problem t3 team send feedback agents tools automatic when i ask"),
-    ],
-  },
-  {
     id: "open-source-licenses",
     title: msg("Open source licenses"),
     to: "/settings/about",
@@ -1598,7 +1586,6 @@ export function getSettingsSearchTargetScope(targetId: string) {
         title: item.title,
         scope: item.scope ?? SETTINGS_CATEGORY_SCOPES[item.to],
         ...(item.requiresThreadAutoSettlement ? { requiresThreadAutoSettlement: true } : {}),
-        ...(item.agentFeedbackOnly ? { agentFeedbackOnly: true } : {}),
       }
     : null;
 }
@@ -1691,7 +1678,6 @@ export function filterAvailableSettingsSearchItems(
       (!item.peerLinksOnly || availability.hasPeerLinkHost === true) &&
       (!item.fastWorktreeCheckoutOnly ||
         availability.hasFastWorktreeCheckoutEnvironment === true) &&
-      (!item.agentFeedbackOnly || availability.hasAgentFeedbackEnvironment === true) &&
       (!item.textGeneratorsOnly || availability.hasTextGeneratorsEnvironment === true) &&
       (!item.secretProvidersOnly || availability.hasSecretProvidersEnvironment === true),
   );

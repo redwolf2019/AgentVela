@@ -30,8 +30,7 @@ The desktop app includes the `t3` command; see [The `t3` command](./install.md#t
   },
   "limits": {
     "maxRuntimeMode": "auto-accept-edits",
-    "clients": ["desktop", "local-browser"],
-    "telemetry": false
+    "clients": ["desktop", "local-browser"]
   }
 }
 ```
@@ -75,8 +74,9 @@ Administrative Templates > T3 Code. Set **Organization** whenever you set any ot
 Locks and provider fields go in the two JSON policies, as the same objects a policy file would hold.
 Machines pick up a change at the next Group Policy refresh; run `gpupdate /target:computer /force`
 to apply it now, then restart T3 Code.
-Setting **Allow T3 Connect**, **Allow webhook tasks**, **Allow importing browser cookies**, or
-**Allow usage data** to **Disabled** turns that feature off. Setting any other T3 Code policy to
+Setting **Allow T3 Connect**, **Allow webhook tasks**, or **Allow importing browser cookies**
+to **Disabled** turns that feature off (**Allow usage data** is retained only as a compatibility
+no-op since built-in telemetry reporting is disabled). Setting any other T3 Code policy to
 **Disabled** restricts nothing, the same as **Not Configured**.
 
 **Windows registry value.** Instead of the template, set the `Policy` value (`REG_SZ`) to the whole policy as one line of JSON,
@@ -171,7 +171,6 @@ A few settings need care:
     "browserCookieImport": false,
     "previewTunnel": false,
     "worktreeLayoutCommands": false,
-    "telemetry": false,
     "providers": {
       "allowedDrivers": ["claudeAgent", "codex"],
       "instances": {
@@ -262,9 +261,8 @@ so restart T3 Code after that.
   `t3.json` declares, whether or not a user approved them. Such a project gets no new worktree
   threads; existing thread folders are restored as plain checkouts and removed without the
   project's `remove` command.
-- `telemetry: false`: the server and desktop app send no [product usage data](./telemetry.md) or
-  relay connection traces, and neither does a browser opened from the server. A policy cannot turn
-  them on. The hosted web app at app.t3.codes and the mobile app still send their own relay traces.
+- `telemetry`: accepted as a compatibility key only; built-in product analytics and relay
+  connection trace reporting are disabled in this build.
 
 ### Providers
 

@@ -72,7 +72,7 @@ cd AgentVela
 vp i
 ```
 
-*(On Windows, clone with `git clone -c core.longpaths=true https://github.com/redwolf2019/AgentVela.git`.)*
+_(On Windows, clone with `git clone -c core.longpaths=true https://github.com/redwolf2019/AgentVela.git`.)_
 
 ### 3. Run in development mode
 

@@ -247,7 +247,6 @@ describe("DesktopBackendConfiguration", () => {
         assert.equal(first.cwd, environment.backendCwd);
         assert.equal(first.captureOutput, true);
         assert.equal(first.env.ELECTRON_RUN_AS_NODE, "1");
-        assert.equal(first.env.T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING, "1");
         assert.isUndefined(first.env.T3CODE_PORT);
         assert.isUndefined(first.env.T3CODE_MODE);
         assert.isUndefined(first.env.T3CODE_DESKTOP_LAN_HOST);
@@ -792,8 +791,6 @@ describe("DesktopBackendConfiguration", () => {
 
         assert.equal(config.env.OTEL_SDK_DISABLED, "true");
         assert.include((config.env.WSLENV ?? "").split(":"), "OTEL_SDK_DISABLED");
-        assert.equal(config.env.T3CODE_TELEMETRY_ENABLED, "false");
-        assert.include((config.env.WSLENV ?? "").split(":"), "T3CODE_TELEMETRY_ENABLED");
         assert.equal(config.env.OTEL_RESOURCE_ATTRIBUTES, "deployment.environment.name=staging");
         assert.include((config.env.WSLENV ?? "").split(":"), "OTEL_RESOURCE_ATTRIBUTES");
       }).pipe(
@@ -814,7 +811,6 @@ describe("DesktopBackendConfiguration", () => {
         ),
         Effect.provideService(HostProcess.Environment, {
           OTEL_SDK_DISABLED: "true",
-          T3CODE_TELEMETRY_ENABLED: "false",
           OTEL_RESOURCE_ATTRIBUTES: "deployment.environment.name=staging",
         }),
       );

@@ -76,7 +76,6 @@ import * as AccountDeletion from "./accounts/AccountDeletion.ts";
 import * as HeldHooks from "./hooks/HeldHooks.ts";
 import * as HookInbox from "./hooks/HookInbox.ts";
 import * as HookInboxObject from "./hooks/HookInboxObject.ts";
-import * as MobileTelemetry from "./mobileTelemetry/MobileTelemetry.ts";
 
 const layerWebcrypto = Layer.mergeAll(
   Digest.layerWebCrypto,
@@ -148,7 +147,6 @@ export const layer = Api.make(
     const relayApiZone = yield* RelayApiZone;
     const managedEndpointZone = yield* ManagedEndpointZone;
     const randomApnsDeliveryJobSigningSecret = yield* ApnsDeliveryJobSigningSecret;
-    const observability = yield* RelayObservability;
 
     const apnsEnabled = yield* Config.Boolean("APNS_ENABLED").pipe(Config.withDefault(true));
     const apnsCredentials = apnsEnabled
@@ -224,22 +222,6 @@ export const layer = Api.make(
       },
     });
     const hookInboxes = yield* HookInboxObject.HookInboxObject;
-    const mobileTelemetryRateLimit = yield* Cloudflare.RateLimit("MOBILE_TELEMETRY_RATE_LIMIT", {
-      namespaceId: 1003,
-      simple: {
-        limit: MobileTelemetry.MOBILE_TELEMETRY_RATE_LIMIT.limit,
-        period: MobileTelemetry.MOBILE_TELEMETRY_RATE_LIMIT.periodSeconds,
-      },
-    });
-    const mobileSourceMaps = yield* Cloudflare.R2.ReadBucket(observability.mobileSourceMaps);
-    const mobileTelemetryToken = yield* observability.mobileTelemetryIngestToken.token;
-    const mobileTracesUrl = yield* observability.traces.otelTracesEndpoint;
-    const mobileTracesDataset = yield* observability.traces.name;
-    const mobileLogsUrl = yield* observability.mobileLogs.otelLogsEndpoint;
-    const mobileLogsDataset = yield* observability.mobileLogs.name;
-    const mobileMetricsUrl = yield* observability.mobileMetrics.otelMetricsEndpoint;
-    const mobileMetricsDataset = yield* observability.mobileMetrics.name;
-
     const alchemyRuntimeContext: Alchemy.BaseRuntimeContext = yield* Cloudflare.Worker;
 
     const loadSettings = Effect.gen(function* () {
@@ -390,64 +372,12 @@ export const layer = Api.make(
       allowEndpoint: allowWith(hookEndpointRateLimit),
     });
 
-    // `fetch` rebuilds its layers per request; the source map cache must outlive one.
-    const mobileSourceMapLookups = yield* MobileTelemetry.SourceMaps.pipe(
-      Effect.provide(MobileTelemetry.layerSourceMaps),
-      Effect.provideService(MobileTelemetry.SourceMapObjects, {
-        get: (key) =>
-          mobileSourceMaps.get(key).pipe(
-            Effect.map((object) =>
-              object === null
-                ? undefined
-                : {
-                    size: object.size,
-                    text: object.text().pipe(
-                      Effect.provideService(Alchemy.RuntimeContext, alchemyRuntimeContext),
-                      Effect.mapError(
-                        (cause) => new MobileTelemetry.SourceMapObjectError({ key, cause }),
-                      ),
-                    ),
-                  },
-            ),
-            Effect.provideService(Alchemy.RuntimeContext, alchemyRuntimeContext),
-            Effect.mapError((cause) => new MobileTelemetry.SourceMapObjectError({ key, cause })),
-          ),
-      }),
-    );
-    const layerMobileTelemetry = MobileTelemetry.layer.pipe(
-      Layer.provide(
-        Layer.mergeAll(
-          Layer.effect(
-            MobileTelemetry.MobileTelemetrySettings,
-            Effect.gen(function* () {
-              return MobileTelemetry.MobileTelemetrySettings.of({
-                axiomToken: yield* mobileTelemetryToken,
-                destinations: {
-                  traces: { url: yield* mobileTracesUrl, dataset: yield* mobileTracesDataset },
-                  logs: { url: yield* mobileLogsUrl, dataset: yield* mobileLogsDataset },
-                  metrics: { url: yield* mobileMetricsUrl, dataset: yield* mobileMetricsDataset },
-                },
-              });
-            }),
-          ),
-          Layer.succeed(MobileTelemetry.MobileTelemetryRateLimiter, {
-            allow: allowWith(
-              mobileTelemetryRateLimit,
-              "relay.mobile_telemetry.rate_limiter_failed_open",
-            ),
-          }),
-          Layer.succeed(MobileTelemetry.SourceMaps, mobileSourceMapLookups),
-        ),
-      ),
-    );
-
     const layerApp = Layer.mergeAll(
       layerRelayApi,
       HookForwarder.layerApi.pipe(
         Layer.provide(HookForwarder.layer),
         Layer.provide(layerHookRateLimiter),
       ),
-      MobileTelemetry.layerApi.pipe(Layer.provide(layerMobileTelemetry)),
       AccountDeletion.layerApi,
     ).pipe(
       Layer.provideMerge(RelayHttpApi.layerClientAuth),

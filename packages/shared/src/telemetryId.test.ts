@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { hashTelemetryId, isTelemetryIdHash } from "./telemetryId.ts";
+import { hashTelemetryId } from "./telemetryId.ts";
 
 describe("telemetry ids", () => {
-  it("accepts only hashes, never a raw id", () => {
-    expect(isTelemetryIdHash(hashTelemetryId("user_connect"))).toBe(true);
-    expect(isTelemetryIdHash("user_connect")).toBe(false);
-    expect(isTelemetryIdHash(hashTelemetryId("x").toUpperCase())).toBe(false);
+  it("produces a stable lowercase sha256 hex digest", () => {
+    const hashed = hashTelemetryId("user_connect");
+    expect(hashed).toMatch(/^[0-9a-f]{64}$/u);
+    expect(hashed).toBe(hashTelemetryId("user_connect"));
   });
 });
