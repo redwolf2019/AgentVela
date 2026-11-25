@@ -9,13 +9,9 @@ Run, orchestrate, and control multiple coding agents across local and remote mac
 **English** · [简体中文](./README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Status: Active Fork](https://img.shields.io/badge/Status-Independent%20Fork-orange.svg)](#attribution--acknowledgments)
 [![Issues](https://img.shields.io/github/issues/redwolf2019/AgentVela)](https://github.com/redwolf2019/AgentVela/issues)
 
 </div>
-
-> [!NOTE]
-> **AgentVela** is an independent, unofficial open-source project forked from the MIT-licensed source code of T3 Code. It is not affiliated with, endorsed by, or maintained by T3 Tools, Inc. See [Attribution & Acknowledgments](#attribution--acknowledgments).
 
 ## Overview
 
@@ -105,7 +101,7 @@ See the [development runbook](./docs/operations/00_development.md) for platform 
 
 ## Documentation
 
-> Some documents under `docs/` are inherited from upstream and are being progressively updated for AgentVela.
+> Some reference documents under `docs/` are being progressively updated for AgentVela.
 
 - [Development & local builds](./docs/operations/00_development.md)
 - [Architecture overview](./docs/internals/01_architecture.md)
@@ -121,6 +117,7 @@ See the [development runbook](./docs/operations/00_development.md) for platform 
 
 Contributions, bug reports, and ideas are welcome:
 
+- Read [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines, PR scope, and verification requirements.
 - Open a bug report or feature proposal in [GitHub Issues](https://github.com/redwolf2019/AgentVela/issues).
 - Follow the [development runbook](./docs/operations/00_development.md) to set up a local checkout and run checks (`vp run check:changed`) before submitting a pull request.
 
@@ -128,8 +125,6 @@ Contributions, bug reports, and ideas are welcome:
 
 The source code in this repository is licensed under the [MIT License](./LICENSE).
 
-## Attribution & Acknowledgments
+## Acknowledgments
 
-AgentVela is an **independent, unofficial fork** derived from the MIT-licensed source code of [T3 Code](https://github.com/pingdotgg/t3code). AgentVela is **not affiliated with, endorsed by, or maintained by T3 Tools, Inc.** All T3 Code names, logos, and trademarks remain the property of T3 Tools, Inc.
-
-We are deeply grateful to the T3 Code maintainers and open-source contributors for building such a clean, fast, and thoughtfully engineered foundation and sharing it openly with the community under the MIT License. AgentVela exists because of their generosity and commitment to open source.
+AgentVela is independently maintained, occasionally syncing selected upstream improvements as needed. It originated from the MIT-licensed open-source code of [T3 Code](https://github.com/pingdotgg/t3code).

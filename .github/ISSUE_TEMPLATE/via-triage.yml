@@ -69,10 +69,3 @@ body:
     attributes:
       label: Fix applied or workaround
       description: Anything that was run on the machine to unblock the user.
-
-  - type: input
-    id: agent
-    attributes:
-      label: Filed by
-      description: Which agent and model produced this report.
-      placeholder: claude (opus-5) via t3 triage

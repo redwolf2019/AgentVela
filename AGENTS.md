@@ -1,6 +1,6 @@
 # AgentVela
 
-AgentVela is an independent, self-hosted-first open-source fork of T3 Code (MIT-licensed source; not affiliated with T3 Tools, Inc.). A Node WebSocket server wraps coding agent CLIs (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro, Pi, Muse Code, fx, and ACP agents) across Web, Desktop (Electron), and Mobile (React Native).
+AgentVela is an independently maintained, self-hosted-first open-source project (occasionally syncing selected upstream changes as needed). A Node WebSocket server wraps coding agent CLIs (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro, Pi, Muse Code, fx, and ACP agents) across Web, Desktop (Electron), and Mobile (React Native).
 
 ## Core Pillars & Precedence
 
@@ -131,7 +131,7 @@ See [00_development.md](docs/operations/00_development.md) for setup, ports, `vp
 | Providers & ACP                            | [03_providers.md](docs/internals/03_providers.md)                                                                                                                                                 |
 | Auth, MCP, guest links, assets, security   | [04_environment-auth.md](docs/internals/04_environment-auth.md), [SECURITY.md](SECURITY.md)                                                                                                       |
 | Remote routes, peer links, previews        | [05_remote.md](docs/internals/05_remote.md)                                                                                                                                                       |
-| T3 Connect & relay                         | [06_t3-connect.md](docs/internals/06_t3-connect.md)                                                                                                                                               |
+| Self-hosted relay                          | [06_t3-connect.md](docs/internals/06_t3-connect.md)                                                                                                                                               |
 | Server updates & crash recovery            | [07_server-updates.md](docs/internals/07_server-updates.md)                                                                                                                                       |
 | Client connection & sync runtime           | [09_connection-runtime.md](docs/internals/09_connection-runtime.md)                                                                                                                               |
 | Web UI primitives, styles & React Compiler | [10_web-ui.md](docs/internals/10_web-ui.md)                                                                                                                                                       |

@@ -1,7 +1,7 @@
 # Remote architecture
 
 Each connection joins a client to one environment over HTTP and WebSocket. Direct access, Tailscale,
-SSH, and T3 Connect change how the client reaches the server; they do not introduce a different
+SSH, and the self-hosted relay change how the client reaches the server; they do not introduce a different
 execution model.
 
 ## Identity is independent of the route

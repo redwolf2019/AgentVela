@@ -74,7 +74,7 @@ Administrative Templates > T3 Code. Set **Organization** whenever you set any ot
 Locks and provider fields go in the two JSON policies, as the same objects a policy file would hold.
 Machines pick up a change at the next Group Policy refresh; run `gpupdate /target:computer /force`
 to apply it now, then restart T3 Code.
-Setting **Allow T3 Connect**, **Allow webhook tasks**, or **Allow importing browser cookies**
+Setting **Allow relay**, **Allow webhook tasks**, or **Allow importing browser cookies**
 to **Disabled** turns that feature off (**Allow usage data** is retained only as a compatibility
 no-op since built-in telemetry reporting is disabled). Setting any other T3 Code policy to
 **Disabled** restricts nothing, the same as **Not Configured**.
@@ -213,16 +213,16 @@ T3 Code can place under the limit. Users still choose which ACP Registry agent r
 The limit decides which modes T3 Code asks the provider for. It is not a sandbox; see
 [What a policy does not cover](#what-a-policy-does-not-cover).
 
-### Clients and T3 Connect
+### Clients and self-hosted relay
 
 `clients` lists how the server may run:
 
 - `desktop`: as the desktop app's own server.
 - `local-browser`: as a server only browsers on this machine reach, such as `npx t3`.
-- `remote`: reachable from phones, other computers, and app.t3.codes over the network.
+- `remote`: reachable from phones, other computers, and hosted web clients over the network.
 
 `remote` is the line that matters. A server reachable from the network also accepts browsers on
-this machine, and the two local kinds differ only in how T3 Code was started. On machines with the
+this machine, and the two local kinds differ only in how AgentVela was started. On machines with the
 desktop app, keep `desktop` in the list, or the app cannot start.
 
 Without `remote`, the server listens only on a loopback address, creates no pairing links, and
@@ -232,7 +232,7 @@ address or `localhost`. A [background service](./background-service.md) installe
 Run `t3 up --no-lan` when its `service.env` sets no `T3CODE_HOST`, or set
 `T3CODE_HOST=127.0.0.1` in `service.env`, then run `t3 service restart`. The desktop app starts
 with network access and Tailscale Serve off, whatever the user chose. That also turns off
-T3 Connect. To keep other remote access but turn off T3 Connect alone, set `"connect": false`.
+relay linking. To keep other remote access but turn off relay linking alone, set `"connect": false`.
 
 When it starts, the server also turns off each Tailscale Serve route, HTTPS or TCP, that forwards
 to it, such as one `t3 pair --tailscale` set up, and leaves other routes alone. It does not start

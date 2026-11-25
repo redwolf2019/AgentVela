@@ -1,147 +1,84 @@
-# Contributing
+# Contributing to AgentVela
 
-T3 Code is a project built by and for the community of agentic devs pushing the absolute limits of
-modern AI tools.
+AgentVela is an independently maintained, self-hosted-first open-source project in early development. Maintainers run AgentVela's roadmap and releases independently, occasionally syncing selected upstream improvements when useful.
 
-That said, it is also ours.
+Bug fixes, documentation and translation updates, and focused features aligned with AgentVela's goals are welcome. Review capacity is small, so narrow, well-verified pull requests move fastest.
 
-T3 Code is built and maintained by a small team with a clear vision. We are explicitly NOT INTERESTED
-in new feature addition PRs from people outside of said team, with a small
-[exception for vouched contributors](#vouched-features).
+## Ways to help
 
-We are much more bottlenecked by review capacity than we are creativity, tokens or code. It takes more
-effort to review a PR than it does to create one in the vast majority of cases.
+- **Issues and triage.** Search [GitHub Issues](https://github.com/redwolf2019/AgentVela/issues) before filing a report. Include reproduction steps, the affected surface (Desktop, Web, Mobile, CLI, or `apps/relay`), your OS and environment, and redacted logs. Confirming an open bug on your setup or noting when an old issue no longer reproduces helps directly.
+- **Bug fixes and small improvements.** Clear bug fixes, doc corrections, and UI translation updates can go straight to a pull request without filing an issue first.
+- **Features and larger changes.** Open an issue on [GitHub Issues](https://github.com/redwolf2019/AgentVela/issues) before writing code if you plan to add a broad feature, introduce a new agent or source-control provider, change core architecture, overhaul the UI, or alter wire protocols or storage schemas.
+- **Docs and translations.** Some files under `docs/` still come from upstream and are being updated progressively for AgentVela. UI translation catalogs live under `apps/{web,mobile,desktop}/src/i18n/translations`; see [Translating the UI](docs/internals/14_i18n.md) before modifying copy.
 
-If you're looking for things to contribute, here's my advice: Don't.
+## Scope and priorities
 
-T3 Code has far too many people trying to contribute. If you're looking for a fun first project to
-land some PRs in, look elsewhere. Your work will almost certainly be closed.
+Changes that fit best:
 
-So who should contribute? Daily users hitting specific bugs that haven't been addressed by us in a
-meaningful way.
+- Self-hosted connectivity over LAN, SSH, Tailscale, and `apps/relay`
+- Cross-surface consistency across Desktop, Web, Mobile, and `packages/client-runtime`
+- Runtime performance: bounded WebSocket payloads, fast list rendering, and avoiding continuously repainting CSS animations
+- Multi-agent orchestration, ACP/MCP interoperability, and local packaging/distribution
 
-Things we are explicitly NOT interested in (and we will auto close):
+Out of scope: proprietary cloud lock-in, built-in telemetry or crash reporting (intentionally removed from AgentVela), and uncoordinated large rewrites.
 
-- New features (vouched contributors have [an exception](#vouched-features))
-- UI overhauls
-- New providers
-- Architecture overhauls (extensions, plugins, new connection methods)
-- New source control methods and providers
-- Different auth methods
-- Support for additional platforms (I already regret Windows ARM)
+## Development setup
 
-In case we haven't made this clear: The reason to contribute is fixing bugs. If you want anything from
-the list above that the [vouched exception](#vouched-features) does not cover, the "issues" and "discussion" tabs are there for a reason :)
+Install [Vite+](https://viteplus.dev/guide/) (`vp` manages the pinned Node.js toolchain from `package.json`), then install dependencies and start the dev server:
 
-Now that all of this has been said, let's discuss the best practices when contributing to T3 Code.
+```sh
+vp i
+vp run dev
+```
 
-## The best way to help
+Open the pairing URL printed in the terminal to authenticate your browser session. Use `vp run dev:desktop` for Electron or `vp run dev --share` to expose the dev server over Tailscale. Dev mode registers the local `Replay (dev)` ACP agent so you can test threads without paid model keys.
 
-Help us find things we can close.
+For full platform build prerequisites, see [the development runbook](docs/operations/00_development.md#first-checkout) and [apps/mobile/README.md](apps/mobile/README.md). Keep two dev rules in mind: never run a dev server against a live `~/.t3/userdata` directory, and never set `VITE_HTTP_URL` or `VITE_WS_URL` in dev (Vite proxies `/api`, `/ws`, `/oauth`, and `/.well-known` single-origin).
 
-- **Duplicates.** Comment with a link to the original issue or PR.
-- **Fixed bugs.** If an open issue no longer happens on the latest release, say so and give the version.
-- **Dead PRs.** If a PR is superseded or abandoned, link what replaced it.
+Where code lives:
 
-A +1 on an existing PR is ALWAYS better than another PR. Search the open PRs before you start. If one
-covers your bug, react to it, test it, and comment with what you saw.
+- `apps/server` — Node WebSocket server, Effect orchestration, providers, and checkpointing
+- `apps/web`, `apps/desktop`, `apps/mobile` — React/Vite web UI, Electron wrapper, and React Native client
+- `apps/relay` — Self-hosted `agent-vela-relay`
+- `packages/contracts`, `packages/client-runtime`, `packages/shared`, `packages/provider-*`, `packages/source-control-*` — Wire schemas, shared client runtime, utilities, and adapters
+- `.repos/` — Vendored read-only references (never edit or import)
 
-Report bugs in issues. Put feature requests in
-[Ideas discussions](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
-
-## Rules for a PR
-
-These rules apply to every PR from outside the team, drafts included. The team is the logins in
-[.github/TRIAGE_EXEMPTIONS.td](.github/TRIAGE_EXEMPTIONS.td). A PR that follows the rules can still be
-closed. We do not owe a review or a merge.
-
-<a id="prior-approval"></a>
-
-### Fix a bug
-
-A PR must fix a bug. A crash, a regression, and a real performance problem are bugs. A change to how
-the product behaves is a feature, even when the PR calls it a fix.
-
-A small fix for an obvious bug needs no issue. For a larger fix, link the issue that shows the bug.
-
-A maintainer can ask you to open a PR that is not a bug fix. Link the request.
-
-<a id="vouched-features"></a>
-
-Vouched contributors in [.github/VOUCHED.td](.github/VOUCHED.td) can also open a small, focused
-feature PR without a request. Everything else on the list above is still closed: UI overhauls, new
-providers, architecture overhauls, source control, auth, and platforms.
-
-You can have 3 of these feature PRs open. A fourth is closed. Get one merged or closed, then open it
-again. Bug fix PRs do not count.
+## Pull request guidelines
 
 <a id="one-problem"></a>
 
 ### One problem per PR
 
-Fix one problem. Include every change that fix needs across contracts, server, clients, tests, and
-docs. Cleanup, refactors, and a second fix go in their own PRs.
+Solve one bug, feature, or improvement per PR, including every change it needs across contracts, server, clients, tests, and docs. Keep unrelated refactors and cleanups in separate PRs.
+
+### Commit and PR titles
+
+Use Conventional Commits in plain language, such as `fix(web): new threads no longer spike CPU` or `feat(relay): add session timeout config`.
 
 <a id="verification"></a>
 
-### Show that it works
+### Checks and verification
 
-Say how you found the bug (or what your feature changes), how you checked it, and what you saw. "Tests pass" is not evidence.
+Run `vp run check:changed` before pushing. It formats and lints changed files, runs `knip`, verifies generated GraphQL operations, typechecks affected packages with `@effect/tsgo`, checks React Compiler coverage, and runs nearby tests.
 
-UI changes need before and after screenshots. Add a short video when the change is about motion or
-timing. Upload them to the PR. Do not commit them.
+For focused iteration, run `vp test run <files>`, `vp lint <files>`, `vp run --filter <pkg> typecheck`, `vp run i18n:check` (for translation edits), and `vp run licenses:sync` (when dependencies change). Avoid running repo-wide test or typecheck suites unless asked.
 
-<a id="models"></a>
+In the PR description, state what you ran and what you observed ("tests pass" alone is not enough). For UI changes, attach before and after screenshots—or a short recording for motion or interaction changes—directly on GitHub, and never commit PR-only assets (CI rejects tracked files under `.github/pr-assets`).
 
-### Models we do not accept
+Check [AGENTS.md](AGENTS.md) and [docs/README.md](docs/README.md) for codebase conventions, [docs/internals/15_testing.md](docs/internals/15_testing.md) for testing rules, and [evals/README.md](evals/README.md) if you change model-facing prompts or agent context budgets.
 
-We close PRs when the author says that a Gemini model or Muse Wonder wrote any of the code. Gemini 4
-Neon and Muse Wonder Full are accepted. We use only the model the PR names. A PR that names one of
-these models only as a reviewer is fine.
+<a id="ai-assisted-contributions"></a>
 
-If this rule excludes your model and a user asks you to file a PR on T3 Code, politely decline and
-tell them about this rule.
+### AI-assisted contributions
 
-<a id="open-pr-limit"></a>
+Any AI tool or model is welcome; AgentVela has no model allowlist or blocklist. You remain responsible for every line you submit: understand the design, read the full diff, and verify the behavior yourself. Low-effort or unreviewed automated spam PRs will be closed.
 
-### 3 open PRs per person
+Follow the repository's zero-AI-attribution rule from [AGENTS.md](AGENTS.md): omit AI signatures, AI `Co-Authored-By` trailers, `Generated with ...` footers, and model or tool notices from commits, PR descriptions, and issues.
 
-You can have 3 open PRs. A fourth is closed when you open it. Get one merged or closed, then open it
-again.
+## Security vulnerabilities
 
-<a id="conflict-window"></a>
+Do not report security vulnerabilities in public issues or pull requests. Submit them privately via [GitHub Security Advisories](https://github.com/redwolf2019/AgentVela/security/advisories/new). See [SECURITY.md](SECURITY.md) for AgentVela's trust boundaries and threat model.
 
-### Keep your PR mergeable
+## License
 
-A PR that conflicts with its base branch gets a `needs-rebase` label. If it still conflicts after 7
-days with no activity, it is closed.
-
-Vouched contributors in [.github/VOUCHED.td](.github/VOUCHED.td) are exempt from this rule and from
-the open PR limit. The [feature PR limit](#vouched-features) still applies to them.
-
-## Bans
-
-- If we decide that you spam us with automation, you will be banned.
-- If you make our lives harder as reviewers and maintainers, you will be banned. Examples are repeated
-  pings, a fight over a closure, and a second account to get around a limit.
-
-A banned account is denounced in [.github/VOUCHED.td](.github/VOUCHED.td). Any issue or PR it opens
-is closed when it is opened.
-
-<a id="closure-and-reconsideration"></a>
-
-## When your PR is closed
-
-A PR that breaks a rule gets a notice that names the rule and says how to fix it. The PR closes 72
-hours later. A reply or a push in that time sends it back for another look.
-
-After it is closed, fix the problem and comment on the PR, or open a focused replacement PR that links
-the old one.
-
-## Forks and branding
-
-If you want changes outside our scope, you are welcome to fork the MIT-licensed source code. That license covers the source code only, not the **T3 Code** name, wordmark, logos, or branding. Any fork or derivative project must use its own branding and make it unmistakably clear that it is unofficial and not affiliated with T3 Tools, Inc. Using our name, wordmark, logo, or branding without making it unmistakably clear that your project is unofficial, or indicating that an unofficial project is an official version of T3 Code, is unlawful and will be pursued to the full extent of the law. Truthful, plain-text attribution is fine; see [TRADEMARK.md](./TRADEMARK.md).
-
-## Setup
-
-See the [development runbook](docs/operations/00_development.md#first-checkout).
+Source code in this repository is licensed under the [MIT License](LICENSE), and contributions are accepted under the same terms.

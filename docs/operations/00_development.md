@@ -12,7 +12,7 @@ curl -fsSL https://vite.plus | bash
 On Windows, clone with long paths enabled so `.repos/` checks out cleanly:
 
 ```powershell
-git clone -c core.longpaths=true https://github.com/pingdotgg/t3code.git
+git clone -c core.longpaths=true https://github.com/redwolf2019/AgentVela.git
 ```
 
 From the repository root:
@@ -24,17 +24,9 @@ vp run dev
 
 Open the pairing URL printed by the dev runner (the bare origin does not authenticate a new browser). Prefer a container? See [Dev container](./01_devcontainer.md).
 
-## Forge mirror (optional)
+## Repository and upstream sync
 
-GitHub is the source of truth; [source.tanstack.com/@pingdotgg/t3code](https://source.tanstack.com/@pingdotgg/t3code) is a two-way mirror for parallel agent work:
-
-```sh
-git remote set-url origin https://source.tanstack.com/@pingdotgg/t3code.git
-git remote add github https://github.com/pingdotgg/t3code.git
-src auth login --web && src auth setup-git
-```
-
-With `origin` on the mirror, use `src` instead of `gh`. PRs into `main` still merge on GitHub, and numbers can differ between forges—use the GitHub number in text that reaches GitHub.
+`origin` points to `https://github.com/redwolf2019/AgentVela.git`. AgentVela is maintained independently, occasionally syncing selected upstream improvements when useful.
 
 ## Running dev servers
 

@@ -9,13 +9,9 @@
 [English](./README.md) · **简体中文**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Status: Independent Fork](https://img.shields.io/badge/Status-Independent%20Fork-orange.svg)](#来源声明与致谢)
 [![Issues](https://img.shields.io/github/issues/redwolf2019/AgentVela)](https://github.com/redwolf2019/AgentVela/issues)
 
 </div>
-
-> [!NOTE]
-> **AgentVela** 是基于 T3 Code（MIT 开源协议）源码独立演进的**非官方开源衍生项目**，与 T3 Tools, Inc. 无任何关联、背书或隶属关系。详见[来源声明与致谢](#来源声明与致谢)。
 
 ## 项目简介
 
@@ -105,7 +101,7 @@ vp run dist:desktop:win    # Windows NSIS
 
 ## 文档导航
 
-> `docs/` 目录下部分文档继承自上游仓库，后续将逐步按 AgentVela 的实际演进完成更新。
+> `docs/` 目录下部分参考文档仍在逐步按 AgentVela 的实际演进更新中。
 
 - [开发与本地构建手册](./docs/operations/00_development.md)
 - [架构总览](./docs/internals/01_architecture.md)
@@ -121,6 +117,7 @@ vp run dist:desktop:win    # Windows NSIS
 
 欢迎提交 Issue、建议和 Pull Request：
 
+- 提交代码前，请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)，了解贡献规范、PR 范围与验证要求。
 - 问题反馈与功能建议请前往 [GitHub Issues](https://github.com/redwolf2019/AgentVela/issues)。
 - 提交代码前，请先参考 [开发手册](./docs/operations/00_development.md) 完成环境配置，并运行 `vp run check:changed` 确保检查通过。
 
@@ -128,8 +125,6 @@ vp run dist:desktop:win    # Windows NSIS
 
 本仓库源代码基于 [MIT License](./LICENSE) 开源。
 
-## 来源声明与致谢
+## 致谢
 
-AgentVela 是基于 [T3 Code](https://github.com/pingdotgg/t3code) 的 MIT 开源代码创建的**独立、非官方衍生项目**。AgentVela **与 T3 Tools, Inc. 没有任何隶属、合作或官方背书关系**；T3 Code 相关的名称、Logo 及商标均归 T3 Tools, Inc. 所有。
-
-在此衷心感谢 T3 Code 的维护者与所有开源贡献者——感谢他们以 MIT 协议开源了如此优秀、克制且高性能的基础架构，让社区能够在此之上自由探索与演进。AgentVela 得以启航，离不开你们的开放精神与卓越工作。
+AgentVela 由本项目独立维护，并会根据需要偶尔同步部分上游改进。项目最初基于 MIT 开源协议的 [T3 Code](https://github.com/pingdotgg/t3code) 代码库演进而来。

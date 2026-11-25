@@ -21,5 +21,5 @@
 Codespaces prebuilds bake in `onCreateCommand` and `updateContentCommand` automatically. Note that prebuild snapshots exclude named caching volumes, so a prebuild-first workflow may prefer dropping the volume mounts. Outside Codespaces, push a prebuilt image with:
 
 ```bash
-devcontainer build --workspace-folder . --push true --image-name <registry>/t3code-devcontainer:latest
+devcontainer build --workspace-folder . --push true --image-name <registry>/agentvela-devcontainer:latest
 ```

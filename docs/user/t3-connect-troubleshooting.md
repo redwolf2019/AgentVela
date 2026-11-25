@@ -1,172 +1,71 @@
-# T3 Connect troubleshooting
+# Self-hosted relay troubleshooting
 
-A T3 Connect connection goes through four parts, in this order:
+A self-hosted relay connection goes through four parts, in this order:
 
-1. **This device** reaches T3 Connect over the internet.
-2. **T3 Connect** checks your sign-in and the host's link.
-3. **The host's tunnel** (cloudflared on the host) carries the request to the host.
-4. **T3 Code on the host** answers.
+1. **This device** reaches your `agent-vela-relay` server over HTTPS or WSS.
+2. **Your relay (`agent-vela-relay`)** verifies your relay session and forwards requests to the host's tunnel.
+3. **The host's outbound WSS tunnel** (`/v1/tunnel/connect`, run in-process by `RelayTunnelClient`) carries the stream to the host.
+4. **AgentVela on the host** (`apps/server`) verifies DPoP proofs and answers.
 
-When a connection fails, open **Settings > Environments**, find the environment,
-and select **Details**. The first part marked as failed is the cause. Find its
-section below.
+When a connection fails, open **Settings → Environments**, find the environment, and select **Details**. The first step marked as failed points to the cause.
 
-To see the host's side, run `t3 connect status` on the host, or open
-**Settings > Sharing & access** on the host. Both check the host's T3 Connect
-address from the host, and say why it fails. `t3 connect` runs the same check
-when it finishes setup. This check cannot test another device's network. For a
-problem on one device, use **Details** on that device.
+On the host, run `t3 relay status` (or `t3 relay status --json`) to inspect local registration (`linked`, `relayUrl`, `endpoint`) and tunnel state (`connected`, `reconnecting`, `disconnected`, `runId`, `rttMs`, `activeStreams`, `lastError`).
 
 ## The host's tunnel is offline
 
-T3 Connect could not reach the host's tunnel. This means one of these:
+The relay does not have an active outbound tunnel from the host. Common causes:
 
-- The host is asleep, turned off, or offline.
-- T3 Code is not running on the host.
-- The host's network blocks the tunnel. See
-  [Port 7844 is blocked on the host](#port-7844-is-blocked-on-the-host).
-
-Fix:
-
-1. Make sure the host is awake and T3 Code runs on it.
-2. On the host, run `t3 connect status`. It names the problem on the host's side.
-3. If the host was offline for a long time, T3 Connect removes its tunnel. Start
-   T3 Code on the host and update it to the latest version. It gets a new tunnel.
-
-## Port 7844 is blocked on the host
-
-The tunnel on the host connects out to Cloudflare on port 7844, with TCP and
-UDP. Both tunnel protocols (QUIC and HTTP/2) use this port. When the host's
-network blocks it, the tunnel cannot start, but normal web traffic still works.
-The host looks online, so this problem is easy to miss.
-
-Common causes:
-
-- **A Tailscale exit node on the host.** All of the host's internet traffic goes
-  through the exit node, and that network blocks port 7844. Turn off the exit
-  node on the host with `tailscale set --exit-node=`, or allow outbound port
-  7844 on the exit node's network.
-- **A VPN on the host.** Work VPNs often block unknown ports. Ask for port 7844
-  to be allowed, or use a direct route instead (see below).
-- **A firewall or strict network.** Allow outbound TCP and UDP port 7844.
-
-If you cannot unblock the port, you can connect without T3 Connect. When the
-host and this device are on the same Tailscale network, add the host's
-Tailscale address as a direct route. See
-[Reach one machine several ways](./remote-access.md#reach-one-machine-several-ways).
-
-## The tunnel works, but T3 Code does not answer
-
-The host's tunnel is up, but it cannot reach T3 Code on the host. Common causes:
-
-- T3 Code on the host stopped, crashed, or is still starting.
-- T3 Code restarted on a different port, for example after an update, and the
-  tunnel still points at the old port.
-- The server binds only one network address with `T3CODE_HOST`. The tunnel
-  sends requests to `127.0.0.1`, so the server must also listen there.
-
-Fix: restart T3 Code on the host. For the background service, run
-`t3 service restart`. Then run `t3 connect status` on the host.
-
-## The T3 Connect address does not resolve or answer
-
-The host's T3 Connect address did not resolve, refused the connection, failed a
-secure (TLS) connection, or did not answer in time.
+- The host is asleep, powered off, or disconnected from the internet.
+- AgentVela (`apps/server` or desktop app) is not running on the host.
+- Outbound WSS traffic from the host to `<relay-url>/v1/tunnel/connect` is blocked by a firewall, proxy, or exit node.
 
 Fix:
 
-1. Make sure the host is awake and online.
-2. On the host, run `t3 connect status`.
-3. If the check fails only on the host, check the host's DNS, VPN, or proxy.
-   If it says the host's network has an old cached answer, wait: it usually
-   clears within about 30 minutes.
-4. If it says the address no longer points to this machine's tunnel, the
-   environment was likely removed from T3 Connect. Link it again: on a desktop
-   host, turn **T3 Connect** off and on in **Settings > Sharing & access**. On a
-   command-line host, run `t3 connect link`, then restart T3 Code.
+1. Make sure the host is awake and AgentVela is running.
+2. On the host, run `t3 relay status` to see `lastError` and reconnect backoff state.
+3. On the relay server, verify `GET https://<your-relay-domain>/health` returns HTTP 200 and run `agent-vela-relay admin tunnels list --url <relay-url> --token <admin-token>` (or check the Admin panel in Web/Desktop Settings).
+4. If you cannot reach the relay from a restricted network, add a direct route such as a LAN or Tailscale address. See [Reach one machine several ways](./remote-access.md#reach-one-machine-several-ways).
 
-## This device can't reach T3 Connect
+## Streams hang or WebSocket connections drop
 
-The problem is on this device's network, not on the host. This device could
-not reach T3 Connect, or it reached T3 Connect but not the host's tunnel
-address.
+When `/v1/events` or `/e/:endpointKey/...` streams stall behind a reverse proxy:
 
-Fix:
+- **Caddy:** ensure `flush_interval -1` is set in [`apps/relay/Caddyfile`](../../apps/relay/Caddyfile).
+- **Nginx:** ensure `proxy_buffering off`, `Upgrade` / `Connection` WebSocket headers, and long `proxy_read_timeout` / `proxy_send_timeout` values (e.g. `3600s`) are configured as shown in [Self-Hosted Relay Setup](../operations/02_connect-setup.md).
+- **Rate limits (`429`):** check `[rate_limit]` thresholds and ensure `[server].trust_proxy = true` in `relay.toml` when running behind Caddy or Nginx so limits apply per client IP rather than the proxy IP.
 
-1. Check this device's internet connection. On a captive or dead Wi-Fi network,
-   the device can look online but cannot reach anything.
-2. A VPN, firewall, ad blocker, or DNS filter on this device can block T3
-   Connect. Turn it off for a moment to test.
-3. On iPhone, Connectivity Assist in the Wi-Fi settings can break T3 Connect.
-   Turn it off to test.
-4. Try another network, or add a direct route to the host, such as its
-   Tailscale address. See
-   [Reach one machine several ways](./remote-access.md#reach-one-machine-several-ways).
+## The tunnel works, but AgentVela does not answer
+
+The host is connected to the relay, but requests to the local server fail or time out. Common causes:
+
+- AgentVela on the host crashed, stopped, or is still starting.
+- A stale tunnel session was left open after an ungraceful disconnect.
+
+Fix: restart AgentVela on the host (`t3 service restart` for the background service), then run `t3 relay status`. If an older session is stuck on the relay, kick it with `agent-vela-relay admin tunnels kick <environmentId> --token <admin-token>` (or click disconnect in the Admin panel).
 
 ## Sign-in, account, or link problems
 
-This device's T3 Connect sign-in is not ready yet, or T3 Connect does not have
-an active link between your account and the host.
+- **The host is linked to a different relay user or server.** On the host, run `t3 relay unlink` and `t3 relay logout`, then `t3 relay login --url <relay-url>` and `t3 relay link`.
+- **The relay URL is rejected on HTTP.** Public domains and public IPs require `https://`. Plain `http://` is permitted only for loopback (`localhost`, `127.0.0.1`), RFC1918 LAN addresses, and Tailscale ranges.
+- **The host is waiting for device approval.** If `requireConnectDeviceApproval` is enabled, approve the displayed code from an already-connected device or run `t3 auth connect-device approve <code>` on the host. See [Approve new devices](./remote-access.md#approve-new-devices).
+- **Clock skew breaks DPoP or Ed25519 proofs.** Turn on automatic date and time on both client and host machines.
 
-- **The host is linked to a different account.** Sign in to the same T3 Connect
-  account on this device and on the host. On the host, run `t3 connect logout`,
-  then `t3 connect`.
-- **T3 Connect is off on the host, or the host only publishes agent activity.**
-  On the host, open **Settings > Sharing & access** and turn **T3 Connect** on, or
-  run `t3 connect`.
-- **The host was linked, but the server did not apply the link yet.** Restart
-  the server on the host: quit and reopen the T3 Code desktop app, run
-  `t3 service restart`, or stop `t3 serve` and run it again.
-- **This device's sign-in expired, or the host no longer accepts this
-  device.** Sign out of T3 Connect and sign in again.
-- **This device is still loading its T3 Connect sign-in.** Wait a moment;
-  T3 Code retries on its own. If it keeps waiting, reload or restart T3 Code on
-  this device.
-- **The host is waiting for you to approve this device.** The host requires
-  approval for new devices. Approve the code this device shows from a device
-  that is already connected, or run `t3 auth connect-device approve <code>` on
-  the host. See [Approve new devices](./remote-access.md#approve-new-devices).
-- **Your account reached its tunnel limit.** Remove an environment you do not
-  use from your T3 account's T3 Connect page, or
-  [link a paid T3 Chat account](./remote-access.md#more-machines-with-t3-chat)
-  for a higher limit. Then restart T3 Code on the host.
+## Common relay errors
 
-## The clock is off
+| Error                                | Fix                                                                                                                            |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `auth_invalid` or `invalid_bearer`   | Run `t3 relay login --url <relay-url>`. If the host link was revoked, run `t3 relay unlink` then `t3 relay link`, and restart. |
+| Expired or invalid link proof        | Sync date/time on host and relay, then run `t3 relay status`.                                                                  |
+| HTTP 403 on an environment route     | Approve the new device key if device approval is enabled, or check whether the user/session was disabled in the Admin panel.   |
+| HTTP 429 on login or proxy           | Check `[rate_limit]` and `trust_proxy = true` in `relay.toml`.                                                                 |
+| `502 Bad Gateway` from reverse proxy | Confirm `agent-vela-relay` is running on its configured `bind` port (`GET /health`).                                           |
 
-T3 Connect signs requests with short-lived proofs. When the clock on this
-device or the host is a few minutes wrong, T3 Connect rejects them. Turn on
-automatic date and time on both devices, then retry.
-
-## The host runs an older T3 Code
-
-This app needs a newer T3 Code on the host. Update T3 Code on the host. See
-[Updating T3 Code](./updating.md).
-
-## T3 Connect returned an error
-
-| Error                                                     | Fix                                                                                                                                                                                                  |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `environment_link_limit_exceeded` or managed tunnel limit | Remove an unused environment or link a paid T3 Chat account, then restart T3 Code on the host.                                                                                                       |
-| `auth_invalid` or `invalid_bearer`                        | Run `t3 connect login`. If credentials were revoked, run `t3 connect logout`, then `t3 connect` again. Restart the server after signing in.                                                          |
-| Expired or invalid link proof                             | Check the host's date and time, update T3 Code, then restart it.                                                                                                                                     |
-| HTTP 403 without a recognized error                       | If the host requires approval for new devices, update T3 Code on this device and approve it. Otherwise check relay access, proxies, and firewall rules. Keep any Cloudflare Ray ID for a bug report. |
-| HTTP 408, 429, or 5xx                                     | Wait a few minutes. T3 Code retries temporary failures on its own.                                                                                                                                   |
-
-After you fix a permanent rejection, restart the host's server with
-`t3 service restart`. For a foreground server, stop it and run `t3 serve` again.
-
-If T3 Code on the host disappears when SSH closes, see
-[background-service troubleshooting](./background-service.md#troubleshooting).
+If AgentVela stops on the host when SSH disconnects, see [background-service troubleshooting](./background-service.md#troubleshooting).
 
 ## Report a problem
 
-If none of this helps, open an issue on
-[GitHub](https://github.com/pingdotgg/t3code/issues). Include:
+If none of this helps, open an issue on [GitHub](https://github.com/redwolf2019/AgentVela/issues). Redact tokens, passwords, and private URLs, and include:
 
 - The text from **Copy diagnostics** in the environment's **Details**.
-- The output of `t3 connect status` on the host.
-- The trace ID, if one is shown.
-- If the tunnel dropped earlier, the host's tunnel log, `relay-client.ndjson`
-  in the logs folder (`~/.t3/userdata/logs` by default). It records when the
-  tunnel connected, warned, exited, and restarted, with the tunnel token
-  removed.
+- The output of `t3 relay status` on the host and `GET /health` from the relay.
+- Relevant logs from `relay.sqlite` host status (`journalctl -u agent-vela-relay` or `docker compose logs relay`) and `~/.t3/userdata/logs/server.trace.ndjson` on the host.

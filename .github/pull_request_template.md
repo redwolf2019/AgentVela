@@ -1,34 +1,30 @@
 <!--
-Read CONTRIBUTING.md before opening a PR. Review capacity is limited, and meeting
-the requirements does not guarantee review or merging. Solve one underlying problem.
-The same requirements apply to drafts. Draft status does not defer triage or closure.
-Use a conventional commit title in plain language, such as "fix(web): new threads no longer spike CPU".
+Read CONTRIBUTING.md before opening a PR. Keep each PR focused on one underlying problem.
+Use a Conventional Commit title in plain language, such as "fix(web): new threads no longer spike CPU".
+Omit AI attribution footers, model notices, or AI Co-Authored-By trailers.
 -->
 
 ## Problem
 
-<!-- Explain the problem in a sentence or two. Include expected behavior and
-reproduction steps or environment where relevant. -->
+<!-- Explain the bug or motivation in a sentence or two. Include expected behavior and
+reproduction steps or environment details where relevant. -->
 
 ## Change
 
-<!-- Explain how this fixes the problem. If it spans components or clients,
-explain why those changes are needed for the same fix. Split independent fixes. -->
+<!-- Explain how this change addresses the problem. If it spans multiple packages or
+clients, explain why those edits belong in the same PR. -->
 
 ## Scope
 
-<!-- We accept bug fixes, not features. Link the issue that shows the bug. For a
-small fix of an obvious bug, say why it needs no issue. If a maintainer asked for
-this PR, link the request. -->
+<!-- Note whether this is a bug fix, feature, docs/i18n update, or maintenance change, and
+link any related issue (recommended before writing code for larger features or
+architecture changes). -->
 
 ## Verification
 
-<!-- Describe the focused tests or manual checks you ran and the observed results
-for the changed behavior. State anything you could not check. "Tests pass" alone
-is insufficient; broad repo-wide checks are not required.
+<!-- Run `vp run check:changed` and list the focused tests or manual checks you ran
+alongside what you observed. State anything you could not verify. "Tests pass" alone is
+not enough.
 
-For UI changes, include clear before/after screenshots. Include a short recording
-when motion, timing, transitions, or interaction details are needed to demonstrate
-the change. Upload evidence to GitHub and embed or link it here. Never commit PR-only assets. -->
-
-<!-- If you used an agent, end with the model and harness that did the work. -->
+For UI changes, attach before and after screenshots (or a short recording for motion or
+interaction changes) directly in GitHub. Never commit PR-only media assets. -->
