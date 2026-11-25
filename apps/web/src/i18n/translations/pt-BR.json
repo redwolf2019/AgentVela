@@ -8861,7 +8861,6 @@
   "a9cdd8c7073be920": "Paleta de comandos: alternar",
   "4e0943e8c7a465d1": "Seletor de arquivos: alternar",
   "df5fdcdf26a6b52a": "Pesquisa no projeto: alternar",
-  "a8ff6d33b060736f": "Uso: abrir",
   "a513d51b71b95674": "Tema: selecionar",
   "1ffd8427452372e1": "Aparência: alternar ciclicamente",
   "3a3bb4a7551a87cc": "Editor de temas: alternar",
@@ -12867,5 +12866,79 @@
   "27d76249d09eb69f": "Guia de revisão pronto",
   "faa3bb26abb39c93": "O guia de revisão falhou",
   "b7df38b7d8792d78": "Abrir guia",
-  "9e91e9a77b664e4e": "Não foi possível iniciar um guia de revisão"
+  "9e91e9a77b664e4e": "Não foi possível iniciar um guia de revisão",
+  "90dfebe26eb86b2d": "Opções de seleção da página",
+  "0ca6fd2b8fcab2c3": "Uso: Mostrar ou ocultar",
+  "a4579e548b768663": "Mostrar barra lateral",
+  "7150557773b3818b": "Na fila",
+  "efbeb3993ee2c3f5": "Na fila de {pool}",
+  "0398ca6c1d24b92d": "na fila, o próximo",
+  "0af6d5ffd5166214": "{count, plural, one {na fila, {count} à frente} other {na fila, {count} à frente}}",
+  "49be26a27dcb30e5": "na fila",
+  "4e96712d839ccbff": "{who} disse {choice}",
+  "19097cfb8f5a79cf": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " disse",
+    " ",
+    {
+      "t": "span",
+      "i": 2,
+      "c": {
+        "i": 3,
+        "k": "_gt_value_3",
+        "v": "v"
+      }
+    },
+    "."
+  ],
+  "e7bbf693910057bf": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " disse",
+    " ",
+    {
+      "t": "span",
+      "i": 2,
+      "c": {
+        "i": 3,
+        "k": "_gt_value_3",
+        "v": "v"
+      }
+    },
+    ": ",
+    {
+      "i": 4,
+      "k": "_gt_value_4",
+      "v": "v"
+    }
+  ],
+  "3759768c5d342c22": [
+    "respondida",
+    " ",
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    }
+  ],
+  "e114d37b32ab0dc7": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " precisa de um motivo."
+  ],
+  "91aadfc843c600de": "Verificar conta Google",
+  "201490988858b511": "retirada por {by}",
+  "99451a5d2d40440f": "Retirada por {by}.",
+  "3ee30a50b70fffab": "Retirada por {by}: {reason}",
+  "92e129bf413a1220": "retirada"
 }
