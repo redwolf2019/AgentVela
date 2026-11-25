@@ -1,121 +1,133 @@
-<p align="center">
-  <a href="https://t3.codes">
-    <img src="./assets/prod/t3-black-web-icon-192x192.png" width="80" height="80" alt="T3 Code logo" />
-  </a>
-</p>
+<div align="center">
 
-<h1 align="center">T3 Code</h1>
+# AgentVela
 
-<p align="center">The open-source control plane for coding agents.</p>
+**An open-source, cross-platform command center for AI coding agents.**
 
-<p align="center">
-  <a href="https://t3.codes/download"><strong>Download</strong></a> ·
-  <a href="https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824">iOS</a> ·
-  <a href="https://play.google.com/store/apps/details?id=com.t3tools.t3code">Android</a> ·
-  <a href="https://app.t3.codes">Web</a> ·
-  <a href="./docs/README.md">Docs</a> ·
-  <a href="https://discord.gg/jn4EGJjrvv">Discord</a>
-</p>
+Run, orchestrate, and control multiple coding agents across local and remote machines through one fast, unified interface.
 
-<p align="center">
-  <a href="https://t3.codes">
-    <img src="./.github/readme/hero.webp" width="100%" alt="T3 Code on desktop with a finished Claude thread, next to the phone app asking to approve a command from Codex" />
-  </a>
-</p>
+**English** · [简体中文](./README.zh-CN.md)
 
-T3 Code runs the coding agents on your machine and gives them one fast interface. Start a thread at your desk, then approve the next step from your phone.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Status: Active Fork](https://img.shields.io/badge/Status-Independent%20Fork-orange.svg)](#attribution--acknowledgments)
+[![Issues](https://img.shields.io/github/issues/redwolf2019/AgentVela)](https://github.com/redwolf2019/AgentVela/issues)
 
-It works with Claude Code, Codex, Cursor, OpenCode, Grok Build, Antigravity, Kiro, Pi, Muse Code, fx, and any [ACP](./docs/user/providers-acp.md) agent. If an agent is set up on your computer, T3 Code can control it.
+</div>
 
-## What you get
+> [!NOTE]
+> **AgentVela** is an independent, unofficial open-source project forked from the MIT-licensed source code of T3 Code. It is not affiliated with, endorsed by, or maintained by T3 Tools, Inc. See [Attribution & Acknowledgments](#attribution--acknowledgments).
 
-- **Your subscriptions.** T3 Code does not resell tokens. It drives the agents you are already signed in to.
-- **Every agent in one place.** Change models in the middle of a thread. Let Claude hand a task to Codex.
-- **Desktop, web, and phone.** One server, and every client shows the same threads. There are apps for iOS and Android.
-- **Remote ready.** Run agents on any machine. Connect over your local network, Tailscale, or [T3 Connect](./docs/user/remote-access.md).
-- **Git built in.** Each thread can work in its own worktree. Review the diff, then commit, push, and open a pull request with one button.
-- **Fast.** Performance is a feature here. We measure it, and we treat a dropped frame as a bug.
-- **Open.** Source code is MIT licensed. If you don't like something, fork it under your own branding (see [Trademarks and forks](#trademarks-and-forks)).
+## Overview
 
-## Install
+AgentVela runs local and remote coding agents behind a single Node WebSocket control plane and gives them a unified interface across desktop, web, and mobile. Start a task at your desk, switch models or agents mid-thread, review diffs in isolated Git worktrees, and keep working from another machine or phone.
 
-### Desktop app
+It supports **Claude Code**, **Codex**, **Cursor**, **OpenCode**, **Grok Build**, **Antigravity**, **Kiro**, **Pi**, **Muse Code**, **fx**, and any [ACP (Agent Client Protocol)](./docs/user/providers-acp.md) agent installed on your machine.
 
-[Download T3 Code](https://t3.codes/download) for macOS, Windows, or Linux. You can also use a package manager:
+## Features
 
-| Platform       | Command                                                              |
-| -------------- | -------------------------------------------------------------------- |
-| macOS          | `brew install --cask t3-code`                                        |
-| Windows        | `winget install T3Tools.T3Code` or `scoop install extras/t3code`     |
-| Arch Linux     | `yay -S t3code-bin`                                                  |
-| Nix            | `nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code`         |
-| Debian, Ubuntu | `.deb` from [Releases](https://github.com/pingdotgg/t3code/releases) |
+- **Bring your own subscriptions.** AgentVela does not resell tokens—it drives the agent CLIs and accounts you are already signed in to.
+- **Multi-agent workspace.** Manage multiple coding agents in one place, switch models mid-thread, and hand off work between agents.
+- **Cross-platform architecture.** Built as a shared server powering Desktop (Electron), Web (React/Vite), and Mobile (React Native) clients over WebSockets.
+- **Self-hosted & remote ready.** Run agents on any machine and connect over your local network, SSH, Tailscale, or your own relay setup.
+- **Git built in.** Run threads in isolated Git worktrees, inspect diffs, and handle commits, pushes, and pull requests directly from the UI.
+- **Extensible via ACP & MCP.** Plug in any ACP-compatible agent or connect external agents and tools over MCP.
+- **Performance focused.** Designed for low-latency streaming, bounded wire payloads, and smooth rendering even under heavy agent output.
 
-### Command line
+## Project Status & Roadmap
 
-This installs the `t3` command. Run `t3` to start the server and open the web app.
+AgentVela is in early independent development. Right now, the repository builds and runs directly from source while we establish AgentVela's own direction and infrastructure.
+
+Near-term priorities:
+
+- **Brand & identity.** Dedicated AgentVela icons, visual assets, and fully updated documentation.
+- **Distribution & releases.** Prebuilt desktop installers (macOS, Windows, Linux) and standalone CLI releases via GitHub Releases.
+- **Self-hosted first.** Streamlined self-hosted remote workflows with zero proprietary cloud dependencies.
+- **Multi-agent orchestration.** Deeper workflow automation and cross-agent coordination tailored to AgentVela's roadmap.
+
+## Getting Started (From Source)
+
+Prebuilt releases are not published yet. You can run AgentVela locally from source today.
+
+### 1. Prerequisites
+
+Install [Vite+](https://viteplus.dev/guide/) (`vp` automatically manages the pinned Node.js toolchain from `package.json`):
 
 ```bash
-curl -fsSL https://t3.codes/install.sh | sh
+curl -fsSL https://vite.plus | bash
 ```
 
-On Windows, in PowerShell:
+On Windows (PowerShell):
 
 ```powershell
-irm https://t3.codes/install.ps1 | iex
+irm https://vite.plus/ps1 | iex
 ```
 
-To try it once without an install, run `npx t3@latest`.
+You also need at least one coding agent CLI installed and authenticated on your machine—for example, [Claude Code](https://claude.com/product/claude-code) (`claude auth login`) or [Codex CLI](https://developers.openai.com/codex/cli) (`codex login`).
 
-### Phone
+### 2. Clone and install dependencies
 
-Get the app from the [App Store](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824) or [Google Play](https://play.google.com/store/apps/details?id=com.t3tools.t3code). Then follow [remote access](./docs/user/remote-access.md) to connect it to your computer.
+```bash
+git clone https://github.com/redwolf2019/AgentVela.git
+cd AgentVela
+vp i
+```
 
-### Sign in to an agent
+*(On Windows, clone with `git clone -c core.longpaths=true https://github.com/redwolf2019/AgentVela.git`.)*
 
-T3 Code needs one agent that is installed and signed in. For example, install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`, or install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`.
+### 3. Run in development mode
 
-[Provider setup](./docs/user/install.md#providers) has the steps for each agent. [Install T3 Code](./docs/user/install.md) covers nightly builds, AppImage, WSL, and NixOS.
+Start the local server and web app:
 
-## "Wait, what are you selling me?"
+```bash
+vp run dev
+```
 
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
+Open the pairing URL printed in the terminal to authenticate your browser session.
 
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork the source code and build the tool that you want, under your own name and branding.
+Other launch targets:
+
+- **Desktop (Electron):** `vp run dev:desktop`
+- **Share over Tailscale:** `vp run dev --share`
+- **Mobile (React Native):** see [apps/mobile/README.md](./apps/mobile/README.md)
+
+### 4. Build local desktop packages (optional)
+
+Unsigned local installers are written to `release/`:
+
+```bash
+vp run dist:desktop:dmg    # macOS
+vp run dist:desktop:linux  # Linux AppImage
+vp run dist:desktop:win    # Windows NSIS
+```
+
+See the [development runbook](./docs/operations/00_development.md) for platform build prerequisites and advanced options.
 
 ## Documentation
 
-- [Install and first run](./docs/user/install.md)
-- [Remote access from a phone or another machine](./docs/user/remote-access.md)
-- [Permission modes](./docs/user/permission-modes.md)
-- [Source control](./docs/user/source-control.md)
-- [Connect outside agents over MCP](./docs/user/outside-agents.md)
-- [FAQ](./docs/user/faq.md)
+> Some documents under `docs/` are inherited from upstream and are being progressively updated for AgentVela.
 
-[All docs](./docs/README.md) has the full list.
+- [Development & local builds](./docs/operations/00_development.md)
+- [Architecture overview](./docs/internals/01_architecture.md)
+- [ACP providers](./docs/user/providers-acp.md)
+- [Permission modes](./docs/user/permission-modes.md)
+- [Source control & worktrees](./docs/user/source-control.md)
+- [Remote access](./docs/user/remote-access.md)
+- [Outside agents (MCP)](./docs/user/outside-agents.md)
+- [All docs](./docs/README.md)
 
 ## Contributing
 
-We have limited review capacity. Small, focused fixes are the most likely to be merged. Features need an approved discussion first.
+Contributions, bug reports, and ideas are welcome:
 
-- Read [CONTRIBUTING.md](./CONTRIBUTING.md) before you report a bug or open a pull request.
-- Put feature requests in [Ideas](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
-- Build from source with the [development runbook](./docs/operations/00_development.md#first-checkout). The [architecture overview](./docs/internals/01_architecture.md) explains how it works.
-- Get help in [Discord](https://discord.gg/jn4EGJjrvv).
+- Open a bug report or feature proposal in [GitHub Issues](https://github.com/redwolf2019/AgentVela/issues).
+- Follow the [development runbook](./docs/operations/00_development.md) to set up a local checkout and run checks (`vp run check:changed`) before submitting a pull request.
 
 ## License
 
 The source code in this repository is licensed under the [MIT License](./LICENSE).
 
-## Trademarks and forks
+## Attribution & Acknowledgments
 
-The MIT license applies **only to the source code**. It does not grant any rights to T3 Tools, Inc.'s trademarks, branding, or trade dress, including the **T3 Code** name, wordmark, logos, and application icons.
+AgentVela is an **independent, unofficial fork** derived from the MIT-licensed source code of [T3 Code](https://github.com/pingdotgg/t3code). AgentVela is **not affiliated with, endorsed by, or maintained by T3 Tools, Inc.** All T3 Code names, logos, and trademarks remain the property of T3 Tools, Inc.
 
-If you fork, redistribute, or build on T3 Code's source code:
-
-- **Use your own branding.** Replace the T3 Code name, wordmark, logos, and application icons in any public fork, redistributed build, website, package, or app store listing.
-- **Be explicitly clear that your project is unofficial.** Do not use the T3 Code name, wordmark, logo, or branding in your own projects without making it unmistakably clear that your project is unofficial and not affiliated with or endorsed by T3 Tools, Inc.
-
-Using our name, wordmark, logo, or branding in a way that suggests official status or affiliation is trademark infringement and unlawful. **Any project indicating or implying that it is an official version of T3 Code when it is not will be pursued to the full extent of the law.**
-
-See [TRADEMARK.md](./TRADEMARK.md) for the full trademark and branding policy.
+We are deeply grateful to the T3 Code maintainers and open-source contributors for building such a clean, fast, and thoughtfully engineered foundation and sharing it openly with the community under the MIT License. AgentVela exists because of their generosity and commitment to open source.
