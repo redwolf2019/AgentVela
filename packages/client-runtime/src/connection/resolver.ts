@@ -43,6 +43,7 @@ import {
 } from "./compatibility.ts";
 import { credentialConnectionId } from "./routes.ts";
 import { fetchRemoteEnvironmentDescriptor } from "../environment/descriptor.ts";
+import { environmentRpcSocketUrl } from "../environment/endpoint.ts";
 
 export class ConnectionResolver extends Context.Service<
   ConnectionResolver,
@@ -68,14 +69,6 @@ const isBearerProfile = Schema.is(BearerConnectionProfile);
 const isSshProfile = Schema.is(SshConnectionProfile);
 const isBearerCredential = Schema.is(BearerConnectionCredential);
 
-function primarySocketUrl(target: PrimaryConnectionTarget): string {
-  const url = new URL(target.wsBaseUrl);
-  if (url.pathname === "" || url.pathname === "/") {
-    url.pathname = "/ws";
-  }
-  return url.toString();
-}
-
 const makePrimaryBroker = Effect.fn("clientRuntime.connection.broker.makePrimary")(function* () {
   const auth = yield* ClientCapabilities.PrimaryEnvironmentAuth;
   const remote = yield* RemoteEnvironmentAuthorization.RemoteEnvironmentAuthorization;
@@ -89,7 +82,7 @@ const makePrimaryBroker = Effect.fn("clientRuntime.connection.broker.makePrimary
         environmentId: target.environmentId,
         label: target.label,
         httpBaseUrl: target.httpBaseUrl,
-        socketUrl: primarySocketUrl(target),
+        socketUrl: environmentRpcSocketUrl(target.wsBaseUrl).toString(),
         httpAuthorization: null,
         target,
       } satisfies PreparedConnection;

@@ -1,4 +1,3 @@
-import { useAuth } from "@clerk/react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { Link } from "@tanstack/react-router";
 import { T } from "gt-react";
@@ -6,13 +5,13 @@ import { CheckIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import { APP_DISPLAY_NAME, DESKTOP_DOWNLOAD_URL } from "~/branding";
+import { openRelayAuthDialog } from "~/cloud/relayAuthDialog";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
 import { isElectron } from "../env";
 import { isLocalEnvironmentDisabled } from "../localEnvironment";
 import { useRelayEnvironmentDiscovery } from "../state/environments";
+import { useSelfHostedRelaySession } from "../state/relay";
 import { InstallT3Commands } from "./InstallT3Commands";
-import { retryClerkLoad, useClerkLoadFailed } from "./clerk/clerkLoadFailure";
-import { useT3ConnectAuthPrompt } from "./clerk/useT3ConnectAuthPrompt";
 import { CloudEnvironmentConnectRows } from "./cloud/CloudEnvironmentConnectList";
 import { Button } from "./ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
@@ -68,11 +67,8 @@ export function HostedEmptyState() {
 }
 
 function T3ConnectSteps() {
-  const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
-  const loadFailed = useClerkLoadFailed();
-  const { openAuthPrompt } = useT3ConnectAuthPrompt();
-  // Adding the first computer unmounts this screen. Wait for all health checks
-  // so every compatible registration is queued before that happens.
+  const session = useSelfHostedRelaySession();
+  const isSignedIn = session.status === "signed_in";
   const [autoAddedComputers] = useState(() => new Set<EnvironmentId>());
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<EnvironmentId>>(() => new Set());
   const discovered = [...useRelayEnvironmentDiscovery().environments.values()];
@@ -81,23 +77,19 @@ function T3ConnectSteps() {
   return (
     <>
       <SetupStep number={1}>
-        {loadFailed ? (
-          <Button size="sm" onClick={retryClerkLoad}>
-            <T>Retry sign-in</T>
-          </Button>
-        ) : isSignedIn ? (
+        {isSignedIn ? (
           <p className="flex items-center gap-1.5 text-muted-foreground">
             <CheckIcon className="size-4" />
             <T>Signed in</T>
           </p>
         ) : (
-          <Button size="sm" disabled={!isLoaded} onClick={openAuthPrompt}>
-            <T>Sign in</T>
+          <Button size="sm" onClick={() => openRelayAuthDialog()}>
+            <T>Sign in to Relay</T>
           </Button>
         )}
       </SetupStep>
       <SetupStep number={2}>
-        <RunOnComputer command="t3 connect" />
+        <RunOnComputer command="t3 relay link" />
         {isSignedIn ? (
           <div className="mt-4 space-y-1.5">
             <CloudEnvironmentConnectRows

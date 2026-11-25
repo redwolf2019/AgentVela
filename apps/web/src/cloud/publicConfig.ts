@@ -1,24 +1,8 @@
-import {
-  clerkFrontendApiHostnameFromPublishableKey,
-  relayClerkTokenOptions,
-} from "@t3tools/shared/relayAuth";
-import { normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
-import * as Schema from "effect/Schema";
+import { parseRelayUrl } from "@t3tools/shared/relayUrl";
 
-export class CloudPublicConfigMissingError extends Schema.TaggedError<CloudPublicConfigMissingError>()(
-  "CloudPublicConfigMissingError",
-  {
-    key: Schema.Literal("T3CODE_CLERK_JWT_TEMPLATE"),
-  },
-) {
-  override get message(): string {
-    return `${this.key} is not configured.`;
-  }
-}
+import { isRelayHostedWebUi } from "../hostedPairing";
 
 export interface CloudPublicConfig {
-  readonly clerkPublishableKey: string | null;
-  readonly clerkJwtTemplate: string | null;
   readonly relayUrl: string | null;
 }
 
@@ -26,54 +10,23 @@ export function trimNonEmpty(value: string | undefined): string | null {
   return value?.trim() || null;
 }
 
+export function resolveDefaultRelayUrl(): string | null {
+  const configured = trimNonEmpty(import.meta.env.VITE_T3CODE_RELAY_URL as string | undefined);
+  if (configured !== null) {
+    return parseRelayUrl(configured)?.origin ?? null;
+  }
+  if (isRelayHostedWebUi() && typeof window !== "undefined" && window.location !== undefined) {
+    return parseRelayUrl(window.location.origin)?.origin ?? null;
+  }
+  return null;
+}
+
 export function resolveCloudPublicConfig(): CloudPublicConfig {
   return {
-    clerkPublishableKey: trimNonEmpty(
-      import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined,
-    ),
-    clerkJwtTemplate: trimNonEmpty(import.meta.env.VITE_CLERK_JWT_TEMPLATE as string | undefined),
-    relayUrl: normalizeSecureRelayUrl(
-      (import.meta.env.VITE_T3CODE_RELAY_URL as string | undefined) ?? "",
-    ),
+    relayUrl: resolveDefaultRelayUrl(),
   };
 }
 
 export function hasCloudPublicConfig(): boolean {
-  const config = resolveCloudPublicConfig();
-  if (!config.clerkPublishableKey || !config.clerkJwtTemplate || !config.relayUrl) {
-    return false;
-  }
-
-  // Electron has its own auth runtime; development keys also support private browser origins.
-  if (
-    typeof window === "undefined" ||
-    window.desktopBridge !== undefined ||
-    !config.clerkPublishableKey.startsWith("pk_live_")
-  ) {
-    return true;
-  }
-
-  try {
-    // Custom Frontend API hosts use clerk.<production domain>.
-    const domain = clerkFrontendApiHostnameFromPublishableKey(config.clerkPublishableKey).replace(
-      /^clerk\./u,
-      "",
-    );
-    const { hostname, protocol, port } = window.location;
-    return (
-      protocol === "https:" &&
-      port === "" &&
-      (hostname === domain || hostname.endsWith(`.${domain}`))
-    );
-  } catch {
-    return false;
-  }
-}
-
-export function resolveRelayClerkTokenOptions() {
-  const { clerkJwtTemplate } = resolveCloudPublicConfig();
-  if (!clerkJwtTemplate) {
-    throw new CloudPublicConfigMissingError({ key: "T3CODE_CLERK_JWT_TEMPLATE" });
-  }
-  return relayClerkTokenOptions(clerkJwtTemplate);
+  return true;
 }

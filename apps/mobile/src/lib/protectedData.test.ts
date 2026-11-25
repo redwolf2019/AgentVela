@@ -46,10 +46,10 @@ vi.mock("../features/cloud/dpop", async () => ({
 }));
 vi.mock("../features/cloud/managedRelayLayer", async () => {
   const Layer = await import("effect/Layer");
-  return { layer: () => Layer.empty };
+  return { makeLayer: () => Layer.empty };
 });
 vi.mock("../features/cloud/publicConfig", () => ({
-  resolveCloudPublicConfig: () => ({ relay: { url: null } }),
+  resolveDefaultRelayUrl: () => null,
 }));
 vi.mock("@t3tools/client-runtime/rpc", async () => {
   const Layer = await import("effect/Layer");

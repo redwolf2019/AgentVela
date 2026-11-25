@@ -2,7 +2,7 @@ import { useMessages } from "gt-react";
 import { hasFeatureFlag } from "@t3tools/client-runtime/state/server";
 import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
 
-import { usePrimaryCloudLinkState } from "~/cloud/cloudLinkState";
+import { usePrimaryHostRelayStatus } from "~/cloud/hostRelayState";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
 import { isElectron } from "~/env";
 import { isLocalEnvironmentDisabled } from "~/localEnvironment";
@@ -57,11 +57,8 @@ export function useAvailableSettingsSearchItems() {
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const canMaintain = useEnvironmentScope(primaryEnvironmentId, AuthEnvironmentMaintainScope);
   const hasPeerLinkHost = usePeerLinkHosts().length > 0;
-  const cloudLinkState = usePrimaryCloudLinkState().data;
-  // Same fallback as the Connections row: older servers imply a tunnel from `linked`.
-  const managedTunnelActive =
-    cloudLinkState?.linkRevoked !== true &&
-    (cloudLinkState?.managedTunnelActive ?? cloudLinkState?.linked ?? false) === true;
+  const hostRelayStatus = usePrimaryHostRelayStatus().data;
+  const managedTunnelActive = hostRelayStatus?.linked === true;
   const localEnvironmentDisabled = isLocalEnvironmentDisabled() === true;
   const canManageLocalBackend = !localEnvironmentDisabled && canMaintain;
   const desktopWsl = useEnvironmentQuery(

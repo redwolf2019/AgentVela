@@ -4,7 +4,7 @@ import * as Effect from "effect/Effect";
 import { HttpClient, HttpClientResponse } from "effect/http";
 
 import { BearerConnectionTarget, type PreparedConnection } from "../connection/model.ts";
-import { installEnvironmentSpeechModel } from "./environment.ts";
+import { getEnvironmentSpeechStreamUrl, installEnvironmentSpeechModel } from "./environment.ts";
 
 const ENVIRONMENT_ID = EnvironmentId.make("environment-1");
 const PREPARED: PreparedConnection = {
@@ -99,6 +99,38 @@ describe("installEnvironmentSpeechModel", () => {
         Effect.provideService(HttpClient.HttpClient, client),
       );
       expect(models).toEqual([downloaded]);
+    }),
+  );
+
+  it.effect("preserves /e/:endpointKey prefixes in the speech stream websocket URL", () =>
+    Effect.gen(function* () {
+      const requestedUrls: Array<string> = [];
+      const client = HttpClient.make((request) => {
+        requestedUrls.push(request.url);
+        return Effect.succeed(
+          HttpClientResponse.fromWeb(
+            request,
+            Response.json({
+              ticket: "voice-ticket",
+              expiresAt: "2026-06-01T00:05:00.000Z",
+            }),
+          ),
+        );
+      });
+      const relayPrepared: PreparedConnection = {
+        ...PREPARED,
+        httpBaseUrl: "https://relay.example.com/e/env-1234567890abcdef",
+        socketUrl: "wss://relay.example.com/e/env-1234567890abcdef/ws",
+      };
+      const streamUrl = yield* getEnvironmentSpeechStreamUrl(relayPrepared).pipe(
+        Effect.provideService(HttpClient.HttpClient, client),
+      );
+      expect(requestedUrls).toEqual([
+        "https://relay.example.com/e/env-1234567890abcdef/api/auth/websocket-ticket/media",
+      ]);
+      expect(streamUrl).toBe(
+        "wss://relay.example.com/e/env-1234567890abcdef/ws/voice?wsTicket=voice-ticket",
+      );
     }),
   );
 });

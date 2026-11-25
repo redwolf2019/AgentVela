@@ -15,8 +15,10 @@ import {
   ProviderInstanceId,
   RunId,
   ThreadId,
+  TrimmedNonEmptyString,
   TurnItemId,
 } from "@t3tools/contracts";
+import { RelayEndpointKey } from "@t3tools/contracts/agentVelaRelay";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
@@ -38,8 +40,8 @@ import {
 } from "../attachmentStore.ts";
 import { resolveAttachmentRelativePath } from "../attachmentPaths.ts";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
-import { CloudManagedEndpointRuntime } from "../cloud/ManagedEndpointRuntime.ts";
 import * as ServerConfig from "../config.ts";
+import * as RelayTunnelClient from "../relay/RelayTunnelClient.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import { CodexProviderCapabilitiesV2 } from "../orchestration-v2/Adapters/CodexAdapterV2.ts";
 import * as CommandOutputHub from "../orchestration-v2/CommandOutputHub.ts";
@@ -76,16 +78,20 @@ const layerOrchestration = Layer.mergeAll(
   ),
 );
 
-// The Connect hostname the fake tunnel reports. Tests set it to null to simulate an unlink.
+// The relay hostname the fake tunnel reports. Tests set it to null to simulate a disconnect.
 const hostname = Ref.makeUnsafe<string | null>("env.t3.test");
-const layerConnect = Layer.mock(CloudManagedEndpointRuntime)({
-  inspectConnector: Effect.map(Ref.get(hostname), (value) => ({
-    pid: 1,
-    readyConnections: 1,
-    hostname: value,
-    origin: null,
-    protocol: "http2",
-  })),
+const layerConnect = Layer.mock(RelayTunnelClient.RelayTunnelClient)({
+  getActiveEndpoint: () =>
+    Effect.map(Ref.get(hostname), (value) =>
+      value === null
+        ? null
+        : {
+            endpointKey: RelayEndpointKey.make("0123456789abcdef"),
+            pathPrefix: TrimmedNonEmptyString.make("/e/0123456789abcdef"),
+            httpBaseUrl: TrimmedNonEmptyString.make(`https://${value}`),
+            wsBaseUrl: TrimmedNonEmptyString.make(`wss://${value}`),
+          },
+    ),
 });
 const layerProviders = Layer.mock(ProviderRegistry.ProviderRegistry)({
   getProviders: Effect.succeed([]),

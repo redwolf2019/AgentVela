@@ -4,11 +4,17 @@ import {
   AuthMcpClientAccess,
   AuthStandardClientScopes,
   type AuthCreatePairingCredentialInput,
-  type EnvironmentCloudLinkStateResult,
   EnvironmentHttpApi,
   MCP_PEER_LINK_SOFTWARE_ID,
+  NonNegativeInt,
+  TrimmedNonEmptyString,
   mcpClientScopes,
 } from "@t3tools/contracts";
+import {
+  type HostRelayStatus,
+  RelayEndpointKey,
+  RelayUserId,
+} from "@t3tools/contracts/agentVelaRelay";
 import { expect, it } from "@effect/vitest";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -23,8 +29,8 @@ import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as Schema from "effect/Schema";
 
-import * as CloudLink from "../cloud/CloudLink.ts";
 import * as ServerConfig from "../config.ts";
+import * as RelayLinkService from "../relay/RelayLinkService.ts";
 import { makeDpopKey } from "./dpop.testkit.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as ServerHttp from "../http.ts";
@@ -49,16 +55,25 @@ const layerEnvironmentAuth = EnvironmentAuth.layer.pipe(
   Layer.provideMerge(ServerEnvironment.layerIdentity),
   Layer.provide(layerConfig),
 );
-const notLinked: EnvironmentCloudLinkStateResult = {
+const notLinked: HostRelayStatus = {
   linked: false,
-  cloudUserId: null,
   relayUrl: null,
   relayIssuer: null,
-  publishAgentActivity: false,
+  userId: null,
+  endpoint: null,
+  tunnel: {
+    state: "disconnected",
+    runId: null,
+    rttMs: null,
+    activeStreams: NonNegativeInt.make(0),
+    connectedAt: null,
+    lastError: null,
+    compression: false,
+  },
 };
 const makeLayerRoutes = (
   capture: (auth: EnvironmentAuth.EnvironmentAuth["Service"]) => void,
-  linkState: EnvironmentCloudLinkStateResult,
+  linkStatus: HostRelayStatus,
 ) =>
   Layer.mergeAll(
     Layer.effectDiscard(
@@ -71,7 +86,9 @@ const makeLayerRoutes = (
           Layer.provide(McpOAuth.layer),
           Layer.provide(ServerSettings.layerTest({ linkedEnvironmentsEnabled: true })),
           Layer.provide(
-            Layer.mock(CloudLink.CloudLink)({ linkState: () => Effect.succeed(linkState) }),
+            Layer.mock(RelayLinkService.RelayLinkService)({
+              getStatus: () => Effect.succeed(linkStatus),
+            }),
           ),
         ),
       ),
@@ -813,7 +830,17 @@ it.effect(
               const response = yield* handler(at(`/oauth/mcp/authorize?${query}`));
               return { location: response.headers.get("location")!, query: query.toString() };
             }),
-          { ...notLinked, linked: true, cloudUserId: "user_1", tunnelHostname },
+          {
+            ...notLinked,
+            linked: true,
+            userId: RelayUserId.make("user_1"),
+            endpoint: {
+              endpointKey: RelayEndpointKey.make("0123456789abcdef"),
+              pathPrefix: TrimmedNonEmptyString.make("/e/0123456789abcdef"),
+              httpBaseUrl: TrimmedNonEmptyString.make(`https://${tunnelHostname}`),
+              wsBaseUrl: TrimmedNonEmptyString.make(`wss://${tunnelHostname}`),
+            },
+          },
         );
 
       const onTunnel = yield* handoff("box.example.ts.net");

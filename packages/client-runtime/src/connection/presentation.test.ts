@@ -93,6 +93,13 @@ describe("connection presentation", () => {
         relayHttpBaseUrl: "https://tunnel.example.test",
       }),
     ).toBe("https://tunnel.example.test/mcp");
+    expect(
+      environmentMcpUrl({
+        entry,
+        connectedTarget: lan.target,
+        relayHttpBaseUrl: "https://relay.example.com/e/env-1234567890abcdef",
+      }),
+    ).toBe("https://relay.example.com/e/env-1234567890abcdef/mcp");
   });
 
   // regression: #16909 Copy MCP URL falls back to an alternate route when the relay route has no address

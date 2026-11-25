@@ -206,7 +206,7 @@ it.layer(NodeServices.layer)("t3 install", (it) => {
       ) =>
         provide(
           offerCliInstall({
-            args: options.args ?? ["connect"],
+            args: options.args ?? ["relay"],
             interactive: options.interactive ?? true,
             foreground: Effect.succeed(options.foreground ?? true),
             confirm: Effect.andThen(
@@ -225,7 +225,7 @@ it.layer(NodeServices.layer)("t3 install", (it) => {
       yield* offer(false, { env: { npm_config_yes: "true" } });
       yield* offer(false, { args: ["--completions", "zsh"] });
       yield* offer(false, { foreground: false });
-      yield* offer(false, { args: ["connect", "--help"] });
+      yield* offer(false, { args: ["relay", "--help"] });
       yield* offer(false, { args: ["--log-level", "debug", "install"] });
       yield* offer(false, { args: ["status", "--json"] });
       yield* offer(false, { args: ["up", "--yes"] });

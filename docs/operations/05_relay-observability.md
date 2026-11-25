@@ -1,16 +1,17 @@
-# Relay observability
+# Relay Observability (`agent-vela-relay`)
 
-The relay Alchemy stack (`infra/relay`) provisions a stage-scoped Axiom dataset (`t3-code-relay-traces-<stage>`), a scoped write-only ingest token, and a health dashboard (`t3-code-relay-health`).
+[`agent-vela-relay`](../../apps/relay/package.json) exposes direct HTTP health probes, live per-tunnel admin telemetry, and host-side CLI diagnostics with zero third-party telemetry collectors required.
 
-Prefer Axiom dashboards and APL queries over tailing the Cloudflare Worker. Scripted queries use account-level `AXIOM_TOKEN` + `AXIOM_ORG_ID` (runtime ingest tokens are write-only). Effect HTTP attributes live under `attributes.http.*`, and relay custom annotations live under `attributes.custom`.
+## Built-in endpoints and CLI inspection
 
-## Alerts
+- **Liveness (`GET /health`):** Unauthenticated endpoint returning `200` with JSON `{"ok": true, "service": "agent-vela-relay", "version": "<version>"}`. Use this as your Docker/load-balancer health check before blaming reverse proxy timeouts.
+- **Live tunnel telemetry (`agent-vela-relay admin tunnels list` or Admin UI):** Queries `GET /v1/admin/tunnels` (authenticated with an admin bearer token) to inspect connected hosts: `environmentId`, `endpointKey`, owner `username`, monotonic `runId`, heartbeat `rttMs`, active mux streams, and cumulative `bytesIn` / `bytesOut`. Set `AGENT_VELA_RELAY_ADMIN_TOKEN` or pass `--token <bearer> [--json]`.
+- **Host-side status (`t3 relay status [--json]`):** Inspects local relay registration (`linked`, `relayUrl`, `endpoint`) alongside `RelayTunnelClient` state (`connected`/`reconnecting`/`disconnected`, `runId`, `rttMs`, `activeStreams`, `lastError`).
 
-Threshold monitors in [`infra/relay/src/monitoring.ts`](../../infra/relay/src/monitoring.ts) activate when `RELAY_ALERT_NOTIFIER_ID` is set (optional warnings go to `RELAY_WARNING_NOTIFIER_ID`). Monitors count HTTP status codes, not span errors—a 9 s relay timeout returns 504 even without a span error flag, and `/connect` 502s are normal for offline hosts.
+## Common failure triage
 
-- **Links / tunnel recovery failing / Cloudflare 429s:** Check "Link failures by reason" and Cloudflare API status on `t3-code-relay-health`. Sustained 429s indicate Cloudflare API rate limiting or a recovery loop; slow Postgres points at DB/Hyperdrive.
-- **Environments unreachable:** Check Cloudflare Tunnel status and recent relay deploys before blaming hosts.
-- **Push delivery failing:** Inspect `relay.apns_deliveries.process_signed_job` or `relay.fcm.process` errors—an expired APNs key or FCM service account fails every job.
-- **Traffic dropped:** Check `https://relay.t3.codes/health` first.
-- **Tunnel cleanup stopped / deletions failing:** Check `relay.managed_endpoint_reaper.sweep` spans and Cloudflare API errors. To pause cleanup during an incident, set `RELAY_TUNNEL_CLEANUP_MODE=off` and redeploy the relay (see [Managed tunnel cleanup rollout](./03_release.md#managed-tunnel-cleanup-rollout)).
-- **Account deletions failing:** A Clerk account deletion keeps failing. `select * from relay_account_deletions where completed_at is null order by attempts desc` shows which, and the failed `relay.account_deletion.delete_account` span under each `relay.account_deletion.process_pending` sweep names the stage (usually Cloudflare tunnel teardown). The row stays and retries every 5 minutes until it succeeds.
+- **Client requests return `502` or host shows `offline`:** Check `GET /health` on the relay, verify outbound WSS connectivity from the host to `/v1/tunnel/connect`, and run `t3 relay status` on the host machine for the latest `lastError` and reconnect backoff state.
+- **Slow SSE event streams (`/v1/events`, thread output) or idle WebSocket drops:** Confirm reverse proxy buffering is disabled (`flush_interval -1` in [`Caddyfile`](../../apps/relay/Caddyfile) or `proxy_buffering off` in Nginx) and proxy timeouts exceed idle heartbeat intervals (`[tunnel].heartbeat_interval_seconds = 20`, `heartbeat_timeout_seconds = 60`).
+- **Stale host session or misbehaving client tunnel:** Evict a single environment session without restarting the relay using `agent-vela-relay admin tunnels kick <environmentId> --token <bearer>` (or the Admin panel disconnect button).
+- **Rate-limit `429` responses:** Check `[rate_limit]` thresholds (`login_max_attempts`, `dpop_max_attempts`, `proxy_max_requests`) in [`relay.toml.example`](../../apps/relay/relay.toml.example) and verify `[server].trust_proxy = true` when behind Caddy/Nginx so limits apply per client IP instead of the proxy address.
+- **Process logs:** Under Docker use `docker compose -f apps/relay/docker-compose.yml logs -f relay`; under systemd use `journalctl -u agent-vela-relay -f`.

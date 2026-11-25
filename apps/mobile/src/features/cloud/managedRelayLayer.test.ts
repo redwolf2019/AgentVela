@@ -59,7 +59,7 @@ describe("managed relay DPoP signer", () => {
       assert.equal(yield* signer.thumbprint, thumbprint);
     }).pipe(
       Effect.provide(
-        ManagedRelayLayer.layer("https://relay.example.test").pipe(
+        ManagedRelayLayer.makeLayer("https://relay.example.test").pipe(
           Layer.provide(Layer.mergeAll(FetchHttpClient.layer, Dpop.layer)),
         ),
       ),

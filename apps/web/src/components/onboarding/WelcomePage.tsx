@@ -1,4 +1,3 @@
-import { useAuth } from "@clerk/react";
 import { useAtomValue } from "@effect/atom-react";
 import type {
   AgentSessionProjectCandidate,
@@ -47,10 +46,10 @@ import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { usePersistEnvironmentProviderInstanceMutation } from "../../hooks/useSettings";
 import { useCloudLinkState } from "../../cloud/cloudLinkState";
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
+import { openRelayAuthDialog } from "../../cloud/relayAuthDialog";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { workspaceAreaProps } from "../../lib/workspaceFocus";
-import { retryClerkLoad, useClerkLoadFailed } from "../clerk/clerkLoadFailure";
-import { useT3ConnectAuthPrompt } from "../clerk/useT3ConnectAuthPrompt";
+import { useSelfHostedRelaySession } from "../../state/relay";
 import { completeOnboarding } from "../../onboarding/firstRun";
 import {
   groupOnboardingProjects,
@@ -1035,10 +1034,10 @@ function PhoneStep({ step, children }: { readonly step: number; readonly childre
 }
 
 function PhoneConnectLink({ environmentId }: { readonly environmentId: EnvironmentId }) {
-  const { isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
+  const session = useSelfHostedRelaySession();
+  const isSignedIn = session.status === "signed_in";
+  const userId = session.status === "signed_in" ? session.user.userId : null;
   const gt = useGT();
-  const loadFailed = useClerkLoadFailed();
-  const { openAuthPrompt } = useT3ConnectAuthPrompt();
   const linkState = useCloudLinkState(environmentId);
   const refreshLinkState = useEffectEvent(linkState.refresh);
   // The server rechecks the tunnel every 30 s; read its latest result while this panel is open.
@@ -1048,14 +1047,12 @@ function PhoneConnectLink({ environmentId }: { readonly environmentId: Environme
     return () => window.clearInterval(interval);
   }, []);
   const link = linkState.data;
-  // The phone reaches this computer through its tunnel; older servers leave that flag out.
   const shared =
     link !== null &&
     link.linked &&
     link.linkRevoked !== true &&
     link.cloudUserId === userId &&
     link.managedTunnelActive !== false;
-  // The server checks the tunnel on its own; until it has, the result is unknown.
   const reachability = shared ? link.reachability?.status : undefined;
   const settingsLink = (label: string) => (
     <Button variant="outline" size="xs" render={<Link to="/settings/access" />}>
@@ -1065,7 +1062,7 @@ function PhoneConnectLink({ environmentId }: { readonly environmentId: Environme
   if (isSignedIn && link === null && linkState.isPending) {
     return (
       <p className="text-sm text-muted-foreground">
-        <T>Checking T3 Connect…</T>
+        <T>Checking Relay…</T>
       </p>
     );
   }
@@ -1073,9 +1070,9 @@ function PhoneConnectLink({ environmentId }: { readonly environmentId: Environme
     return (
       <>
         <p className="text-sm text-foreground">
-          <T>Could not check T3 Connect.</T>
+          <T>Could not check Relay.</T>
         </p>
-        {settingsLink(gt("Check T3 Connect"))}
+        {settingsLink(gt("Check Relay"))}
       </>
     );
   }
@@ -1090,37 +1087,30 @@ function PhoneConnectLink({ environmentId }: { readonly environmentId: Environme
   if (isSignedIn && shared && reachability === undefined) {
     return (
       <p className="text-sm text-foreground">
-        <T>T3 Connect is on for this computer. Sign in to the app with the same account.</T>
+        <T>Relay is on for this computer. Sign in to the app with the same account.</T>
       </p>
     );
   }
   if (isSignedIn) {
-    // Signing in alone does not share this computer, for example after "Not now".
     return (
       <>
         <p className="text-sm text-foreground">
           {shared
-            ? gt("T3 Connect is on, but the app cannot reach this computer.")
+            ? gt("Relay is on, but the app cannot reach this computer.")
             : gt("Signed in. Share this computer so the app can reach it.")}
         </p>
-        {settingsLink(shared ? gt("Check T3 Connect") : gt("Set up T3 Connect"))}
+        {settingsLink(shared ? gt("Check Relay") : gt("Set up Relay"))}
       </>
     );
   }
   return (
     <>
       <p className="text-sm text-foreground">
-        <T>Sign in to T3 Connect here, then in the app with the same account.</T>
+        <T>Sign in to Relay here, then in the app with the same account.</T>
       </p>
-      {loadFailed ? (
-        <Button variant="outline" size="xs" onClick={retryClerkLoad}>
-          <T>Retry sign-in</T>
-        </Button>
-      ) : (
-        <Button variant="outline" size="xs" disabled={!isLoaded} onClick={openAuthPrompt}>
-          <T>Sign in to T3 Connect</T>
-        </Button>
-      )}
+      <Button variant="outline" size="xs" onClick={() => openRelayAuthDialog()}>
+        <T>Sign in to Relay</T>
+      </Button>
     </>
   );
 }

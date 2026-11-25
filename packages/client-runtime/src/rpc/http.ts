@@ -107,7 +107,8 @@ export const layerRemoteHttpClient = (
 
 const remoteApiBaseUrl = (httpBaseUrl: string): string => {
   const url = new URL(httpBaseUrl);
-  url.pathname = "/";
+  const basePath = url.pathname.replace(/\/+$/u, "");
+  url.pathname = basePath.length === 0 ? "/" : basePath;
   url.search = "";
   url.hash = "";
   return url.toString();

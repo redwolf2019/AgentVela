@@ -473,6 +473,38 @@ describe("linkRequestTarget", () => {
     expect(linkRequestTarget({}, [box], ANOTHER_ADDRESS)).toEqual({ kind: "address" });
     expect(linkRequestTarget({}, [box], null)).toEqual({ kind: "none" });
   });
+
+  it("keeps distinct relay path-prefix environments on the same origin separate", () => {
+    const relayOne = {
+      ...box,
+      environmentId: EnvironmentId.make("environment-one"),
+      label: "Relay One",
+      urls: ["https://relay.example.com/e/env-1111222233334444"],
+    } as const;
+    const relayTwo = {
+      ...box,
+      environmentId: EnvironmentId.make("environment-two"),
+      label: "Relay Two",
+      urls: ["https://relay.example.com/e/env-aaaabbbbccccdddd"],
+    } as const;
+
+    expect(
+      linkRequestTarget(
+        { url: "https://relay.example.com/e/env-aaaabbbbccccdddd/mcp" },
+        [relayOne, relayTwo],
+        null,
+      ),
+    ).toEqual({
+      kind: "machine",
+      environmentId: relayTwo.environmentId,
+      label: "Relay Two",
+      urls: relayTwo.urls,
+      linked: false,
+    });
+    expect(
+      linkRequestTargetName({ url: "https://relay.example.com/e/env-aaaabbbbccccdddd/mcp" }),
+    ).toBe("https://relay.example.com/e/env-aaaabbbbccccdddd");
+  });
 });
 
 describe("linkRequestFailureMessage", () => {

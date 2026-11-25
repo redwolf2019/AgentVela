@@ -31,7 +31,19 @@ import {
   createAssetEnvironmentAtoms,
   createProjectFaviconUrlAtomFamily,
   makeRevisionedAssetUrlFamily,
+  resolveAssetUrl,
 } from "./assets.ts";
+
+describe("resolveAssetUrl", () => {
+  it("preserves /e/:endpointKey path prefixes for root-relative asset paths", () => {
+    expect(
+      resolveAssetUrl(
+        "https://relay.example.com/e/env-1234567890abcdef",
+        "/api/assets/token/image.png?w=400",
+      ),
+    ).toBe("https://relay.example.com/e/env-1234567890abcdef/api/assets/token/image.png?w=400");
+  });
+});
 
 describe("project favicon URL cache", () => {
   it("does not reuse another environment, workspace, or selected icon's cached URL", () => {

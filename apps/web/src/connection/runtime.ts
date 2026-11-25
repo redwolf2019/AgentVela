@@ -1,4 +1,5 @@
 import { Connection } from "@t3tools/client-runtime/connection";
+import { RelayPresence } from "@t3tools/client-runtime/relay";
 import { ShellSnapshotLoader } from "@t3tools/client-runtime/state/shell";
 import {
   BoundedThreadSnapshotLoader,
@@ -17,6 +18,10 @@ import * as ConnectionPlatform from "./platform";
 
 const layerProvidedConnectionPlatform = ConnectionPlatform.layer.pipe(Layer.provide(Runtime.layer));
 
+const layerSelfHostedDiscovery = RelayPresence.layerSelfHostedRelayDiscovery().pipe(
+  Layer.provide(Layer.mergeAll(Runtime.layer, layerProvidedConnectionPlatform)),
+);
+
 const layerSnapshotLoader = Layer.mergeAll(
   BoundedThreadSnapshotLoader.layer,
   ShellSnapshotLoader.layer,
@@ -24,26 +29,28 @@ const layerSnapshotLoader = Layer.mergeAll(
   PullRequestDiffLoader.layer,
 );
 
+const layerConnectionCore = Connection.layerWithSelfHostedRelay({
+  environmentThemes: true,
+  usageLimitSources: true,
+  usageLimitsCommand: true,
+});
+
 type ConnectionLayerSource =
-  | typeof Connection.layer
+  | typeof layerConnectionCore
   | typeof layerSnapshotLoader
   | typeof Runtime.layer
   | typeof ConnectionPlatform.layer
+  | typeof layerSelfHostedDiscovery
   | typeof BackgroundActivityReporter.layerObserver
   | typeof BackgroundActivityReporter.layer;
 
 const layerProvidedClientConnection = layerSnapshotLoader.pipe(
-  Layer.provideMerge(
-    Connection.layerWithOptions({
-      environmentThemes: true,
-      usageLimitSources: true,
-      usageLimitsCommand: true,
-    }),
-  ),
+  Layer.provideMerge(layerConnectionCore),
   Layer.provideMerge(
     Layer.mergeAll(
       Runtime.layer,
       layerProvidedConnectionPlatform,
+      layerSelfHostedDiscovery,
       BackgroundActivityReporter.layerObserver,
     ),
   ),

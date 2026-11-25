@@ -44,9 +44,7 @@ import {
   threadHtmlRenderAttachmentIds,
 } from "../attachmentStore.ts";
 import * as ServerConfig from "../config.ts";
-import { CloudManagedEndpointRuntime } from "../cloud/ManagedEndpointRuntime.ts";
 import * as CommandOutputHub from "../orchestration-v2/CommandOutputHub.ts";
-import { GUEST_FAILURE } from "../orchestration-v2/GuestShareDecider.ts";
 import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
 import { coalesceThreadLiveStream } from "../orchestration-v2/ThreadLiveEventCoalescer.ts";
 import { buildBoundedThreadStreamSnapshot } from "../orchestration-v2/ThreadStream.ts";
@@ -57,6 +55,13 @@ import {
 import * as DocumentText from "../provider/DocumentText.ts";
 import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import { RelayTunnelClient } from "../relay/RelayTunnelClient.ts";
+import {
+  formatGuestShareUrl,
+  GUEST_ACCESS_MESSAGES,
+  mapGuestFailureReason,
+  resolveGuestEndpoint,
+} from "./guestEndpoint.ts";
 import { guestShareView, guestThreadModel } from "./guestView.ts";
 import {
   classifyGuestUploads,
@@ -77,19 +82,6 @@ const SHARED_THREAD_REPLIES_LIMIT = 64;
 // How soon an open read notices that its link stopped working, such as Connect no longer serving
 // the host. Closing or replacing the link ends the main stream at once.
 const ACCESS_RECHECK_INTERVAL = Duration.seconds(30);
-
-const GUEST_ACCESS_MESSAGES = {
-  ...GUEST_FAILURE,
-  invalid: "This guest link is not valid.",
-  stale_page: "This page is for an older guest link. Reload it to continue.",
-  unavailable: "This item is not available.",
-  rejected: "The owner's server rejected this request.",
-  empty: "Write a message or attach a file.",
-  too_many_files: "Attach up to 4 files to a message.",
-  too_large: "Attached files can total up to 10 MB per message.",
-  unsupported_file: "This file cannot be attached. Images must be PNG, JPEG, GIF, or WebP.",
-  files_busy: GUEST_FAILURE.filesBusy,
-} as const;
 
 /** What a guest is told. The message comes from `reason`, never from a cause. */
 export class GuestShareAccessError extends Schema.TaggedError<GuestShareAccessError>()(
@@ -115,17 +107,6 @@ export class GuestShareAccessError extends Schema.TaggedError<GuestShareAccessEr
     return GUEST_ACCESS_MESSAGES[this.reason];
   }
 }
-
-const guestFailureReason = (cause: unknown): GuestShareAccessError["reason"] =>
-  cause === GUEST_FAILURE.inactive
-    ? "inactive"
-    : cause === GUEST_FAILURE.used
-      ? "used"
-      : cause === GUEST_FAILURE.busy
-        ? "busy"
-        : cause === GUEST_FAILURE.filesBusy
-          ? "files_busy"
-          : "rejected";
 
 const SessionClaims = Schema.Struct({
   kind: Schema.Literal("session"),
@@ -231,7 +212,7 @@ const make = Effect.gen(function* () {
   const commandOutputs = yield* CommandOutputHub.CommandOutputHub;
   const providerRegistry = yield* ProviderRegistry.ProviderRegistry;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
-  const managedEndpoint = yield* CloudManagedEndpointRuntime;
+  const relayTunnel = yield* Effect.serviceOption(RelayTunnelClient);
   const { attachmentsDir } = yield* ServerConfig.ServerConfig;
   const fileSystem = yield* FileSystem.FileSystem;
   const random = yield* SecureRandom.SecureRandom;
@@ -288,9 +269,7 @@ const make = Effect.gen(function* () {
     return decodeSessionClaims(base64UrlDecodeUtf8(parts.payload));
   });
 
-  const connectHostname = managedEndpoint.inspectConnector.pipe(
-    Effect.map((facts) => facts?.hostname ?? null),
-  );
+  const connectHostname = resolveGuestEndpoint({ relayTunnel });
   // A beta: while it is off, no link opens and every guest request is refused.
   const sharingEnabled = serverSettings.getSettings.pipe(
     Effect.map((settings) => settings.guestSharingEnabled),
@@ -304,7 +283,7 @@ const make = Effect.gen(function* () {
       Effect.mapError(
         (error) =>
           new GuestShareAccessError({
-            reason: guestFailureReason("cause" in error ? error.cause : undefined),
+            reason: mapGuestFailureReason("cause" in error ? error.cause : undefined),
           }),
       ),
     );
@@ -372,7 +351,7 @@ const make = Effect.gen(function* () {
       return yield* new GuestShareCreateError({ reason: "changed" });
     }
     const credential = yield* signInvite(shareId);
-    return { url: `https://${host}/guest#${credential}`, share: thread.guestShare };
+    return { url: formatGuestShareUrl(host, credential), share: thread.guestShare };
   });
 
   const redeem = Effect.fn("GuestShareService.redeem")(function* (request: GuestRedeemRequest) {

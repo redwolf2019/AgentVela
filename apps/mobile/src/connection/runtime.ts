@@ -1,4 +1,5 @@
 import { Connection } from "@t3tools/client-runtime/connection";
+import { RelayPresence } from "@t3tools/client-runtime/relay";
 import { ShellSnapshotLoader } from "@t3tools/client-runtime/state/shell";
 import { PullRequestDiffLoader } from "@t3tools/client-runtime/state/pull-requests";
 import {
@@ -19,6 +20,10 @@ declare const module: { readonly hot?: FoundationHotModule } | undefined;
 
 const layerProvidedConnectionPlatform = ConnectionPlatform.layer.pipe(Layer.provide(Runtime.layer));
 
+const layerSelfHostedDiscovery = RelayPresence.layerSelfHostedRelayDiscovery().pipe(
+  Layer.provide(Layer.mergeAll(Runtime.layer, layerProvidedConnectionPlatform)),
+);
+
 const layerSnapshotLoader = Layer.mergeAll(
   PullRequestDiffLoader.layer,
   BoundedThreadSnapshotLoader.layer,
@@ -26,28 +31,30 @@ const layerSnapshotLoader = Layer.mergeAll(
   ThreadHistoryController.layer,
 );
 
+const layerConnectionCore = Connection.layerWithSelfHostedRelay({
+  usageLimitSources: true,
+  usageLimitsCommand: true,
+  providerCatalogsOnDemand: true,
+  providerCatalogDigests: true,
+  providerStatusDeltas: true,
+});
+
 type ConnectionLayerSource =
-  | typeof Connection.layer
+  | typeof layerConnectionCore
   | typeof layerSnapshotLoader
   | typeof Runtime.layer
   | typeof ConnectionPlatform.layer
+  | typeof layerSelfHostedDiscovery
   | typeof BackgroundActivity.layerObserver
   | typeof BackgroundActivity.layerReporter;
 
 const layerProvidedClientConnection = layerSnapshotLoader.pipe(
-  Layer.provideMerge(
-    Connection.layerWithOptions({
-      usageLimitSources: true,
-      usageLimitsCommand: true,
-      providerCatalogsOnDemand: true,
-      providerCatalogDigests: true,
-      providerStatusDeltas: true,
-    }),
-  ),
+  Layer.provideMerge(layerConnectionCore),
   Layer.provideMerge(
     Layer.mergeAll(
       Runtime.layer,
       layerProvidedConnectionPlatform,
+      layerSelfHostedDiscovery,
       BackgroundActivity.layerObserver,
     ),
   ),

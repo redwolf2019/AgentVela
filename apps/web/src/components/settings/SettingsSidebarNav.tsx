@@ -25,6 +25,7 @@ import {
   KeyRoundIcon,
   MicIcon,
   PaletteIcon,
+  RadioIcon,
   SearchIcon,
   ServerIcon,
   Settings2Icon,
@@ -79,13 +80,13 @@ const SnapShotIcon = createLucideIcon("snap-shot", [
 ]);
 
 const T3ConnectSidebarSignIn = lazy(() =>
-  import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
-    default: module.T3ConnectSidebarSignIn,
+  import("../relay/RelaySidebarAccount").then((module) => ({
+    default: module.RelaySidebarAccount,
   })),
 );
 const T3ConnectSidebarAvatar = lazy(() =>
-  import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
-    default: module.T3ConnectSidebarAvatar,
+  import("../relay/RelaySidebarAccount").then((module) => ({
+    default: module.RelaySidebarAvatar,
   })),
 );
 
@@ -109,6 +110,7 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/source-control": GitBranchIcon,
   "/settings/worktrees": FolderTreeIcon,
   "/settings/connections": ServerIcon,
+  "/settings/relay": RadioIcon,
   "/settings/access": ShieldCheckIcon,
   "/settings/secrets": KeyRoundIcon,
   "/settings/maintenance": WrenchIcon,

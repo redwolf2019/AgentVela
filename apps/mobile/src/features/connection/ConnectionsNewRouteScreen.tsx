@@ -3,7 +3,6 @@ import { T, useGT } from "gt-react-native";
 import { ListRow } from "../../components/ui/ListRow";
 import * as Dialog from "../../components/ui/Dialog";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
-import { useAuth } from "@clerk/expo";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import {
@@ -28,6 +27,7 @@ import { buildPairingUrl, extractPairingUrlFromQrPayload, parsePairingUrl } from
 import { useRemoteConnections } from "../../state/use-remote-environment-registry";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { hasCloudPublicConfig } from "../cloud/publicConfig";
+import { useSelfHostedRelaySession } from "../../state/relay";
 import { CloudEnvironmentRows } from "./CloudEnvironmentRows";
 import { autoConnectReport, devAutoConnectAttemptAtom } from "./devAutoConnect";
 import { linkedEnvironmentPrefillAtom } from "./linkedEnvironmentPrefill";
@@ -390,7 +390,8 @@ function PairingScanCard(props: {
 
 function T3ConnectSection() {
   const gt = useGT();
-  const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const session = useSelfHostedRelaySession();
+  const isSignedIn = session.status === "signed_in";
   const navigation = useNavigation();
   const { connectedEnvironments, onSetEnvironmentEnabled, onRemoveEnvironmentPress } =
     useRemoteConnections();
@@ -402,7 +403,7 @@ function T3ConnectSection() {
   return (
     <View collapsable={false} className="gap-2">
       <Text className="px-4 text-sm font-t3-medium text-foreground-muted">
-        <T>Or use the managed relay</T>
+        <T>Or connect via Relay</T>
       </Text>
       {isSignedIn ? (
         <CloudEnvironmentRows
@@ -413,9 +414,8 @@ function T3ConnectSection() {
         />
       ) : (
         <ListRow
-          label={gt("Sign in to {product}", { product: "T3 Connect" })}
-          description={gt("Reach your machines from anywhere, no network setup.")}
-          disabled={!isLoaded}
+          label={gt("Sign in to Relay")}
+          description={gt("Reach your machines from anywhere through your self-hosted Relay.")}
           onPress={() => navigation.navigate("SettingsAuth")}
         />
       )}

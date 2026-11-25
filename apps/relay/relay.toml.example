@@ -1,0 +1,31 @@
+# AgentVela Self-Hosted Relay configuration
+# Override any field via AGENT_VELA_RELAY_* environment variables.
+
+[server]
+bind = "127.0.0.1:8787"
+public_url = "https://relay.example.com"
+data_dir = "/var/lib/agent-vela-relay"
+serve_web_ui = true
+# web_ui_dir = "/opt/agent-vela-relay/web-dist"
+trust_proxy = true
+
+[auth]
+allow_public_registration = false
+access_token_ttl_seconds = 900
+refresh_token_ttl_days = 30
+enrollment_token_ttl_minutes = 15
+device_code_ttl_minutes = 10
+
+[tunnel]
+max_frame_bytes = 262144
+heartbeat_interval_seconds = 20
+heartbeat_timeout_seconds = 60
+compression = true
+initial_stream_window_bytes = 524288
+proxy_timeout_ms = 30000
+
+[rate_limit]
+login_max_attempts = 10
+login_window_seconds = 60
+dpop_max_attempts = 60
+proxy_max_requests = 600

@@ -3,12 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   buildHostedPairingUrl,
   hasHostedPairingRequest,
+  isHostedStaticApp,
+  isRelayHostedWebUi,
   readHostedPairingRequest,
 } from "./hostedPairing";
 
 describe("hostedPairing", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
   it("reads hosted pairing host and query token parameters", () => {
@@ -39,5 +42,17 @@ describe("hostedPairing", () => {
     expect(url.searchParams.get("label")).toBe("Workstation");
     expect(url.searchParams.has("token")).toBe(false);
     expect(url.hash).toBe("#token=pairing-token");
+  });
+
+  it("treats relay-served static web UI meta tag as hosted static app", () => {
+    vi.stubGlobal("document", {
+      querySelector: (selector: string) =>
+        selector === 'meta[name="agent-vela-relay-hosted"]'
+          ? { getAttribute: (name: string) => (name === "content" ? "1" : null) }
+          : null,
+    });
+
+    expect(isRelayHostedWebUi()).toBe(true);
+    expect(isHostedStaticApp(new URL("https://relay.example.com/"))).toBe(true);
   });
 });

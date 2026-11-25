@@ -13,6 +13,8 @@ import * as ConnectionOnboarding from "./onboarding.ts";
 import { connectionRoutes, hasRelayRoute } from "./routes.ts";
 import * as PlatformConnectionSource from "../platform/source.ts";
 import * as RelayEnvironmentDiscovery from "../relay/discovery.ts";
+import { layerRelayEnvironmentDiscoveryFromSelfHosted } from "../relay/managedRelayBridge.ts";
+import { watchRelayOnlineWakeups, watchRelaySessionIsolation } from "../relay/presence.ts";
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
 import * as RpcSession from "../rpc/session.ts";
 
@@ -71,7 +73,7 @@ export const watchDiscoveredCompatibility = Effect.fn("connection.watchDiscovere
   },
 );
 
-export function layerWithOptions(options: RpcSession.RpcSessionOptions) {
+export function layerWithSelfHostedRelay(options: RpcSession.RpcSessionOptions) {
   const layerDriver = ConnectionDriver.layer.pipe(
     Layer.provide(Layer.mergeAll(ConnectionResolver.layer, RpcSession.layer(options))),
   );
@@ -79,7 +81,7 @@ export function layerWithOptions(options: RpcSession.RpcSessionOptions) {
   const layerOnboarding = ConnectionOnboarding.layer.pipe(Layer.provide(layerRegistry));
   const layerConnectionServices = Layer.mergeAll(
     layerRegistry,
-    RelayEnvironmentDiscovery.layer,
+    layerRelayEnvironmentDiscoveryFromSelfHosted,
     layerOnboarding,
     ConnectionResolver.layer,
   );
@@ -88,17 +90,17 @@ export function layerWithOptions(options: RpcSession.RpcSessionOptions) {
       const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
       const platformSource = yield* PlatformConnectionSource.PlatformConnectionSource;
       yield* watchDiscoveredCompatibility().pipe(Effect.forkScoped);
+      yield* watchRelayOnlineWakeups().pipe(Effect.forkScoped);
+      yield* watchRelaySessionIsolation().pipe(Effect.forkScoped);
       yield* registry.start;
       yield* platformSource.registrations.pipe(
         Stream.runForEach(registry.reconcilePlatform),
         Effect.forkScoped,
       );
-    }).pipe(Effect.withSpan("clientRuntime.connection.application.start")),
+    }).pipe(Effect.withSpan("clientRuntime.connection.application.start.selfHostedRelay")),
   );
   return layerConnectionStartup.pipe(
     Layer.provideMerge(layerConnectionServices),
     Layer.provideMerge(RemoteEnvironmentAuthorization.layer),
   );
 }
-
-export const layer = layerWithOptions({});

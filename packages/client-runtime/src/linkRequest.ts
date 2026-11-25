@@ -15,6 +15,7 @@ import * as Option from "effect/Option";
 
 import type { EnvironmentPresentation } from "./connection/presentation.ts";
 import { connectionRoutes, routeHttpBaseUrl } from "./connection/routes.ts";
+import { extractRelayEndpointPathPrefix } from "./environment/endpoint.ts";
 import type { RelayDiscoveredEnvironment } from "./relay/discovery.ts";
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
@@ -64,7 +65,9 @@ const parsedUrl = (url: string) => {
 /** The http or https origin of an address: what the server links, and nothing else in it. */
 const originOf = (url: string) => {
   const parsed = parsedUrl(url);
-  return parsed?.protocol === "http:" || parsed?.protocol === "https:" ? parsed.origin : undefined;
+  if (parsed?.protocol !== "http:" && parsed?.protocol !== "https:") return undefined;
+  const prefix = extractRelayEndpointPathPrefix(parsed.pathname);
+  return prefix ? `${parsed.origin}${prefix}` : parsed.origin;
 };
 
 /** Where a link to `address` sends its pairing code, which a username or path in it can hide. */

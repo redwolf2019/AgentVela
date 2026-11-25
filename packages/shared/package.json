@@ -235,10 +235,6 @@
       "types": "./src/telemetryId.ts",
       "import": "./src/telemetryId.ts"
     },
-    "./relayAuth": {
-      "types": "./src/relayAuth.ts",
-      "import": "./src/relayAuth.ts"
-    },
     "./relayUrl": {
       "types": "./src/relayUrl.ts",
       "import": "./src/relayUrl.ts"
@@ -246,6 +242,10 @@
     "./relayJwt": {
       "types": "./src/relayJwt.ts",
       "import": "./src/relayJwt.ts"
+    },
+    "./relayTunnelProtocol": {
+      "types": "./src/relayTunnelProtocol.ts",
+      "import": "./src/relayTunnelProtocol.ts"
     },
     "./oauthScope": {
       "types": "./src/oauthScope.ts",
@@ -338,10 +338,6 @@
     "./terminalLabels": {
       "types": "./src/terminalLabels.ts",
       "import": "./src/terminalLabels.ts"
-    },
-    "./relayClient": {
-      "types": "./src/relayClient.ts",
-      "import": "./src/relayClient.ts"
     },
     "./preview": {
       "types": "./src/preview.ts",

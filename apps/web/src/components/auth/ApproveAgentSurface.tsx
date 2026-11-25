@@ -1,6 +1,3 @@
-import { useAuth, useClerk } from "@clerk/react";
-import { useAtomValue } from "@effect/atom-react";
-import { managedRelaySessionAtom } from "@t3tools/client-runtime/relay";
 import {
   type ConnectMcpApprovalCall,
   ConnectMcpApprovalUnavailableError,
@@ -11,14 +8,12 @@ import * as Schema from "effect/Schema";
 import { msg, T, useGT } from "gt-react";
 import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from "react";
 
+import { openRelayAuthDialog } from "../../cloud/relayAuthDialog";
 import { m } from "../../i18n/messages";
-
-import { isElectron } from "../../env";
 import { runConnectMcpApproval } from "../../state/connectMcpApproval";
-import { resolveClerkSignInProps } from "../clerk/authRedirect";
-import { retryClerkLoad, useClerkLoadFailed } from "../clerk/clerkLoadFailure";
+import { selfHostedRelay, useSelfHostedRelaySession } from "../../state/relay";
+import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";
-import { Spinner } from "../ui/spinner";
 import { StandalonePage, StandalonePageHeader } from "../ui/standalone-page";
 import {
   type McpApprovalAnswer,
@@ -34,7 +29,7 @@ function readEnvironmentId(): EnvironmentId | null {
   return value ? EnvironmentId.make(value) : null;
 }
 
-/** Sends each call with the owner's T3 Connect session and remembers where the environment is. */
+/** Sends each call with the owner's Relay session and remembers where the environment is. */
 function connectTransport(
   environmentId: EnvironmentId,
   onEnvironment: (environment: { readonly url: string; readonly label: string }) => void,
@@ -72,15 +67,10 @@ function connectTransport(
   };
 }
 
-/**
- * The consent screen for an agent sign-in on a T3 Connect environment: the owner signs in to
- * T3 Connect here and approves with that session, so no sign-in code is needed.
- */
 export function ApproveAgentSurface() {
   const gt = useGT();
   const [environmentId] = useState(readEnvironmentId);
   const [authorization] = useState(readAuthorizationRequest);
-  // Another site could frame this page and steer a click onto Approve.
   const [framed] = useState(() => window.top !== window.self);
   const [environment, setEnvironment] = useState<{
     readonly url: string;
@@ -89,22 +79,20 @@ export function ApproveAgentSurface() {
   const [transport] = useState(() =>
     environmentId === null ? null : connectTransport(environmentId, setEnvironment),
   );
-  const clerk = useClerk();
-  const { isLoaded, isSignedIn } = useAuth();
-  const loadFailed = useClerkLoadFailed();
-  const session = useAtomValue(managedRelaySessionAtom);
+  const session = useSelfHostedRelaySession();
+  const isSignedIn = session.status === "signed_in";
+  const logoutCmd = useAtomCommand(selfHostedRelay.logout, { reportFailure: false });
   const signInOpened = useRef(false);
 
-  const openSignIn = () =>
-    clerk.openSignIn(resolveClerkSignInProps(window.location.href, isElectron));
+  const openSignIn = () => openRelayAuthDialog();
   const openSignInOnLoad = useEffectEvent(openSignIn);
 
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- opens Clerk sign-in once Clerk has loaded and nobody is signed in
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- prompts Relay sign-in when this standalone approval page loads signed out
   useEffect(() => {
-    if (!isLoaded || isSignedIn || signInOpened.current || framed) return;
+    if (isSignedIn || signInOpened.current || framed) return;
     signInOpened.current = true;
     openSignInOnLoad();
-  }, [framed, isLoaded, isSignedIn]);
+  }, [framed, isSignedIn]);
 
   if (environmentId === null || transport === null) {
     return (
@@ -124,39 +112,11 @@ export function ApproveAgentSurface() {
     );
   }
 
-  if (loadFailed) {
-    return (
-      <Message
-        title={gt("Could not load sign-in")}
-        description={gt("T3 Connect sign-in did not load. Check your connection, then try again.")}
-      >
-        <div className="mt-6">
-          <Button type="button" onClick={retryClerkLoad}>
-            <T>Retry sign-in</T>
-          </Button>
-        </div>
-      </Message>
-    );
-  }
-
-  if (!isLoaded || (isSignedIn && session === null)) {
-    return (
-      <StandalonePage>
-        <StandalonePageHeader
-          context={gt("Agent sign-in")}
-          title={gt("Connecting to T3 Connect")}
-          description={gt("One moment while your account loads.")}
-        />
-        <Spinner className="mt-6" size="lg" tone="muted" />
-      </StandalonePage>
-    );
-  }
-
   if (!isSignedIn) {
     return (
       <Message
         title={gt("Sign in to approve")}
-        description={gt("Sign in to T3 Connect with the account this environment is linked to.")}
+        description={gt("Sign in to your Relay account linked to this environment.")}
       >
         <div className="mt-6">
           <Button type="button" onClick={openSignIn}>
@@ -188,12 +148,7 @@ export function ApproveAgentSurface() {
               <T>Use a sign-in code instead</T>
             </Button>
           ) : null}
-          <Button
-            size="sm"
-            variant="link"
-            onClick={() => void clerk.signOut({ redirectUrl: window.location.href })}
-            type="button"
-          >
+          <Button size="sm" variant="link" onClick={() => void logoutCmd()} type="button">
             <T>Use another account</T>
           </Button>
         </div>

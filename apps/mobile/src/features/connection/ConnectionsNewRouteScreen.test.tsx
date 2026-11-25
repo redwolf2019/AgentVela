@@ -33,7 +33,9 @@ vi.mock("@react-navigation/native", () => ({
   useRoute: () => ({ name: "ConnectionsNew" }),
 }));
 vi.mock("@effect/atom-react", () => ({ useAtomValue: () => null }));
-vi.mock("@clerk/expo", () => ({ useAuth: () => ({ isLoaded: false, isSignedIn: false }) }));
+vi.mock("../../state/relay", () => ({
+  useSelfHostedRelaySession: () => ({ status: "signed_out", relayUrl: null, user: null }),
+}));
 vi.mock("expo-camera", () => ({
   CameraView: () => null,
   useCameraPermissions: () => [null, vi.fn()],

@@ -39,4 +39,10 @@ describe("webhookAddress", () => {
     expect(result.copyable).toBe(true);
     expect(result.note).toContain("Tailscale");
   });
+
+  it("preserves /e/:endpointKey base prefixes when building fallback webhook addresses", () => {
+    const result = webhookAddress(endpoint, "https://relay.example.com/e/env-1234567890abcdef");
+    expect(result.address).toBe("https://relay.example.com/e/env-1234567890abcdef/hooks/abc");
+    expect(result.copyable).toBe(true);
+  });
 });

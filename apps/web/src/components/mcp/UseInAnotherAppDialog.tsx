@@ -1,5 +1,4 @@
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
-import { useAuth } from "@clerk/react";
 import { useAtomValue } from "@effect/atom-react";
 import {
   managedCapabilityDenial,
@@ -24,6 +23,7 @@ import { msg, T, useGT, useMessages, Var } from "gt-react";
 import { m } from "~/i18n/messages";
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react";
 
+import { openRelayAuthDialog } from "~/cloud/relayAuthDialog";
 import { checkReachability, readLinkState } from "~/cloud/linkEnvironmentAtoms";
 import { isManagedTunnelActive } from "~/cloud/t3ConnectState";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
@@ -49,10 +49,9 @@ import { useManagedPolicy } from "~/state/managedPolicy";
 import { mintMcpApprovalCodeOn } from "~/state/peerPairingCode";
 import { peerLinkEnvironment } from "~/state/peerLinks";
 import { useEnvironmentQuery } from "~/state/query";
-import { relayEnvironmentDiscovery } from "~/state/relay";
+import { relayEnvironmentDiscovery, useSelfHostedRelaySession } from "~/state/relay";
 import { useEnvironmentScope, useEnvironmentSessionState } from "~/state/session";
 import { useAtomCommand } from "~/state/use-atom-command";
-import { useT3ConnectAuthPrompt } from "../clerk/useT3ConnectAuthPrompt";
 import { CommandBlock } from "../CommandBlock";
 import { AccessOption, accessConfig } from "../auth/ConnectAgentSurface";
 import { useAccessEnvironment } from "../settings/useAccessEnvironment";
@@ -260,7 +259,8 @@ function useGrantableLevels(environment: EnvironmentPresentation) {
 
 function useGate(environment: EnvironmentPresentation) {
   const environmentId = environment.environmentId;
-  const { isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const session = useSelfHostedRelaySession();
+  const isSignedIn = session.status === "signed_in";
   const controller = useCloudLinkController(environmentId);
   const canReadRelay = useEnvironmentScope(environmentId, AuthRelayReadScope);
   const thisMachine =
@@ -395,7 +395,6 @@ function GateScreen({
   const name = environment.label;
   const gt = useGT();
   const turnOnHere = useT3ConnectTurnOn(environment.environmentId);
-  const { openAuthPrompt } = useT3ConnectAuthPrompt();
   const retry = (onClick: () => void) => (
     <Button variant="outline" onClick={onClick}>
       <T>Check again</T>
@@ -426,14 +425,13 @@ function GateScreen({
             }),
           ]}
         >
-          {/* Clerk's sign-in is its own modal, so this dialog closes first. */}
           <Button
             onClick={() => {
               close();
-              openAuthPrompt();
+              openRelayAuthDialog();
             }}
           >
-            <T>Sign in to T3 Connect</T>
+            <T>Sign in to Relay</T>
           </Button>
         </GateMessage>
       );
@@ -510,7 +508,7 @@ function GateScreen({
             <p className="text-sm text-muted-foreground">{turnOnHere.reason}</p>
           ) : (
             <div className="space-y-2 text-sm">
-              <CommandBlock command="t3 connect link" />
+              <CommandBlock command="t3 relay link" />
               <p>
                 <T>
                   Restart T3 Code on <Var>{name}</Var>.

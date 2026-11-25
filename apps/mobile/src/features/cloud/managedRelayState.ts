@@ -1,69 +1,79 @@
 import { useAtomValue } from "@effect/atom-react";
-import {
-  createManagedRelayQueryManager,
-  deregisterManagedRelayEnvironment,
-  managedRelaySessionAtom,
-  readManagedRelaySnapshotState,
-} from "@t3tools/client-runtime/relay";
+import { AgentVelaRelay, ManagedRelayBridge } from "@t3tools/client-runtime/relay";
+import { findErrorTraceId, thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import {
   createAtomCommandScheduler,
   createRuntimeCommand,
 } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId } from "@t3tools/contracts";
-import type { RelayClientEnvironmentRecord } from "@t3tools/contracts/relay";
-import { AsyncResult, Atom } from "effect/reactivity";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import { useGT, useMessages } from "gt-react-native";
 
-import * as Runtime from "../../lib/runtime";
+import { connectionAtomRuntime } from "../../connection/runtime";
 import { appAtomRegistry } from "../../state/atom-registry";
+import { selfHostedRelay, useSelfHostedRelaySession } from "../../state/relay";
 
-const managedRelayAtomRuntime = Atom.runtime(Runtime.layer);
-
-const managedRelayQueryManager = createManagedRelayQueryManager(managedRelayAtomRuntime);
+const relayEnvironmentsAtom = connectionAtomRuntime.atom(
+  AgentVelaRelay.AgentVelaRelayClient.pipe(Effect.flatMap((client) => client.listEnvironments)),
+);
 
 const managedRelayMutationScheduler = createAtomCommandScheduler();
 
 export const deregisterManagedRelayEnvironmentCommand = createRuntimeCommand(
-  managedRelayAtomRuntime,
+  connectionAtomRuntime,
   {
     label: "mobile:managed-relay:deregister-environment",
     scheduler: managedRelayMutationScheduler,
     concurrency: {
       mode: "serial",
-      key: (input: { readonly accountId: string; readonly environmentId: EnvironmentId }) =>
-        input.accountId,
+      key: (input: { readonly accountId?: string; readonly environmentId: EnvironmentId }) =>
+        input.accountId ?? "relay",
     },
-    execute: (input, registry) => deregisterManagedRelayEnvironment(registry, input),
+    execute: (input) =>
+      AgentVelaRelay.AgentVelaRelayClient.pipe(
+        Effect.flatMap((client) => client.unlinkEnvironment(input.environmentId)),
+      ),
   },
 );
 
-const EMPTY_ENVIRONMENTS_ATOM = Atom.make(
-  AsyncResult.success<ReadonlyArray<RelayClientEnvironmentRecord>>([]),
-).pipe(Atom.keepAlive, Atom.withLabel("managed-relay:mobile:environments:null"));
-
 export function useManagedRelayEnvironments() {
-  const session = useAtomValue(managedRelaySessionAtom);
-  const accountId = session?.accountId ?? null;
-  const atom = accountId
-    ? managedRelayQueryManager.environmentsAtom(accountId)
-    : EMPTY_ENVIRONMENTS_ATOM;
-  const result = useAtomValue(atom);
-  const snapshot = readManagedRelaySnapshotState(result);
-  const refresh = () => {
-    if (accountId) {
-      managedRelayQueryManager.refreshEnvironments(appAtomRegistry, accountId);
-    }
-  };
+  const gt = useGT();
+  const resolve = useMessages();
+  const session = useSelfHostedRelaySession();
+  const accountId = session.status === "signed_in" ? session.user.userId : null;
+  const result = useAtomValue(relayEnvironmentsAtom);
+
+  const data =
+    accountId !== null && result._tag === "Success"
+      ? result.value.map(ManagedRelayBridge.toLegacyEnvironmentRecord)
+      : null;
+
+  let error: string | null = null;
+  let errorTraceId: string | null = null;
+  if (accountId !== null && result._tag === "Failure") {
+    const cause = Cause.squash(result.cause);
+    error =
+      (cause instanceof Error ? thrownErrorMessage(cause, resolve) : null) ??
+      gt("Could not load Relay environments.");
+    errorTraceId = findErrorTraceId(cause);
+  }
 
   return {
-    ...snapshot,
+    data,
+    isPending: result.waiting,
+    error,
+    errorTraceId,
     accountId,
-    refresh,
+    refresh: () => {
+      refreshManagedRelayEnvironments();
+    },
   };
 }
 
 export function refreshManagedRelayEnvironments(): void {
-  const session = appAtomRegistry.get(managedRelaySessionAtom);
-  if (session) {
-    managedRelayQueryManager.refreshEnvironments(appAtomRegistry, session.accountId);
+  const session = appAtomRegistry.get(selfHostedRelay.sessionValueAtom);
+  if (session.status === "signed_in") {
+    appAtomRegistry.refresh(relayEnvironmentsAtom);
   }
 }

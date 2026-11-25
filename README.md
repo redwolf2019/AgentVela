@@ -88,6 +88,7 @@ Other launch targets:
 
 - **Desktop (Electron):** `vp run dev:desktop`
 - **Share over Tailscale:** `vp run dev --share`
+- **Self-hosted relay:** run [`apps/relay`](./apps/relay) on a public Linux server (`t3 relay link` connects local hosts; see [Self-hosted relay setup](./docs/operations/02_connect-setup.md))
 - **Mobile (React Native):** see [apps/mobile/README.md](./apps/mobile/README.md)
 
 ### 4. Build local desktop packages (optional)
@@ -112,6 +113,7 @@ See the [development runbook](./docs/operations/00_development.md) for platform 
 - [Permission modes](./docs/user/permission-modes.md)
 - [Source control & worktrees](./docs/user/source-control.md)
 - [Remote access](./docs/user/remote-access.md)
+- [Self-hosted relay setup](./docs/operations/02_connect-setup.md)
 - [Outside agents (MCP)](./docs/user/outside-agents.md)
 - [All docs](./docs/README.md)
 

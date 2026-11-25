@@ -3,6 +3,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   EnvironmentHttpApi,
   EnvironmentId,
+  NonNegativeInt,
   type AuthMcpClientAccess,
   type ExecutionEnvironmentDescriptor,
 } from "@t3tools/contracts";
@@ -25,13 +26,13 @@ import * as McpOAuth from "../auth/McpOAuth.ts";
 import * as McpOAuthHttp from "../auth/mcpOAuthHttp.ts";
 import type * as SqlClient from "effect/sql/SqlClient";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
-import * as CloudLink from "../cloud/CloudLink.ts";
 import * as ServerConfig from "../config.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as ServerHttp from "../http.ts";
 import * as McpHttpServer from "../mcp/McpHttpServer.ts";
 import * as McpSessionRegistry from "../mcp/McpSessionRegistry.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
+import * as RelayLinkService from "../relay/RelayLinkService.ts";
 import * as PeerHttp from "./http.ts";
 import * as PeerClientPairing from "./PeerClientPairing.ts";
 import * as PeerLinks from "./PeerLinks.ts";
@@ -124,14 +125,23 @@ export const servePeer = <E, R, E2 = never, R2 = never>(
           McpOAuthHttp.layer.pipe(
             Layer.provide(McpOAuth.layer),
             Layer.provide(
-              Layer.mock(CloudLink.CloudLink)({
-                linkState: () =>
+              Layer.mock(RelayLinkService.RelayLinkService)({
+                getStatus: () =>
                   Effect.succeed({
                     linked: false,
-                    cloudUserId: null,
                     relayUrl: null,
                     relayIssuer: null,
-                    publishAgentActivity: false,
+                    userId: null,
+                    endpoint: null,
+                    tunnel: {
+                      state: "disconnected",
+                      runId: null,
+                      rttMs: null,
+                      activeStreams: NonNegativeInt.make(0),
+                      connectedAt: null,
+                      lastError: null,
+                      compression: false,
+                    },
                   }),
               }),
             ),

@@ -26,7 +26,7 @@ import { WorktreeLayoutApprovalDialogHost } from "../components/WorktreeLayoutAp
 import { DevReplayHost } from "../components/DevReplayHost";
 import { FirstRunGate } from "../components/onboarding/FirstRunGate";
 import { ConnectOnboardingDialog } from "../components/cloud/ConnectOnboardingDialog";
-import { RelayClientInstallDialog } from "../components/cloud/RelayClientInstallDialog";
+import { RelayAuthDialogHost } from "../components/relay/RelayAuthDialog";
 import { SshPasswordPromptDialog } from "../components/desktop/SshPasswordPromptDialog";
 import { SnapShotCoordinator } from "../components/desktop/SnapShotCoordinator";
 import { DesktopAppActivationCoordinator } from "../components/desktop/DesktopAppActivationCoordinator";
@@ -144,6 +144,7 @@ function RootRouteView() {
     <ToastProvider>
       <AnchoredToastProvider>
         <RootRouteBranch />
+        <RelayAuthDialogHost />
       </AnchoredToastProvider>
     </ToastProvider>
   );
@@ -167,6 +168,7 @@ function RootRouteBranch() {
   if (
     pathname === "/pair" ||
     pathname === "/connect" ||
+    pathname === "/device" ||
     pathname === "/connect-agent" ||
     pathname === "/approve-agent"
   ) {
@@ -194,7 +196,6 @@ function RootRouteBranch() {
         </>
       ) : null}
       {isElectron ? <RunningThreadKeepAlive /> : null}
-      <RelayClientInstallDialog />
       <ConnectOnboardingDialog />
       <SshPasswordPromptDialog />
       <SnapShotCoordinator />

@@ -56,7 +56,6 @@ import { formatRelativeTime } from "../../timestampFormat";
 import { useClientSettings, useEnvironmentSettings } from "../../hooks/useSettings";
 import { getCustomModelOptionsByInstance, selectsPlanAgent } from "../../modelSelection";
 import { providerInstanceEntriesFor } from "../../providerInstances";
-import { usePrimaryCloudLinkState } from "../../cloud/cloudLinkState";
 import { requestConfirmDialog } from "../../confirmDialog";
 import { webhookAddress } from "@t3tools/client-runtime/webhook-address";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -1232,17 +1231,17 @@ function WebhookEndpointField({
   );
 }
 
-function WebhookDeliveryMode({ environmentId }: { readonly environmentId: EnvironmentId }) {
+function WebhookDeliveryMode({
+  environmentId: _environmentId,
+}: {
+  readonly environmentId: EnvironmentId;
+}) {
   const gt = useGT();
-  const cloudLink = usePrimaryCloudLinkState();
-  if (cloudLink.target?.environmentId !== environmentId || cloudLink.data === null) return null;
   return (
     <p className="text-xs text-muted-foreground">
-      {cloudLink.data.holdWebhooksWhileOffline
-        ? gt("Held for up to 24 hours while this environment is offline. ")
-        : gt("Forwarded live. Requests fail while this environment is offline. ")}
+      {gt("Forwarded live while this host tunnel is online. ")}
       <Link to="/settings/access" className="underline underline-offset-2">
-        <T>Change in Sharing & access</T>
+        <T>View in Sharing & access</T>
       </Link>
     </p>
   );

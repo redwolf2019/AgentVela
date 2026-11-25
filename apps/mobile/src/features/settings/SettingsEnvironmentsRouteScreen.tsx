@@ -1,8 +1,6 @@
 import { useGT } from "gt-react-native";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { useNavigation } from "@react-navigation/native";
-import { useAtomValue } from "@effect/atom-react";
-import { managedRelaySessionAtom } from "@t3tools/client-runtime/relay";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useRef, useState } from "react";
 import { RefreshControl } from "../../components/ui/RefreshControl";
@@ -15,7 +13,7 @@ import { PullRequestRoutingSettings } from "../connection/PullRequestRoutingSett
 import { splitEnvironmentSections } from "../connection/environmentSections";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { useRemoteConnections } from "../../state/use-remote-environment-registry";
-import { relayEnvironmentDiscovery } from "../../state/relay";
+import { relayEnvironmentDiscovery, useSelfHostedRelaySession } from "../../state/relay";
 import { useAtomCommand } from "../../state/use-atom-command";
 import {
   applyShowcaseLocalEnvironmentDisplayUrls,
@@ -48,7 +46,7 @@ export function SettingsEnvironmentsRouteScreen() {
     ? SHOWCASE_CONNECTED_CLOUD_ENVIRONMENTS
     : environmentSections.connectedCloudEnvironments;
   const headerIconColor = useUniwindTheme()["--color-icon"];
-  const relaySession = useAtomValue(managedRelaySessionAtom);
+  const relaySession = useSelfHostedRelaySession();
   const refreshRelayEnvironments = useAtomCommand(
     relayEnvironmentDiscovery.refresh,
     "relay environment refresh",
@@ -56,7 +54,7 @@ export function SettingsEnvironmentsRouteScreen() {
   const [isRefreshingCloud, setIsRefreshingCloud] = useState(false);
   const cloudRefreshPendingRef = useRef(false);
   async function refreshCloudEnvironments() {
-    if (!relaySession || cloudRefreshPendingRef.current) return;
+    if (relaySession.status !== "signed_in" || cloudRefreshPendingRef.current) return;
     cloudRefreshPendingRef.current = true;
     setIsRefreshingCloud(true);
     await refreshRelayEnvironments();

@@ -9,12 +9,7 @@ import * as PrimaryEnvironmentHttpLayer from "../environments/primary/httpLayer"
 
 import * as Dpop from "../cloud/dpop";
 import * as ManagedRelayLayer from "../cloud/managedRelayLayer";
-import { resolveCloudPublicConfig } from "../cloud/publicConfig";
 import * as ClientTracer from "../observability/clientTracer";
-
-function configuredRelayUrl(): string {
-  return resolveCloudPublicConfig().relayUrl ?? "http://relay.invalid";
-}
 
 const layerHttpClient = layerRemoteHttpClient((input, init) => globalThis.fetch(input, init));
 
@@ -23,7 +18,7 @@ type RuntimeLayerSource =
   | typeof Dpop.layer
   | typeof Socket.layerWebSocketConstructorGlobal
   | typeof ClientTracer.layer
-  | ReturnType<typeof ManagedRelayLayer.layer>;
+  | typeof ManagedRelayLayer.layer;
 
 const primaryHttpRuntime = ManagedRuntime.make(
   PrimaryEnvironmentHttpClient.layer.pipe(Layer.provide(PrimaryEnvironmentHttpLayer.layer)),
@@ -51,12 +46,10 @@ const layerRuntime = Layer.mergeAll(
   Dpop.layer,
   Socket.layerWebSocketConstructorGlobal,
   ClientTracer.layer,
-  ManagedRelayLayer.layer(configuredRelayUrl()).pipe(
-    Layer.provide(Layer.mergeAll(layerHttpClient, Dpop.layer)),
-  ),
+  ManagedRelayLayer.layer.pipe(Layer.provide(Layer.mergeAll(layerHttpClient, Dpop.layer))),
 );
 
-export const runtime: ManagedRuntime.ManagedRuntime<
+const runtime: ManagedRuntime.ManagedRuntime<
   Layer.Success<RuntimeLayerSource>,
   Layer.Error<RuntimeLayerSource>
 > = ManagedRuntime.make(layerRuntime);

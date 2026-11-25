@@ -10,14 +10,15 @@ import {
 import { readEnvironmentScope } from "../../state/session";
 import { appAtomRegistry } from "../../state/atom-registry";
 import { serverEnvironment } from "../../state/server";
+import { RelaySession } from "@t3tools/client-runtime/relay";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
-import { useAuth } from "@clerk/expo";
 import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import * as Notifications from "expo-notifications";
 import { useNavigation } from "@react-navigation/native";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { AsyncResult } from "effect/reactivity";
 import { useRef, useState, useSyncExternalStore } from "react";
@@ -25,7 +26,6 @@ import { Linking, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m as resolveMessage } from "../../i18n/messages";
 
-import { AppText as Text } from "../../components/ui/AppText";
 import {
   createEnvironmentCommand,
   isAtomCommandInterrupted,
@@ -57,10 +57,10 @@ import {
   updateLinkedEnvironmentLiveActivityPreference,
 } from "../cloud/linkEnvironment";
 import { refreshManagedRelayEnvironments } from "../cloud/managedRelayState";
-import { hasCloudPublicConfig, resolveRelayClerkTokenOptions } from "../cloud/publicConfig";
 import { makePermissionStatusAtom } from "../../lib/permissionStatusAtom";
 import { runtime } from "../../lib/runtime";
 import { mobilePreferencesAtom, saveMobilePreferences } from "../../state/preferences";
+import { useSelfHostedRelaySession } from "../../state/relay";
 import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
 import { SettingsRow } from "./components/SettingsRow";
 import { SettingsSection } from "./components/SettingsSection";
@@ -187,27 +187,14 @@ function useNotificationsReady(): boolean {
   );
 }
 
+const readRelayAccessToken = (): Promise<string | null> =>
+  runtime.runPromise(
+    Effect.flatMap(RelaySession.RelayAuthSession, (s) =>
+      Effect.option(s.getValidAccessToken().pipe(Effect.map((token) => token.accessToken))),
+    ).pipe(Effect.map(Option.getOrNull)),
+  );
+
 export function SettingsNotificationsRouteScreen() {
-  const gt = useGT();
-  if (!hasCloudPublicConfig()) {
-    return (
-      <SettingsScreen title={gt("Notifications")}>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerClassName="px-5 pt-4"
-        >
-          <Text className="text-base text-foreground-muted">
-            {gt("Notifications require {product} in this app build.", { product: "T3 Connect" })}
-          </Text>
-        </ScrollView>
-      </SettingsScreen>
-    );
-  }
-
-  return <ConfiguredSettingsNotificationsRouteScreen />;
-}
-
-function ConfiguredSettingsNotificationsRouteScreen() {
   const gt = useGT();
   const m = useMessages();
   const preferencesResult = useAtomValue(mobilePreferencesAtom);
@@ -219,7 +206,9 @@ function ConfiguredSettingsNotificationsRouteScreen() {
       : agentAwarenessPlatform.subtitle;
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { getToken, isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const session = useSelfHostedRelaySession();
+  const isLoaded = true;
+  const isSignedIn = session.status === "signed_in";
   const { savedConnectionsById } = useSavedRemoteConnections();
   const notificationStatus = useAtomValue(notificationStatusAtom);
   const setNotificationStatus = useAtomSet(notificationStatusAtom);
@@ -362,7 +351,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
       }
       setNotificationStatus("enabled");
     }
-    const tokenResult = await settlePromise(() => getToken(resolveRelayClerkTokenOptions()));
+    const tokenResult = await settlePromise(() => readRelayAccessToken());
     if (tokenResult._tag === "Failure") {
       setLiveActivityStatus("disabled");
       const error = squashAtomCommandFailure(tokenResult);
@@ -469,7 +458,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
   async function disableLiveActivities() {
     let token: string | null = null;
     if (isSignedIn) {
-      const tokenResult = await settlePromise(() => getToken(resolveRelayClerkTokenOptions()));
+      const tokenResult = await settlePromise(() => readRelayAccessToken());
       if (tokenResult._tag === "Failure") {
         setLiveActivityStatus("enabled");
         reportAtomCommandResult(tokenResult, {

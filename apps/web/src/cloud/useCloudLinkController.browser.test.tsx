@@ -1,17 +1,9 @@
 import {
   AuthRelayReadScope,
   AuthRelayWriteScope,
-  AuthAdministrativeClientScopes,
   AuthRelayConfigureScope,
   EnvironmentId,
-  type EnvironmentCloudLinkStateResult,
 } from "@t3tools/contracts";
-import { ManagedRelay } from "@t3tools/client-runtime/relay";
-import {
-  RelayEnvironmentLinkLimitExceededError,
-  type RelayManagedEndpointProviderKind,
-} from "@t3tools/contracts/relay";
-import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 import { useLayoutEffect } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -20,37 +12,14 @@ import { act, render } from "../../test/render";
 
 const testState = vi.hoisted(() => ({
   scopes: new Set<string>(),
-  snapshot: null as EnvironmentCloudLinkStateResult | null,
-  renderedSnapshot: null as EnvironmentCloudLinkStateResult | null,
-  relayProviderKind: null as RelayManagedEndpointProviderKind | null,
-  getToken: vi.fn<() => Promise<string | null>>(),
-  link: vi.fn(),
-  unlink: vi.fn(),
-  preferences: vi.fn(),
+  signedIn: true,
+  linkHost: vi.fn(),
+  unlinkHost: vi.fn(),
   refreshDiscovery: vi.fn(),
   refreshLink: vi.fn(),
   toast: vi.fn(),
 }));
 
-vi.mock(import("@effect/atom-react"), async (original) => ({
-  ...(await original()),
-  useAtomValue: (() => ({
-    environments: new Map(
-      testState.relayProviderKind === null
-        ? []
-        : [
-            [
-              "service",
-              { environment: { endpoint: { providerKind: testState.relayProviderKind } } },
-            ],
-          ],
-    ),
-  })) as never,
-}));
-vi.mock(import("@clerk/react"), async (original) => ({
-  ...(await original()),
-  useAuth: (() => ({ getToken: testState.getToken, isSignedIn: true })) as never,
-}));
 vi.mock(import("../components/ui/toast"), async (original) => {
   const actual = await original();
   return { ...actual, toastManager: { ...actual.toastManager, add: testState.toast } as never };
@@ -59,9 +28,28 @@ vi.mock(import("../state/relay"), async (original) => {
   const actual = await original();
   return {
     ...actual,
-    relayEnvironmentDiscovery: {
-      ...actual.relayEnvironmentDiscovery,
-      refresh: testState.refreshDiscovery,
+    useSelfHostedRelaySession: () =>
+      testState.signedIn
+        ? {
+            status: "signed_in" as const,
+            relayUrl: "https://relay.example.com",
+            user: {
+              userId: "user-1" as never,
+              username: "alice" as never,
+              role: "admin" as const,
+              disabled: false,
+              createdAt: "2026-01-01T00:00:00.000Z",
+              updatedAt: "2026-01-01T00:00:00.000Z",
+            },
+            accessTokenExpiresAt: "2026-01-01T01:00:00.000Z",
+            refreshTokenExpiresAt: "2026-01-02T00:00:00.000Z",
+          }
+        : { status: "signed_out" as const, relayUrl: null, user: null },
+    selfHostedRelay: {
+      ...actual.selfHostedRelay,
+      linkHost: testState.linkHost as never,
+      unlinkHost: testState.unlinkHost as never,
+      refreshDiscovery: testState.refreshDiscovery as never,
     } as never,
   };
 });
@@ -69,192 +57,80 @@ vi.mock(import("../state/session"), async (original) => ({
   ...(await original()),
   readEnvironmentScope: (_environmentId, scope) => testState.scopes.has(scope),
   readEnvironmentCanConfigureRelay: () => testState.scopes.has(AuthRelayConfigureScope),
+  useEnvironmentCanConfigureRelay: () => testState.scopes.has(AuthRelayConfigureScope),
 }));
 vi.mock(import("../state/use-atom-command"), async (original) => ({
   ...(await original()),
   useAtomCommand: ((command: unknown) => command) as never,
 }));
-vi.mock(import("./linkEnvironmentAtoms"), async (original) => ({
-  ...(await original()),
-  linkEnvironment: testState.link as never,
-  unlinkEnvironment: testState.unlink as never,
-  updateEnvironmentPreferences: testState.preferences as never,
-}));
 vi.mock(import("./cloudLinkState"), async (original) => ({
   ...(await original()),
-  readCachedCloudLinkState: () => testState.snapshot,
   useCloudLinkState: ((environmentId: EnvironmentId | null) => ({
     target: environmentId === null ? null : { environmentId },
-    data: testState.renderedSnapshot,
+    data: null,
     error: null,
     isPending: false,
     refresh: testState.refreshLink,
   })) as never,
 }));
-vi.mock(import("./publicConfig"), async (original) => ({
+vi.mock(import("./hostRelayState"), async (original) => ({
   ...(await original()),
-  resolveRelayClerkTokenOptions: () => ({}) as never,
+  refreshHostRelayStatus: testState.refreshLink,
 }));
 
-import { CloudEnvironmentLinkError } from "./linkEnvironment";
-import { useCloudLinkController, type CloudLinkDesiredState } from "./useCloudLinkController";
+import { useCloudLinkController } from "./useCloudLinkController";
 
-const target = { environmentId: EnvironmentId.make("service") };
-const linkedState: EnvironmentCloudLinkStateResult = {
-  linked: true,
-  cloudUserId: "account-1",
-  relayUrl: "https://relay.example.com",
-  relayIssuer: "https://relay.example.com",
-  managedTunnelActive: true,
-  publishAgentActivity: false,
-};
-
+const targetId = EnvironmentId.make("service");
 type Controller = ReturnType<typeof useCloudLinkController>;
 
 function ControllerProbe({ onRender }: { onRender: (controller: Controller) => void }) {
-  const value = useCloudLinkController(target.environmentId);
+  const value = useCloudLinkController(targetId);
   useLayoutEffect(() => {
     onRender(value);
   });
   return null;
 }
 
-async function mountController() {
-  let controller: Controller | null = null;
-  const screen = await render(
-    <ControllerProbe
-      onRender={(value) => {
-        controller = value;
-      }}
-    />,
-  );
-  return Object.assign(screen, {
-    // Object.assign would copy a getter's value once, so read the latest render through a function.
-    controller: () => controller,
-    async reconcile(desired: CloudLinkDesiredState) {
-      let succeeded = false;
-      await act(async () => {
-        if (controller === null) throw new Error("Controller is not mounted.");
-        succeeded = await controller.reconcileCloudState(desired);
-      });
-      return succeeded;
-    },
-  });
-}
-
-function expectNoMutations() {
-  expect(testState.link).not.toHaveBeenCalled();
-  expect(testState.unlink).not.toHaveBeenCalled();
-  expect(testState.preferences).not.toHaveBeenCalled();
-}
-
-function setup() {
-  testState.scopes = new Set(AuthAdministrativeClientScopes);
-  testState.snapshot = linkedState;
-  testState.renderedSnapshot = linkedState;
-  testState.relayProviderKind = null;
-  testState.getToken.mockReset().mockResolvedValue("clerk-token");
-  for (const command of [
-    testState.link,
-    testState.unlink,
-    testState.preferences,
-    testState.refreshDiscovery,
-  ]) {
-    command.mockReset().mockResolvedValue(AsyncResult.success({}));
-  }
-  testState.refreshLink.mockReset();
-  testState.toast.mockReset();
-  return vi.spyOn(console, "error").mockImplementation(() => undefined);
-}
-
 describe("useCloudLinkController", () => {
-  it.each([AuthRelayReadScope, AuthRelayWriteScope])(
-    "does not mutate without %s, even with a cached link snapshot",
-    async (scope) => {
-      using _setup = setup();
-      await using screen = await mountController();
-      testState.scopes.delete(scope);
+  it("links and unlinks host relay using self-hosted relay commands", async () => {
+    testState.scopes = new Set([AuthRelayReadScope, AuthRelayWriteScope, AuthRelayConfigureScope]);
+    testState.signedIn = true;
+    testState.linkHost.mockReset().mockResolvedValue(AsyncResult.success(undefined));
+    testState.unlinkHost.mockReset().mockResolvedValue(AsyncResult.success(undefined));
+    testState.refreshDiscovery.mockReset().mockResolvedValue(AsyncResult.success(undefined));
+    testState.refreshLink.mockReset();
 
-      expect(await screen.reconcile({ managedTunnel: true, publish: true })).toBe(false);
-      expect(testState.getToken).not.toHaveBeenCalled();
-      expectNoMutations();
-    },
-  );
+    let latest!: Controller;
+    await using _screen = await render(<ControllerProbe onRender={(c) => (latest = c)} />);
 
-  it("does not interpret unavailable link state as an unlinked environment", async () => {
-    using _setup = setup();
-    testState.snapshot = null;
-    await using screen = await mountController();
-
-    expect(await screen.reconcile({ managedTunnel: false, publish: true })).toBe(false);
-    expect(testState.getToken).not.toHaveBeenCalled();
-    expectNoMutations();
-  });
-
-  it.each([AuthRelayReadScope, AuthRelayWriteScope])(
-    "rechecks %s after requesting the cloud token",
-    async (scope) => {
-      using _setup = setup();
-      await using screen = await mountController();
-      testState.getToken.mockImplementationOnce(async () => {
-        testState.scopes.delete(scope);
-        return "clerk-token";
-      });
-
-      expect(await screen.reconcile({ managedTunnel: false, publish: false })).toBe(false);
-      expectNoMutations();
-    },
-  );
-
-  it("stops if the link-state read fails while requesting the cloud token", async () => {
-    using _setup = setup();
-    await using screen = await mountController();
-    testState.getToken.mockImplementationOnce(async () => {
-      testState.snapshot = null;
-      return "clerk-token";
+    let ok = false;
+    await act(async () => {
+      ok = await latest.reconcileCloudState({ managedTunnel: true, publish: false });
     });
+    expect(ok).toBe(true);
+    expect(testState.linkHost).toHaveBeenCalledWith(targetId);
+    expect(testState.refreshDiscovery).toHaveBeenCalled();
 
-    expect(await screen.reconcile({ managedTunnel: true, publish: true })).toBe(false);
-    expectNoMutations();
+    await act(async () => {
+      ok = await latest.reconcileCloudState({ managedTunnel: false, publish: false });
+    });
+    expect(ok).toBe(true);
+    expect(testState.unlinkHost).toHaveBeenCalledWith(targetId);
   });
 
-  it("still lets an authorized user unlink when the cloud token is unavailable", async () => {
-    using _setup = setup();
-    await using screen = await mountController();
-    testState.getToken.mockRejectedValueOnce(new Error("Cloud sign-in unavailable"));
+  it("blocks linking when signed out", async () => {
+    testState.scopes = new Set([AuthRelayReadScope, AuthRelayWriteScope, AuthRelayConfigureScope]);
+    testState.signedIn = false;
+    testState.linkHost.mockReset();
 
-    expect(await screen.reconcile({ managedTunnel: false, publish: false })).toBe(true);
-    expect(testState.unlink).toHaveBeenCalledExactlyOnceWith({ target, clerkToken: null });
-    expect(testState.link).not.toHaveBeenCalled();
-    expect(testState.preferences).not.toHaveBeenCalled();
-  });
+    let latest!: Controller;
+    await using _screen = await render(<ControllerProbe onRender={(c) => (latest = c)} />);
 
-  it("reports a relay tunnel cap refusal as tunnelLimit instead of an error", async () => {
-    using _setup = setup();
-    testState.snapshot = { ...linkedState, linked: false, managedTunnelActive: false };
-    testState.link.mockResolvedValueOnce(
-      AsyncResult.failure(
-        Cause.fail(
-          new CloudEnvironmentLinkError({
-            message: "environment-links failed",
-            cause: new ManagedRelay.ManagedRelayRequestFailedError({
-              action: "link relay environment",
-              cause: null,
-              relayError: new RelayEnvironmentLinkLimitExceededError({
-                code: "environment_link_limit_exceeded",
-                maxTunnels: 3,
-                traceId: "trace-1",
-              }),
-            }),
-          }),
-        ),
-      ),
-    );
-    await using screen = await mountController();
-
-    expect(await screen.reconcile({ managedTunnel: true, publish: false })).toBe(false);
-    expect(screen.controller()?.tunnelLimit).toBe(3);
-    expect(screen.controller()?.operationError).toBeNull();
-    expect(testState.toast).not.toHaveBeenCalled();
+    let ok = true;
+    await act(async () => {
+      ok = await latest.reconcileCloudState({ managedTunnel: true, publish: false });
+    });
+    expect(ok).toBe(false);
+    expect(testState.linkHost).not.toHaveBeenCalled();
   });
 });

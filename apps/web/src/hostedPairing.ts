@@ -31,12 +31,21 @@ function originFromUrl(value: string): string | null {
   }
 }
 
+export function isRelayHostedWebUi(): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  return (
+    document.querySelector('meta[name="agent-vela-relay-hosted"]')?.getAttribute("content") === "1"
+  );
+}
+
 export function isHostedStaticApp(url?: URL): boolean {
   if (configuredBackendUrl()) {
     return false;
   }
 
-  if (configuredHostedAppChannel()) {
+  if (configuredHostedAppChannel() || isRelayHostedWebUi()) {
     return true;
   }
 

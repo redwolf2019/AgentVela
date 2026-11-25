@@ -9,8 +9,12 @@ import {
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Layer from "effect/Layer";
+import * as Stream from "effect/Stream";
+import * as SubscriptionRef from "effect/SubscriptionRef";
 import { afterEach, vi } from "vite-plus/test";
 import { ClientCapabilities } from "@t3tools/client-runtime/platform";
+import { RelaySession } from "@t3tools/client-runtime/relay";
 import {
   ConnectionBlockedError,
   ConnectionTransientError,
@@ -209,7 +213,16 @@ describe("desktop SSH pairing", () => {
       const ensure = vi.spyOn(bridge, "ensureSshEnvironment").mockReturnValueOnce(setup.promise);
       const exchange = vi.spyOn(bridge, "bootstrapSshBearerSession");
       vi.stubGlobal("window", { desktopBridge: bridge });
-      const ssh = yield* ClientCapabilities.SshEnvironmentGateway.pipe(Effect.provide(layer));
+      const state = yield* SubscriptionRef.make<RelaySession.RelaySessionState>({
+        status: "signed_out",
+        relayUrl: null,
+        user: null,
+      });
+      const testLayer = Layer.provideMerge(
+        layer,
+        Layer.mock(RelaySession.RelayAuthSession)({ state, accountChanges: Stream.empty }),
+      );
+      const ssh = yield* ClientCapabilities.SshEnvironmentGateway.pipe(Effect.provide(testLayer));
       const interrupted = yield* Effect.forkChild(ssh.provision(TARGET), {
         startImmediately: true,
       });

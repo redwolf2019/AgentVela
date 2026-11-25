@@ -1,61 +1,34 @@
-import {
-  createAtomCommandScheduler,
-  createRuntimeCommand,
-} from "@t3tools/client-runtime/state/runtime";
+import { RelayHostControl } from "@t3tools/client-runtime/relay";
+import { createRuntimeCommand } from "@t3tools/client-runtime/state/runtime";
+import * as Effect from "effect/Effect";
 
 import { connectionAtomRuntime } from "../connection/runtime";
-import {
-  checkCloudReachability,
-  linkEnvironmentToCloud,
-  readCloudLinkState,
-  type CloudLinkMode,
-  type CloudLinkTarget,
-  unlinkEnvironmentFromCloud,
-  updateCloudPreferences,
-} from "./linkEnvironment";
-
-const cloudLinkScheduler = createAtomCommandScheduler();
-const cloudLinkConcurrency = {
-  mode: "serial" as const,
-  key: (input: { readonly target: CloudLinkTarget }) => input.target.environmentId,
-};
-
-export const linkEnvironment = createRuntimeCommand(connectionAtomRuntime, {
-  label: "web:cloud:link-environment",
-  scheduler: cloudLinkScheduler,
-  concurrency: cloudLinkConcurrency,
-  execute: (input: {
-    readonly target: CloudLinkTarget;
-    readonly clerkToken: string;
-    readonly mode?: CloudLinkMode;
-  }) => linkEnvironmentToCloud(input),
-});
-
-export const unlinkEnvironment = createRuntimeCommand(connectionAtomRuntime, {
-  label: "web:cloud:unlink-environment",
-  scheduler: cloudLinkScheduler,
-  concurrency: cloudLinkConcurrency,
-  execute: (input: { readonly target: CloudLinkTarget; readonly clerkToken: string | null }) =>
-    unlinkEnvironmentFromCloud(input),
-});
-
-export const updateEnvironmentPreferences = createRuntimeCommand(connectionAtomRuntime, {
-  label: "web:cloud:update-environment-preferences",
-  scheduler: cloudLinkScheduler,
-  concurrency: cloudLinkConcurrency,
-  execute: (input: {
-    readonly target: CloudLinkTarget;
-    readonly publishAgentActivity: boolean;
-    readonly holdWebhooksWhileOffline?: boolean;
-  }) => updateCloudPreferences(input),
-});
+import { hostRelayStatusToCloudLinkState, type CloudLinkTarget } from "./cloudLinkState";
 
 export const checkReachability = createRuntimeCommand(connectionAtomRuntime, {
   label: "web:cloud:check-reachability",
-  execute: (input: { readonly target: CloudLinkTarget }) => checkCloudReachability(input),
+  execute: (input: { readonly target: CloudLinkTarget }) =>
+    RelayHostControl.readHostRelayStatus(input.target.environmentId).pipe(
+      Effect.map((status) => {
+        const projected = hostRelayStatusToCloudLinkState(status);
+        return (
+          projected.reachability ?? {
+            status: "unreachable" as const,
+            checkedAt: new Date().toISOString(),
+            cause: "not_linked" as const,
+            reason: "Host is not linked to a relay server.",
+            hint: null,
+            fix: "Turn on Relay in Settings or link the host first.",
+          }
+        );
+      }),
+    ),
 });
 
 export const readLinkState = createRuntimeCommand(connectionAtomRuntime, {
   label: "web:cloud:read-link-state",
-  execute: (input: { readonly target: CloudLinkTarget }) => readCloudLinkState(input),
+  execute: (input: { readonly target: CloudLinkTarget }) =>
+    RelayHostControl.readHostRelayStatus(input.target.environmentId).pipe(
+      Effect.map(hostRelayStatusToCloudLinkState),
+    ),
 });

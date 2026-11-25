@@ -61,9 +61,11 @@ export function resolveMcpGate(
   const { relay } = input;
   if (!input.connected) {
     if (input.thisMachine) return { kind: "disconnected", relay: null };
-    // T3 Connect checks only its own tunnels; a publish-only link's check always fails.
+    // Relay checks only its own tunnels; a publish-only link's check always fails.
     const availability =
-      relay.status === "listed" && relay.endpoint?.providerKind === "cloudflare_tunnel"
+      relay.status === "listed" &&
+      (relay.endpoint?.providerKind === "t3_relay" ||
+        relay.endpoint?.providerKind === "cloudflare_tunnel")
         ? relay.availability
         : undefined;
     // A refresh empties the list first, so wait for it instead of flashing "Connect first".
@@ -79,8 +81,8 @@ export function resolveMcpGate(
   if (input.linkStateError !== null) return { kind: "error", message: input.linkStateError };
   const { linkState } = input;
   if (linkState === null) return { kind: "checking" };
-  // This machine reports its own tunnel and the probe proves it; the list speaks for saved ones.
-  const endpoint = !input.thisMachine && relay.status === "listed" ? relay.endpoint : undefined;
+  const listedEndpoint = relay.status === "listed" ? relay.endpoint : undefined;
+  const endpoint = !input.thisMachine ? listedEndpoint : undefined;
   if (!isManagedTunnelActive(linkState, endpoint?.providerKind)) return { kind: "turn-on" };
   if (!input.thisMachine) {
     if (relay.status === "loading") return { kind: "checking" };
@@ -90,10 +92,12 @@ export function resolveMcpGate(
   }
   const { reachability } = input;
   if (reachability === "checking") return { kind: "checking" };
+  const mcpEndpoint =
+    endpoint ?? (listedEndpoint?.providerKind === "t3_relay" ? listedEndpoint : undefined);
   const mcpUrl = t3ConnectMcpUrl({
     thisMachine: input.thisMachine,
     tunnelHostname: linkState.tunnelHostname,
-    relayEndpoint: endpoint,
+    relayEndpoint: mcpEndpoint,
   });
   if (reachability?.status === "reachable" && mcpUrl !== null) return { kind: "open", mcpUrl };
   return {

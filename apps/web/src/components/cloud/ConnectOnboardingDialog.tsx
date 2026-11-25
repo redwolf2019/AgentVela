@@ -1,4 +1,3 @@
-import { useAuth } from "@clerk/react";
 import { useAtomValue } from "@effect/atom-react";
 import { managedCapabilityDenial } from "@t3tools/client-runtime/contract-labels";
 import {
@@ -8,6 +7,7 @@ import {
   type AuthSessionState,
   type EnvironmentId,
 } from "@t3tools/contracts";
+import { useNavigate } from "@tanstack/react-router";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { msg, T, useGT, useMessages } from "gt-react";
 import { useState } from "react";
@@ -17,7 +17,6 @@ import {
   ConnectOnboardingOptOutSchema,
   EMPTY_CONNECT_ONBOARDING_OPT_OUT_STATE,
 } from "~/cloud/connectOnboarding";
-import { useManagedTunnelUsage } from "~/cloud/managedRelayState";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
 import { useCloudLinkController } from "~/cloud/useCloudLinkController";
 import { useLocalStorage } from "~/hooks/useLocalStorage";
@@ -29,6 +28,7 @@ import {
   usePrimaryEnvironmentId,
 } from "~/state/environments";
 import { usePrimaryManagedPolicy } from "~/state/managedPolicy";
+import { useSelfHostedRelaySession } from "~/state/relay";
 import {
   environmentSession,
   readEnvironmentCanConfigureRelay,
@@ -36,12 +36,7 @@ import {
   useEnvironmentCanConfigureRelay,
   useEnvironmentScope,
 } from "~/state/session";
-import {
-  type T3ConnectAccountPageUrl,
-  useT3ConnectAccountPage,
-} from "../clerk/T3ConnectAccountPages";
 import { CloudEnvironmentConnectRows } from "./CloudEnvironmentConnectList";
-import { TunnelLimitAlert } from "./TunnelUsage";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Dialog } from "../ui/dialog";
@@ -69,8 +64,10 @@ function canPublishOnEnvironment(id: EnvironmentId | null): boolean {
 }
 
 function ConfiguredConnectOnboardingDialog() {
-  // Pending Clerk sessions must not look signed out or activation would look like a new sign-in.
-  const { isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
+  const navigate = useNavigate();
+  const relaySession = useSelfHostedRelaySession();
+  const isSignedIn = relaySession.status === "signed_in";
+  const userId = relaySession.status === "signed_in" ? relaySession.user.userId : null;
   const gt = useGT();
   const m = useMessages();
   const [optOutState, setOptOutState] = useLocalStorage(
@@ -80,7 +77,6 @@ function ConfiguredConnectOnboardingDialog() {
   );
 
   const { environments, isReady: environmentsReady } = useEnvironments();
-  // The empty hosted home already adds account computers after sign-in.
   const homeScreenAddsComputers =
     isHostedStaticApp() && environmentsReady && environments.length === 0;
   const primaryEnvironmentId = usePrimaryEnvironmentId();
@@ -90,7 +86,6 @@ function ConfiguredConnectOnboardingDialog() {
       : environmentSession.sessionStateAtom(primaryEnvironmentId),
   );
   const canConfigureRelay = useEnvironmentCanConfigureRelay(primaryEnvironmentId);
-  // A policy that turns Connect off leaves nothing to publish; reaching other devices still works.
   const connectAllowed =
     managedCapabilityDenial(usePrimaryManagedPolicy(), "connect") === undefined;
   const canReadRelay = useEnvironmentScope(primaryEnvironmentId, AuthRelayReadScope);
@@ -104,7 +99,6 @@ function ConfiguredConnectOnboardingDialog() {
     primaryEnvironmentId === null ? environmentsReady : primarySessionState._tag !== "Initial";
 
   const controller = useCloudLinkController(primaryEnvironmentId);
-  const accountPage = useT3ConnectAccountPage();
   const showPublishStep = canManageRelay && controller.linkState.target !== null;
   const steps: ReadonlyArray<OnboardingStep> = showPublishStep
     ? ["publish", "devices"]
@@ -114,12 +108,10 @@ function ConfiguredConnectOnboardingDialog() {
   const [openForAccount, setOpenForAccount] = useState<string | null>(null);
   const [step, setStep] = useState<OnboardingStep>("devices");
   const [exposeEnvironment, setExposeEnvironment] = useState(true);
-  const [publishAgentActivity, setPublishAgentActivity] = useState(true);
   const [requireDeviceApproval, setRequireDeviceApproval] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [prefilledFromLinkState, setPrefilledFromLinkState] = useState(false);
-  // Start undefined so an existing account never looks like a fresh sign-in.
   const [observedAccount, setObservedAccount] = useState<string | null | undefined>(undefined);
 
   if (step === "publish" && sessionScopesKnown && !showPublishStep && !isApplying) {
@@ -127,15 +119,11 @@ function ConfiguredConnectOnboardingDialog() {
   }
 
   const optOutAccounts = optOutState.optOutAccounts;
-
-  // A signed-in snapshot without userId is incomplete; recording signed-out would fake a fresh sign-in.
-  if (isLoaded && !(isSignedIn && !userId)) {
-    const nextAccount = isSignedIn && userId ? userId : null;
-    if (nextAccount !== observedAccount) {
-      setObservedAccount(nextAccount);
-      if (observedAccount !== undefined && nextAccount !== null) {
-        setRequestedAccount(nextAccount);
-      }
+  const nextAccount = isSignedIn && userId ? userId : null;
+  if (nextAccount !== observedAccount) {
+    setObservedAccount(nextAccount);
+    if (observedAccount !== undefined && nextAccount !== null) {
+      setRequestedAccount(nextAccount);
     }
   }
 
@@ -146,8 +134,6 @@ function ConfiguredConnectOnboardingDialog() {
     setRequestedAccount(null);
   }
 
-  // Wait for the publish target before opening; otherwise the wizard can freeze on devices before publish
-  // becomes available.
   const publishStepDecided = !canManageRelay || controller.linkState.target !== null;
 
   if (requestedAccount !== null && openForAccount === null) {
@@ -157,7 +143,6 @@ function ConfiguredConnectOnboardingDialog() {
       setRequestedAccount(null);
       setPrefilledFromLinkState(false);
       setExposeEnvironment(true);
-      setPublishAgentActivity(true);
       setRequireDeviceApproval(false);
       setDontShowAgain(false);
       setStep(canManageRelay && controller.linkState.target !== null ? "publish" : "devices");
@@ -174,7 +159,6 @@ function ConfiguredConnectOnboardingDialog() {
       linkStateData.cloudUserId === openForAccount
     ) {
       setExposeEnvironment(linkStateData.managedTunnelActive ?? linkStateData.linked);
-      setPublishAgentActivity(linkStateData.publishAgentActivity);
     }
   }
 
@@ -193,8 +177,6 @@ function ConfiguredConnectOnboardingDialog() {
 
   const applyPublishSelection = async () => {
     if (isApplying) return;
-    // Onboarding only turns approval on; turning it off stays in Settings. Publishing waits
-    // for the save, so a failed save cannot leave the machine reachable without approval.
     if (requireDeviceApproval && !deviceApprovalRequired) {
       setIsApplying(true);
       const saved = await new Promise<boolean>((resolve) =>
@@ -211,36 +193,24 @@ function ConfiguredConnectOnboardingDialog() {
       return;
     }
     if (linkStateData === null || controller.linkState.error !== null) return;
-    // Onboarding only enables links; both toggles off must preserve existing links.
-    if (!exposeEnvironment && !publishAgentActivity) {
+    if (!exposeEnvironment) {
       setStep("devices");
       return;
     }
     setIsApplying(true);
     const ok = await controller.reconcileCloudState({
-      managedTunnel: exposeEnvironment,
-      publish: publishAgentActivity,
+      managedTunnel: true,
+      publish: false,
     });
     setIsApplying(false);
     if (!ok) return;
     toastManager.add({
       type: "success",
-      title: gt("T3 Connect enabled"),
-      description: exposeEnvironment
-        ? gt("This environment is available to your other devices through T3 Connect.")
-        : gt("This environment publishes agent activity to your mobile clients."),
+      title: gt("Relay linked"),
+      description: gt("This environment is available through your self-hosted Relay server."),
     });
     setStep("devices");
   };
-
-  const openAccountPage = accountPage.open;
-  // The account page is a Clerk modal, so close this dialog before it opens.
-  const leaveForAccountPage = openAccountPage
-    ? (page: T3ConnectAccountPageUrl) => {
-        complete();
-        openAccountPage(page);
-      }
-    : null;
 
   return (
     <Dialog
@@ -251,11 +221,11 @@ function ConfiguredConnectOnboardingDialog() {
     >
       <WizardPopup>
         <WizardHeader
-          title={gt("Set up T3 Connect")}
+          title={gt("Set up Relay")}
           description={
             <T>
-              Mesh your devices together. Publish this environment and connect the rest, all in one
-              place.
+              Connect this environment to your self-hosted Relay and access all your linked hosts in
+              one place.
             </T>
           }
         >
@@ -276,7 +246,6 @@ function ConfiguredConnectOnboardingDialog() {
           {step === "publish" ? (
             <PublishStep
               exposeEnvironment={exposeEnvironment}
-              publishAgentActivity={publishAgentActivity}
               requireDeviceApproval={
                 canRequireDeviceApproval ? requireDeviceApproval || deviceApprovalRequired : null
               }
@@ -284,13 +253,12 @@ function ConfiguredConnectOnboardingDialog() {
               onRequireDeviceApprovalChange={setRequireDeviceApproval}
               disabled={isApplying || !canManageRelay || linkStateData === null}
               operationError={controller.operationError ?? controller.linkState.error}
-              tunnelLimit={controller.tunnelLimit}
-              onOpenAccountPage={leaveForAccountPage}
+              onOpenRelaySettings={() => {
+                complete();
+                void navigate({ to: "/settings/relay" });
+              }}
               onExposeEnvironmentChange={(enabled) => {
                 if (canPublishOnEnvironment(primaryEnvironmentId)) setExposeEnvironment(enabled);
-              }}
-              onPublishAgentActivityChange={(enabled) => {
-                if (canPublishOnEnvironment(primaryEnvironmentId)) setPublishAgentActivity(enabled);
               }}
             />
           ) : (
@@ -317,7 +285,7 @@ function ConfiguredConnectOnboardingDialog() {
                 disabled={isApplying || !canManageRelay || linkStateData === null}
                 onClick={() => void applyPublishSelection()}
               >
-                {isApplying ? gt("Enabling…") : gt("Continue")}
+                {isApplying ? gt("Linking…") : gt("Continue")}
               </Button>
             </>
           ) : (
@@ -327,8 +295,6 @@ function ConfiguredConnectOnboardingDialog() {
           )}
         </WizardFooter>
       </WizardPopup>
-      {/* Base UI renders Root children while closed, so this keeps the account page mounted. */}
-      {accountPage.portals}
     </Dialog>
   );
 }
@@ -340,29 +306,22 @@ const STEP_LABELS: Record<OnboardingStep, string> = {
 
 function PublishStep({
   exposeEnvironment,
-  publishAgentActivity,
   requireDeviceApproval,
   requireDeviceApprovalLocked,
   onRequireDeviceApprovalChange,
   disabled,
   operationError,
-  tunnelLimit,
-  onOpenAccountPage,
+  onOpenRelaySettings,
   onExposeEnvironmentChange,
-  onPublishAgentActivityChange,
 }: {
   readonly exposeEnvironment: boolean;
-  readonly publishAgentActivity: boolean;
-  /** Null when this session cannot change who may connect. */
   readonly requireDeviceApproval: boolean | null;
   readonly requireDeviceApprovalLocked: boolean;
   readonly onRequireDeviceApprovalChange: (enabled: boolean) => void;
   readonly disabled: boolean;
   readonly operationError: string | null;
-  readonly tunnelLimit: number | null;
-  readonly onOpenAccountPage: ((page: T3ConnectAccountPageUrl) => void) | null;
+  readonly onOpenRelaySettings: () => void;
   readonly onExposeEnvironmentChange: (enabled: boolean) => void;
-  readonly onPublishAgentActivityChange: (enabled: boolean) => void;
 }) {
   const gt = useGT();
   return (
@@ -371,26 +330,17 @@ function PublishStep({
         <OnboardingToggleRow
           title={gt("Publish this environment")}
           description={gt(
-            "Make this environment available to your other devices through T3 Connect.",
+            "Make this environment available to your other devices through your self-hosted Relay.",
           )}
           checked={exposeEnvironment}
           disabled={disabled}
           onCheckedChange={onExposeEnvironmentChange}
         />
-        <OnboardingToggleRow
-          title={gt("Publish agent activity")}
-          description={gt(
-            "Send activity from this environment to your mobile clients for push notifications and Live Activities.",
-          )}
-          checked={publishAgentActivity}
-          disabled={disabled}
-          onCheckedChange={onPublishAgentActivityChange}
-        />
         {requireDeviceApproval !== null ? (
           <OnboardingToggleRow
             title={gt("Require approval for new devices")}
             description={gt(
-              "Devices that sign in to your T3 Connect account wait until someone already connected here approves them.",
+              "Devices that sign in to your Relay account wait until someone already connected here approves them.",
             )}
             checked={requireDeviceApproval}
             disabled={disabled || requireDeviceApprovalLocked}
@@ -399,25 +349,10 @@ function PublishStep({
         ) : null}
       </div>
       {operationError ? <p className="text-xs text-destructive">{operationError}</p> : null}
-      {tunnelLimit !== null ? (
-        <OnboardingTunnelLimitAlert onOpenAccountPage={onOpenAccountPage} />
-      ) : null}
+      <Button size="xs" variant="ghost" onClick={onOpenRelaySettings}>
+        <T>Open Relay settings</T>
+      </Button>
     </div>
-  );
-}
-
-function OnboardingTunnelLimitAlert({
-  onOpenAccountPage,
-}: {
-  readonly onOpenAccountPage: ((page: T3ConnectAccountPageUrl) => void) | null;
-}) {
-  const { upgrade } = useManagedTunnelUsage();
-  return (
-    <TunnelLimitAlert
-      upgrade={upgrade}
-      onLinkT3Chat={onOpenAccountPage ? () => onOpenAccountPage("t3-chat") : null}
-      onManageTunnels={onOpenAccountPage ? () => onOpenAccountPage("t3-connect") : null}
-    />
   );
 }
 
@@ -466,8 +401,8 @@ function DevicesStep() {
         empty={
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">
             <T>
-              No other environments are published to your account yet. Publish one from another
-              device and it will show up here.
+              No other environments are linked to your Relay account yet. Link one from another
+              machine and it will show up here.
             </T>
           </p>
         }

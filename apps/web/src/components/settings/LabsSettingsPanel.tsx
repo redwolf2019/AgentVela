@@ -1,5 +1,4 @@
 import { managedCapabilityDenial } from "@t3tools/client-runtime/contract-labels";
-import { useAuth } from "@clerk/react";
 import { Link } from "@tanstack/react-router";
 import {
   DEFAULT_WORKFLOW_SKIPPED_RUNS_KEPT,
@@ -8,7 +7,8 @@ import {
 import { T, useGT, useMessages } from "gt-react";
 
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
-import { useT3ConnectAuthPrompt } from "../clerk/useT3ConnectAuthPrompt";
+import { openRelayAuthDialog } from "~/cloud/relayAuthDialog";
+import { useSelfHostedRelaySession } from "~/state/relay";
 import { Button } from "../ui/button";
 import { NumberField, NumberFieldGroup, NumberFieldInput } from "../ui/number-field";
 import { Switch } from "../ui/switch";
@@ -106,18 +106,16 @@ function BoringSidebarMultilineRow() {
 function GuestLinksRowWithSignIn() {
   const searchableSetting = useSearchableSetting();
   const gt = useGT();
-  const { isSignedIn } = useAuth();
-  const { openAuthPrompt } = useT3ConnectAuthPrompt();
-  // `isSignedIn` is undefined until Clerk loads.
-  if (isSignedIn !== false) return <GuestLinksRow />;
+  const session = useSelfHostedRelaySession();
+  if (session.status === "signed_in") return <GuestLinksRow />;
   return (
     <SettingsRow
       {...searchableSetting("guest-links")}
       description={gt(
-        "Share a thread with a guest who watches it live in a browser and sends messages you approve. Sign in to T3 Connect to use guest links.",
+        "Share a thread with a guest who watches it live in a browser and sends messages you approve. Sign in to Relay to use guest links.",
       )}
       control={
-        <Button size="sm" variant="outline" onClick={openAuthPrompt}>
+        <Button size="sm" variant="outline" onClick={() => openRelayAuthDialog()}>
           <T>Sign in</T>
         </Button>
       }

@@ -1,38 +1,97 @@
 import { useAtomValue } from "@effect/atom-react";
+import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import {
   AuthRelayReadScope,
   type EnvironmentCloudLinkStateResult,
   type EnvironmentId,
 } from "@t3tools/contracts";
-import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
+import type { HostRelayStatus } from "@t3tools/contracts/agentVelaRelay";
 import * as Cause from "effect/Cause";
-import { useGT, useMessages } from "gt-react";
 import { AsyncResult, Atom } from "effect/reactivity";
+import { useGT, useMessages } from "gt-react";
+import { RelayHostControl } from "@t3tools/client-runtime/relay";
 
 import { connectionAtomRuntime } from "../connection/runtime";
-import { usePrimaryEnvironmentId } from "../state/environments";
 import { appAtomRegistry } from "../rpc/atomRegistry";
+import { usePrimaryEnvironmentId } from "../state/environments";
 import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
-import { readCloudLinkState, type CloudLinkTarget } from "./linkEnvironment";
-import { hasCloudPublicConfig } from "./publicConfig";
+import { refreshHostRelayStatus } from "./hostRelayState";
+
+export interface CloudLinkTarget {
+  readonly environmentId: EnvironmentId;
+}
+
+export function hostRelayStatusToCloudLinkState(
+  status: HostRelayStatus,
+): EnvironmentCloudLinkStateResult {
+  const checkedAt = status.tunnel.connectedAt ?? new Date().toISOString();
+  const hostname = (() => {
+    if (!status.endpoint) return undefined;
+    try {
+      return new URL(status.endpoint.httpBaseUrl).hostname;
+    } catch {
+      return undefined;
+    }
+  })();
+
+  return {
+    linked: status.linked,
+    cloudUserId: status.userId,
+    relayUrl: status.relayUrl,
+    relayIssuer: status.relayIssuer,
+    managedTunnelActive: status.linked,
+    publishAgentActivity: false,
+    linkRevoked: false,
+    linkableHere: true,
+    ...(hostname ? { tunnelHostname: hostname } : {}),
+    ...(status.linked
+      ? {
+          reachability:
+            status.tunnel.state === "online"
+              ? {
+                  status: "reachable" as const,
+                  checkedAt,
+                  readyConnections: status.tunnel.activeStreams,
+                  protocol: "t3_relay",
+                }
+              : {
+                  status: "unreachable" as const,
+                  checkedAt,
+                  cause: "connector_not_ready" as const,
+                  reason:
+                    status.tunnel.lastError ??
+                    (status.tunnel.state === "connecting"
+                      ? "Relay tunnel is connecting."
+                      : "Relay tunnel is disconnected."),
+                  hint: null,
+                  fix: "Reconnect the host relay tunnel or check network reachability.",
+                },
+        }
+      : {}),
+  };
+}
 
 const cloudLinkStateAtom = Atom.family((environmentId: EnvironmentId) =>
-  connectionAtomRuntime
-    .atom(readCloudLinkState({ target: { environmentId } }))
-    .pipe(
-      Atom.swr({ staleTime: 5_000, revalidateOnMount: true }),
-      Atom.setIdleTTL(5 * 60_000),
-      Atom.withLabel(`cloud-link:${environmentId}`),
+  connectionAtomRuntime.atom(RelayHostControl.readHostRelayStatus(environmentId)).pipe(
+    Atom.map((result): AsyncResult.AsyncResult<EnvironmentCloudLinkStateResult | null, unknown> =>
+      AsyncResult.map(result, hostRelayStatusToCloudLinkState),
     ),
+    Atom.swr({ staleTime: 5_000, revalidateOnMount: true }),
+    Atom.setIdleTTL(5 * 60_000),
+    Atom.withLabel(`cloud-link:${environmentId}`),
+  ),
 );
 
-const EMPTY_CLOUD_LINK_STATE_ATOM = Atom.make(
-  AsyncResult.success<EnvironmentCloudLinkStateResult | null>(null),
+const EMPTY_CLOUD_LINK_STATE_ATOM: Atom.Atom<
+  AsyncResult.AsyncResult<EnvironmentCloudLinkStateResult | null, unknown>
+> = Atom.make((): AsyncResult.AsyncResult<EnvironmentCloudLinkStateResult | null, unknown> =>
+  AsyncResult.success(null),
 ).pipe(Atom.keepAlive, Atom.withLabel("cloud-link:null"));
 
 function refreshCloudLinkState(target: CloudLinkTarget | null): void {
   if (target && readEnvironmentScope(target.environmentId, AuthRelayReadScope)) {
     appAtomRegistry.refresh(cloudLinkStateAtom(target.environmentId));
+    refreshHostRelayStatus(target.environmentId);
   }
 }
 
@@ -48,7 +107,7 @@ export function useCloudLinkState(environmentId: EnvironmentId | null) {
   const canReadRelay = useEnvironmentScope(environmentId, AuthRelayReadScope);
   const target: CloudLinkTarget | null = environmentId === null ? null : { environmentId };
   const atom =
-    environmentId !== null && hasCloudPublicConfig() && canReadRelay
+    environmentId !== null && canReadRelay
       ? cloudLinkStateAtom(environmentId)
       : EMPTY_CLOUD_LINK_STATE_ATOM;
   const result = useAtomValue(atom);
@@ -60,7 +119,7 @@ export function useCloudLinkState(environmentId: EnvironmentId | null) {
     const cause = Cause.squash(result.cause);
     error =
       (cause instanceof Error ? thrownErrorMessage(cause, resolve) : null) ??
-      gt("Could not read T3 Connect link state.");
+      gt("Could not read Relay link state.");
   }
 
   return {

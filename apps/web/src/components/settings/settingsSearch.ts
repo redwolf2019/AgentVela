@@ -35,6 +35,7 @@ export type SettingsPath =
   | "/settings/source-control"
   | "/settings/worktrees"
   | "/settings/connections"
+  | "/settings/relay"
   | "/settings/access"
   | "/settings/secrets"
   | "/settings/maintenance"
@@ -111,6 +112,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/source-control": msg("Source control & issues"),
   "/settings/worktrees": msg("Worktrees"),
   "/settings/connections": msg("Environments"),
+  "/settings/relay": msg("Relay"),
   "/settings/access": msg("Sharing & access"),
   "/settings/secrets": msg("Secrets"),
   "/settings/maintenance": msg("Maintenance"),
@@ -166,7 +168,7 @@ const ALL_SETTINGS_NAV_GROUPS: ReadonlyArray<SettingsNavGroup> = [
   },
   {
     heading: msg("Connections"),
-    paths: ["/settings/connections", "/settings/access", "/settings/secrets"],
+    paths: ["/settings/connections", "/settings/relay", "/settings/access", "/settings/secrets"],
   },
   {
     heading: msg("More"),
@@ -1402,12 +1404,44 @@ export const SETTINGS_SEARCH_ITEMS = [
     wslAvailableOnly: true,
   },
   {
+    id: "relay-server",
+    title: msg("Relay server"),
+    to: "/settings/relay",
+    targetId: "relay-server",
+    searchTerms: [msg("self hosted relay url server endpoint address")],
+    cloudOnly: true,
+  },
+  {
+    id: "relay-account",
+    title: msg("Relay account"),
+    to: "/settings/relay",
+    targetId: "relay-account",
+    searchTerms: [msg("sign in register account username password invite")],
+    cloudOnly: true,
+  },
+  {
+    id: "relay-enrollment",
+    title: msg("Headless host enrollment"),
+    to: "/settings/relay",
+    targetId: "relay-enrollment",
+    searchTerms: [msg("enrollment token cli t3 relay link headless linux")],
+    cloudOnly: true,
+  },
+  {
+    id: "relay-admin",
+    title: msg("Relay administration"),
+    to: "/settings/relay",
+    targetId: "relay-admin",
+    searchTerms: [msg("admin users invites active tunnels kick telemetry")],
+    cloudOnly: true,
+  },
+  {
     id: "t3-connect",
     localEnvironmentOnly: true,
-    title: msg("T3 Connect"),
+    title: msg("Self-hosted Relay"),
     to: "/settings/access",
     targetId: "connections-environment",
-    searchTerms: [msg("managed tunnel cloud other devices remote tunnels limit t3 chat")],
+    searchTerms: [msg("self hosted relay tunnel other devices remote link")],
     desktopOnly: true,
     cloudOnly: true,
   },
@@ -1416,30 +1450,9 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: msg("Require approval for new devices"),
     to: "/settings/access",
     targetId: "connections-environment",
-    searchTerms: [
-      msg("t3 connect devices approve deny trust revoke pairing code security account"),
-    ],
+    searchTerms: [msg("relay devices approve deny trust revoke pairing code security account")],
     cloudOnly: true,
     managedTunnelOnly: true,
-  },
-  {
-    id: "hold-webhooks-while-offline",
-    localEnvironmentOnly: true,
-    title: msg("Hold webhooks while offline"),
-    to: "/settings/access",
-    targetId: "connections-environment",
-    searchTerms: [msg("webhook automations offline queue mailbox t3 connect")],
-    cloudOnly: true,
-    managedTunnelOnly: true,
-  },
-  {
-    id: "publish-agent-activity",
-    localEnvironmentOnly: true,
-    title: msg("Publish agent activity"),
-    to: "/settings/access",
-    targetId: "connections-environment",
-    searchTerms: [msg("mobile push notifications live activities cloud tunnel")],
-    cloudOnly: true,
   },
   {
     id: "preview-tunnel",
@@ -1536,6 +1549,7 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/source-control": "environment-defaults",
   "/settings/worktrees": "project-defaults",
   "/settings/connections": "connections",
+  "/settings/relay": "connections",
   "/settings/access": "connections",
   "/settings/secrets": null,
   "/settings/scheduled-tasks": null,

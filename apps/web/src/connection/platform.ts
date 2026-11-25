@@ -22,7 +22,7 @@ import {
 } from "@t3tools/client-runtime/connection";
 import { bootstrapRemoteBearerSession } from "@t3tools/client-runtime/authorization";
 import { fetchRemoteEnvironmentDescriptor } from "@t3tools/client-runtime/environment";
-import { managedRelayAccountChanges, managedRelaySessionAtom } from "@t3tools/client-runtime/relay";
+import { RelaySession } from "@t3tools/client-runtime/relay";
 import { EnvironmentRpcRequestObserver } from "@t3tools/client-runtime/rpc";
 import {
   AuthStandardClientScopes,
@@ -53,7 +53,6 @@ import {
 import { clearComposerDraftsEnvironment } from "../composerDraftStore";
 import { isHostedStaticApp } from "../hostedPairing";
 import { isLocalEnvironmentDisabled } from "../localEnvironment";
-import { appAtomRegistry } from "../rpc/atomRegistry";
 import { acknowledgeRpcRequest, trackRpcRequestSent } from "../rpc/requestLatencyState";
 import {
   desktopLocalConnectionId,
@@ -124,52 +123,55 @@ const networkPathChanges = Stream.callback<"network-changed">((queue) =>
   ).pipe(Effect.asVoid),
 );
 
-const layerWakeups = Wakeups.layer({
-  changes: Stream.mergeAll(
-    [
-      Stream.callback<"application-active">((queue) =>
-        Effect.acquireRelease(
-          Effect.sync(() => {
-            const listener = () => {
-              if (document.visibilityState === "visible") {
-                Queue.offerUnsafe(queue, "application-active");
-              }
-            };
-            document.addEventListener("visibilitychange", listener);
-            return listener;
-          }),
-          (listener) =>
-            Effect.sync(() => {
-              document.removeEventListener("visibilitychange", listener);
-            }),
-        ).pipe(Effect.asVoid),
+const layerWakeups = Layer.effect(
+  Wakeups.ConnectionWakeups,
+  Effect.map(RelaySession.RelayAuthSession, (relaySession) =>
+    Wakeups.ConnectionWakeups.of({
+      changes: Stream.mergeAll(
+        [
+          Stream.callback<"application-active">((queue) =>
+            Effect.acquireRelease(
+              Effect.sync(() => {
+                const listener = () => {
+                  if (document.visibilityState === "visible") {
+                    Queue.offerUnsafe(queue, "application-active");
+                  }
+                };
+                document.addEventListener("visibilitychange", listener);
+                return listener;
+              }),
+              (listener) =>
+                Effect.sync(() => {
+                  document.removeEventListener("visibilitychange", listener);
+                }),
+            ).pipe(Effect.asVoid),
+          ),
+          // A window left visible beside another app never fires visibilitychange when refocused.
+          Stream.callback<"application-focused">((queue) =>
+            Effect.acquireRelease(
+              Effect.sync(() => {
+                const listener = () => {
+                  if (document.visibilityState === "visible") {
+                    Queue.offerUnsafe(queue, "application-focused");
+                  }
+                };
+                window.addEventListener("focus", listener);
+                return listener;
+              }),
+              (listener) =>
+                Effect.sync(() => {
+                  window.removeEventListener("focus", listener);
+                }),
+            ).pipe(Effect.asVoid),
+          ),
+          relaySession.accountChanges.pipe(Stream.map(() => "credentials-changed" as const)),
+          networkPathChanges,
+        ],
+        { concurrency: "unbounded" },
       ),
-      // A window left visible beside another app never fires visibilitychange when refocused.
-      Stream.callback<"application-focused">((queue) =>
-        Effect.acquireRelease(
-          Effect.sync(() => {
-            const listener = () => {
-              if (document.visibilityState === "visible") {
-                Queue.offerUnsafe(queue, "application-focused");
-              }
-            };
-            window.addEventListener("focus", listener);
-            return listener;
-          }),
-          (listener) =>
-            Effect.sync(() => {
-              window.removeEventListener("focus", listener);
-            }),
-        ).pipe(Effect.asVoid),
-      ),
-      managedRelayAccountChanges(appAtomRegistry).pipe(
-        Stream.map(() => "credentials-changed" as const),
-      ),
-      networkPathChanges,
-    ],
-    { concurrency: "unbounded" },
+    }),
   ),
-});
+);
 
 export function currentClientMetadata() {
   return clientPresentationMetadata({
@@ -353,36 +355,6 @@ const layerCapabilities = Layer.effectContext(
     const presentation = ClientCapabilities.ClientPresentation.of({
       metadata: currentClientMetadata(),
     });
-    const cloudSession = ClientCapabilities.CloudSession.of({
-      identity: Effect.sync(() =>
-        Option.fromNullishOr(appAtomRegistry.get(managedRelaySessionAtom)),
-      ),
-      clerkToken: Effect.gen(function* () {
-        const session = appAtomRegistry.get(managedRelaySessionAtom);
-        if (session === null) {
-          return yield* new ConnectionBlockedError({
-            reason: "authentication",
-            detail: m(msg("Sign in to T3 Connect to connect this environment.")),
-          });
-        }
-        const token = yield* session.readClerkToken().pipe(
-          Effect.mapError(
-            (error) =>
-              new ConnectionTransientError({
-                reason: "network",
-                detail: error.message,
-              }),
-          ),
-        );
-        if (token === null) {
-          return yield* new ConnectionBlockedError({
-            reason: "authentication",
-            detail: m(msg("The T3 Connect session is unavailable.")),
-          });
-        }
-        return token;
-      }),
-    });
     const identity = ClientCapabilities.RelayDeviceIdentity.of({
       deviceId: Effect.succeedNone,
     });
@@ -442,8 +414,7 @@ const layerCapabilities = Layer.effectContext(
       }),
     });
 
-    return Context.make(ClientCapabilities.CloudSession, cloudSession).pipe(
-      Context.add(ClientCapabilities.PrimaryEnvironmentAuth, primaryAuth),
+    return Context.make(ClientCapabilities.PrimaryEnvironmentAuth, primaryAuth).pipe(
       Context.add(ClientCapabilities.RelayDeviceIdentity, identity),
       Context.add(ClientCapabilities.ClientPresentation, presentation),
       Context.add(ClientCapabilities.SshEnvironmentGateway, ssh),

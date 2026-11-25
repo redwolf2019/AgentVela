@@ -5,14 +5,13 @@ import {
   Connectivity,
   Wakeups,
 } from "@t3tools/client-runtime/connection";
-import { managedRelayAccountChanges, managedRelaySessionAtom } from "@t3tools/client-runtime/relay";
+import { RelaySession } from "@t3tools/client-runtime/relay";
 import * as Clock from "effect/Clock";
 import { msg } from "gt-react-native";
 import { m } from "../i18n/messages";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
 import Constants from "expo-constants";
@@ -22,7 +21,6 @@ import { AppState } from "react-native";
 import { authClientMetadata } from "../lib/authClientMetadata";
 import * as Runtime from "../lib/runtime";
 import * as MobileStorage from "../persistence/mobile-storage";
-import { appAtomRegistry } from "../state/atom-registry";
 import { mobileApplicationActiveWakeup } from "./app-state-wakeups";
 import * as EnvironmentOwnedDataCleanup from "./environment-owned-data-cleanup";
 import * as ConnectionStorage from "./storage";
@@ -112,84 +110,52 @@ const networkPathChanges = Stream.callback<"network-changed">((queue) =>
   ).pipe(Effect.asVoid),
 );
 
-const layerWakeups = Wakeups.layer({
-  changes: Stream.mergeAll(
-    [
-      Stream.callback<"application-active-probe" | "application-active-long">((queue) =>
-        Effect.acquireRelease(
-          Effect.gen(function* () {
-            const nowMs = yield* Clock.currentTimeMillis;
-            let backgroundedAtMs = AppState.currentState === "background" ? nowMs : null;
-            return AppState.addEventListener("change", (state) => {
-              if (state === "background") {
-                backgroundedAtMs = Date.now();
-                return;
-              }
-              if (state === "active") {
-                Queue.offerUnsafe(
-                  queue,
-                  mobileApplicationActiveWakeup(backgroundedAtMs, Date.now()),
-                );
-                backgroundedAtMs = null;
-              }
-            });
-          }),
-          (subscription) => Effect.sync(() => subscription.remove()),
-        ).pipe(Effect.asVoid),
+const layerWakeups = Layer.effect(
+  Wakeups.ConnectionWakeups,
+  Effect.map(RelaySession.RelayAuthSession, (relaySession) =>
+    Wakeups.ConnectionWakeups.of({
+      changes: Stream.mergeAll(
+        [
+          Stream.callback<"application-active-probe" | "application-active-long">((queue) =>
+            Effect.acquireRelease(
+              Effect.gen(function* () {
+                const nowMs = yield* Clock.currentTimeMillis;
+                let backgroundedAtMs = AppState.currentState === "background" ? nowMs : null;
+                return AppState.addEventListener("change", (state) => {
+                  if (state === "background") {
+                    backgroundedAtMs = Date.now();
+                    return;
+                  }
+                  if (state === "active") {
+                    Queue.offerUnsafe(
+                      queue,
+                      mobileApplicationActiveWakeup(backgroundedAtMs, Date.now()),
+                    );
+                    backgroundedAtMs = null;
+                  }
+                });
+              }),
+              (subscription) => Effect.sync(() => subscription.remove()),
+            ).pipe(Effect.asVoid),
+          ),
+          relaySession.accountChanges.pipe(Stream.map(() => "credentials-changed" as const)),
+          networkPathChanges,
+        ],
+        { concurrency: "unbounded" },
       ),
-      managedRelayAccountChanges(appAtomRegistry).pipe(
-        Stream.map(() => "credentials-changed" as const),
-      ),
-      networkPathChanges,
-    ],
-    { concurrency: "unbounded" },
+    }),
   ),
-});
+);
 
 const layerCapabilities = Layer.effectContext(
   Effect.gen(function* () {
     const storage = yield* MobileStorage.MobileStorage;
     return Context.make(
-      ClientCapabilities.CloudSession,
-      ClientCapabilities.CloudSession.of({
-        identity: Effect.sync(() =>
-          Option.fromNullishOr(appAtomRegistry.get(managedRelaySessionAtom)),
-        ),
-        clerkToken: Effect.gen(function* () {
-          const session = appAtomRegistry.get(managedRelaySessionAtom);
-          if (session === null) {
-            return yield* new ConnectionBlockedError({
-              reason: "authentication",
-              detail: m(
-                msg("Sign in to {product} to connect this environment.", { product: "T3 Connect" }),
-              ),
-            });
-          }
-          const token = yield* session.readClerkToken().pipe(
-            Effect.mapError(
-              (error) =>
-                new ConnectionTransientError({
-                  reason: "network",
-                  detail: error.message,
-                }),
-            ),
-          );
-          if (token === null) {
-            return yield* new ConnectionBlockedError({
-              reason: "authentication",
-              detail: m(msg("The {product} session is unavailable.", { product: "T3 Connect" })),
-            });
-          }
-          return token;
-        }),
+      ClientCapabilities.PrimaryEnvironmentAuth,
+      ClientCapabilities.PrimaryEnvironmentAuth.of({
+        bearerToken: Effect.succeedNone,
       }),
     ).pipe(
-      Context.add(
-        ClientCapabilities.PrimaryEnvironmentAuth,
-        ClientCapabilities.PrimaryEnvironmentAuth.of({
-          bearerToken: Effect.succeedNone,
-        }),
-      ),
       Context.add(
         ClientCapabilities.RelayDeviceIdentity,
         ClientCapabilities.RelayDeviceIdentity.of({
@@ -259,13 +225,14 @@ const layerPlatformConnectionSource = Layer.succeed(
 );
 
 const layerProvidedConnectionStorage = ConnectionStorage.layer.pipe(Layer.provide(Runtime.layer));
+const layerProvidedWakeups = layerWakeups.pipe(Layer.provide(Runtime.layer));
 const layerProvidedCapabilities = layerCapabilities.pipe(Layer.provide(Runtime.layer));
 
 type ConnectionPlatformLayerSource =
   | typeof layerProvidedConnectionStorage
   | typeof Runtime.layer
   | typeof layerConnectivity
-  | typeof layerWakeups
+  | typeof layerProvidedWakeups
   | typeof layerProvidedCapabilities
   | typeof layerPlatformConnectionSource
   | typeof EnvironmentOwnedDataCleanup.layer;
@@ -278,7 +245,7 @@ export const layer: Layer.Layer<
   layerProvidedConnectionStorage,
   Runtime.layer,
   layerConnectivity,
-  layerWakeups,
+  layerProvidedWakeups,
   layerProvidedCapabilities,
   layerPlatformConnectionSource,
   EnvironmentOwnedDataCleanup.layer,

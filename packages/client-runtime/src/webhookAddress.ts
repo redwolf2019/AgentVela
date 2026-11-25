@@ -3,6 +3,8 @@ import { isLocalLoopbackHost } from "@t3tools/shared/hostClassification";
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 
+import { environmentEndpointRelativeUrl } from "./environment/endpoint.ts";
+
 export interface WebhookAddress {
   readonly address: string;
   readonly copyable: boolean;
@@ -24,7 +26,7 @@ export function webhookAddress(
       note: resolve(msg("Link this environment to T3 Connect for a public URL.")),
     };
   }
-  const url = new URL(endpoint.path, httpBaseUrl);
+  const url = new URL(environmentEndpointRelativeUrl(httpBaseUrl, endpoint.path));
   return {
     address: url.href,
     copyable: true,

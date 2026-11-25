@@ -3,9 +3,9 @@ import type {
   RelayManagedEndpoint,
   RelayManagedEndpointProviderKind,
 } from "@t3tools/contracts/relay";
+import { joinEndpointUrl } from "@t3tools/shared/relayUrl";
 import { parseUrl } from "@t3tools/shared/url";
 
-// Require managed discovery: stale tunnel config after a publish-only switch causes endpoint_provider_not_managed.
 export function isManagedTunnelActive(
   linkState: EnvironmentCloudLinkStateResult,
   relayProviderKind: RelayManagedEndpointProviderKind | undefined,
@@ -14,7 +14,9 @@ export function isManagedTunnelActive(
   return (
     linkState.linkRevoked !== true &&
     localManagedTunnel &&
-    (relayProviderKind === undefined || relayProviderKind === "cloudflare_tunnel")
+    (relayProviderKind === undefined ||
+      relayProviderKind === "t3_relay" ||
+      relayProviderKind === "cloudflare_tunnel")
   );
 }
 
@@ -35,19 +37,20 @@ export function cloudChangeReplacesLink(
   );
 }
 
-// The URL ends up in commands people paste into a shell, so only plain DNS names pass.
 const TUNNEL_HOSTNAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 
-/**
- * An environment's MCP URL on its T3 Connect tunnel, or null. This machine reports its own
- * tunnel hostname; a saved machine's comes from T3 Connect, and only a tunnel counts there,
- * since a publish-only link registers its local address as `manual`.
- */
 export function t3ConnectMcpUrl(input: {
   readonly thisMachine: boolean;
   readonly tunnelHostname: string | undefined;
   readonly relayEndpoint: RelayManagedEndpoint | undefined;
 }): string | null {
+  if (input.relayEndpoint?.providerKind === "t3_relay") {
+    try {
+      return joinEndpointUrl(input.relayEndpoint.httpBaseUrl, "/mcp");
+    } catch {
+      return null;
+    }
+  }
   const url = input.thisMachine
     ? parseUrl(`https://${input.tunnelHostname ?? ""}`)
     : input.relayEndpoint?.providerKind === "cloudflare_tunnel"
@@ -64,10 +67,6 @@ export type T3ConnectTurnOn =
   | { readonly kind: "policy"; readonly reason: string }
   | { readonly kind: "on-host" };
 
-/**
- * Settings and the MCP wizard share this, so a Turn on control shows only where linking works.
- * `linkableHere` is the environment's own answer for this session (its link state).
- */
 export function resolveT3ConnectTurnOn(input: {
   readonly linkableHere: boolean;
   readonly cloudConfigured: boolean;

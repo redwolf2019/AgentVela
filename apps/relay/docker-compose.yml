@@ -1,0 +1,37 @@
+services:
+  relay:
+    build:
+      context: ../..
+      dockerfile: apps/relay/Dockerfile
+    restart: unless-stopped
+    environment:
+      AGENT_VELA_RELAY_BIND: "0.0.0.0:8787"
+      AGENT_VELA_RELAY_PUBLIC_URL: "https://relay.example.com"
+      AGENT_VELA_RELAY_DATA_DIR: "/var/lib/agent-vela-relay"
+      AGENT_VELA_RELAY_SERVE_WEB_UI: "true"
+      AGENT_VELA_RELAY_TRUST_PROXY: "true"
+      # Supply bootstrap admin credentials for initial headless startup, then unset or rotate.
+      AGENT_VELA_RELAY_ADMIN_USERNAME: "${AGENT_VELA_RELAY_ADMIN_USERNAME:-}"
+      AGENT_VELA_RELAY_ADMIN_PASSWORD: "${AGENT_VELA_RELAY_ADMIN_PASSWORD:-}"
+    volumes:
+      - relay_data:/var/lib/agent-vela-relay
+    ports:
+      - "127.0.0.1:8787:8787"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - relay
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  relay_data:
+  caddy_data:
+  caddy_config:

@@ -6,7 +6,7 @@ import { layerRemoteHttpClient } from "@t3tools/client-runtime/rpc";
 
 import * as Dpop from "../features/cloud/dpop";
 import * as ManagedRelayLayer from "../features/cloud/managedRelayLayer";
-import { resolveCloudPublicConfig } from "../features/cloud/publicConfig";
+import { resolveDefaultRelayUrl } from "../features/cloud/publicConfig";
 import * as NativeWebSocket from "../native/nativeWebSocket";
 import * as Persistence from "../persistence/layer";
 import { disposeOnFoundationReplace, type FoundationHotModule } from "./foundation-fast-refresh";
@@ -14,21 +14,17 @@ import { whenProtectedDataAvailable } from "./protectedData";
 
 declare const module: { readonly hot?: FoundationHotModule } | undefined;
 
-function configuredRelayUrl(): string {
-  return resolveCloudPublicConfig().relay.url ?? "http://relay.invalid";
-}
-
 const layerHttpClient = layerRemoteHttpClient(fetch);
 
 type RuntimeLayerSource =
-  | ReturnType<typeof ManagedRelayLayer.layer>
+  | ReturnType<typeof ManagedRelayLayer.makeLayer>
   | typeof NativeWebSocket.layer
   | typeof Dpop.layer
   | typeof layerHttpClient
   | typeof Persistence.layer;
 
 const layerRuntime = Layer.merge(
-  ManagedRelayLayer.layer(configuredRelayUrl()),
+  ManagedRelayLayer.makeLayer(resolveDefaultRelayUrl()),
   NativeWebSocket.layer,
 ).pipe(
   Layer.provideMerge(Dpop.layer),

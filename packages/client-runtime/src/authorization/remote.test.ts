@@ -297,4 +297,65 @@ describe("remote environment authorization", () => {
       expect(new URL(url).searchParams.get("dpop")).toBe("proof-3");
     }),
   );
+
+  it.effect(
+    "preserves /e/:endpointKey prefixes across token exchange, ticket minting, and WS proof htu",
+    () =>
+      Effect.gen(function* () {
+        const base = "https://relay.example.com/e/env-1234567890abcdef";
+        const wsBase = "wss://relay.example.com/e/env-1234567890abcdef";
+        const fetch = recordedFetch(
+          Response.json({
+            access_token: "dpop-access-token",
+            issued_token_type: "urn:ietf:params:oauth:token-type:access_token",
+            token_type: "DPoP",
+            expires_in: 3600,
+            scope: "orchestration:read",
+          }),
+          Response.json({
+            ticket: "ws-ticket",
+            expiresAt: "2026-05-01T12:05:00.000Z",
+          }),
+        );
+        const proofs: Array<{ method: string; url: string; accessToken: string }> = [];
+
+        yield* exchangeRemoteDpopAccessToken({
+          httpBaseUrl: base,
+          credential: "one-time-credential",
+          dpopProof: "token-proof",
+        }).pipe(provideRemoteHttp(fetch.fetchFn));
+
+        const url = yield* resolveRemoteDpopWebSocketConnectionUrl({
+          wsBaseUrl: wsBase,
+          httpBaseUrl: base,
+          accessToken: "dpop-access-token",
+          createProof: (input) => {
+            proofs.push(input);
+            return Effect.succeed(`proof-${proofs.length}`);
+          },
+        }).pipe(provideRemoteHttp(fetch.fetchFn));
+
+        expectFetchCall(fetch.calls, 1, {
+          url: `${base}/oauth/token`,
+          method: "POST",
+        });
+        expectFetchCall(fetch.calls, 2, {
+          url: `${base}/api/auth/websocket-ticket/rpc`,
+          method: "POST",
+        });
+        expect(proofs).toEqual([
+          {
+            method: "POST",
+            url: `${base}/api/auth/websocket-ticket/rpc`,
+            accessToken: "dpop-access-token",
+          },
+          {
+            method: "GET",
+            url: `${base}/ws`,
+            accessToken: "ws-ticket",
+          },
+        ]);
+        expect(url).toBe(`${wsBase}/ws?wsTicket=ws-ticket&dpop=proof-2`);
+      }),
+  );
 });

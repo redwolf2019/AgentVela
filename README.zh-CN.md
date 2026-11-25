@@ -88,6 +88,7 @@ vp run dev
 
 - **桌面端（Electron）**：`vp run dev:desktop`
 - **通过 Tailscale 远程共享**：`vp run dev --share`
+- **自建公网中继**：在 Linux 服务器部署 [`apps/relay`](./apps/relay)，本地主机执行 `t3 relay link` 即可加密回连管理，详见 [自建中继部署手册](./docs/operations/02_connect-setup.md)
 - **移动端（React Native）**：参考 [apps/mobile/README.md](./apps/mobile/README.md)
 
 ### 4. 本地打包桌面安装包（可选）
@@ -112,6 +113,7 @@ vp run dist:desktop:win    # Windows NSIS
 - [权限模式说明](./docs/user/permission-modes.md)
 - [源码管理与 Git Worktree](./docs/user/source-control.md)
 - [远程访问指南](./docs/user/remote-access.md)
+- [自建中继部署手册](./docs/operations/02_connect-setup.md)
 - [外部 Agent 接入（MCP）](./docs/user/outside-agents.md)
 - [全部文档目录](./docs/README.md)
 

@@ -1,18 +1,36 @@
-import { DpopProof, ManagedRelay } from "@t3tools/client-runtime/relay";
-import { RelayMobileClientId } from "@t3tools/contracts/relay";
+import {
+  AgentVelaRelay,
+  DpopProof,
+  ManagedRelayBridge,
+  RelayConfig,
+  RelaySession,
+} from "@t3tools/client-runtime/relay";
 import * as Layer from "effect/Layer";
 
 import { loadOrCreateProofKey } from "./dpop";
-import { managedRelayAccessTokenStore } from "./managedRelayTokenStore";
+import { layerMobileRelayConfigStorage, layerMobileRelaySessionStore } from "./relayStorage";
 
 const layerRelayDpopSigner = DpopProof.layerSigner({
   keyStore: "expo-secure-store",
   loadOrCreateKey: loadOrCreateProofKey(),
 });
 
-export const layer = (relayUrl: string) =>
-  ManagedRelay.layer({
-    relayUrl,
-    clientId: RelayMobileClientId,
-    accessTokenStore: managedRelayAccessTokenStore,
-  }).pipe(Layer.provideMerge(layerRelayDpopSigner));
+export function makeLayer(defaultRelayUrl: string | null = null) {
+  const layerRelayConfig = RelayConfig.layerRelayUrlConfig({
+    defaultRelayUrl,
+  }).pipe(Layer.provide(layerMobileRelayConfigStorage));
+
+  const layerRelaySession = RelaySession.layerRelayAuthSession.pipe(
+    Layer.provideMerge(layerRelayConfig),
+    Layer.provide(layerMobileRelaySessionStore),
+  );
+
+  const layerRelayClient = AgentVelaRelay.layerAgentVelaRelayClient({
+    clientSurface: "mobile",
+  }).pipe(Layer.provideMerge(layerRelaySession), Layer.provideMerge(layerRelayDpopSigner));
+
+  return Layer.mergeAll(
+    ManagedRelayBridge.layerManagedRelayBridge,
+    RelaySession.layerCloudSessionFromRelayAuth,
+  ).pipe(Layer.provideMerge(layerRelayClient));
+}

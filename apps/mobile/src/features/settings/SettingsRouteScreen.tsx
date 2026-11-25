@@ -14,7 +14,6 @@ import { useSelectWorkspaceTab } from "../layout/workspace/useSelectWorkspaceTab
 import { useWorkspaceTabs } from "../layout/workspace/WorkspaceTabsContext";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { useAuth, useUser } from "@clerk/expo";
 import { useNavigation, useNavigationState } from "@react-navigation/native";
 import { use, type ComponentProps } from "react";
 import { Platform, View } from "react-native";
@@ -22,8 +21,8 @@ import { useNativeColumnLayoutMetrics } from "../../native/native-layout-metrics
 import { deriveProjectGroupLabel } from "@t3tools/client-runtime/state/project-grouping";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { hasCloudPublicConfig } from "../cloud/publicConfig";
 import { useAdaptiveWorkspaceLayout } from "../layout/adaptive-workspace-context";
+import { useSelfHostedRelaySession } from "../../state/relay";
 import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
 import { SettingsRow } from "./components/SettingsRow";
 import { SettingsSection, SettingsSidebarContext } from "./components/SettingsSection";
@@ -67,7 +66,7 @@ function useSettingsListPlacement() {
 }
 
 function SettingsListContent() {
-  return hasCloudPublicConfig() ? <ConfiguredSettingsRouteScreen /> : <LocalSettingsRouteScreen />;
+  return <ConfiguredSettingsRouteScreen />;
 }
 
 export function SettingsListScreen(props: {
@@ -112,14 +111,9 @@ interface SettingsListSection {
 function ConfiguredSettingsRouteScreen() {
   const gt = useGT();
   const navigation = useNavigation();
-  const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
-  const { user } = useUser();
+  const session = useSelfHostedRelaySession();
   const { savedConnectionsById } = useSavedRemoteConnections();
-  const accountLabel = !isLoaded
-    ? gt("Checking")
-    : !isSignedIn
-      ? gt("Sign in")
-      : (user?.primaryEmailAddress?.emailAddress ?? gt("Signed in"));
+  const accountLabel = session.status === "signed_in" ? session.user.username : gt("Sign in");
 
   return (
     <SettingsList
@@ -127,9 +121,8 @@ function ConfiguredSettingsRouteScreen() {
         {
           id: "account",
           icon: "person.crop.circle",
-          label: gt("T3 Account"),
+          label: gt("Relay"),
           value: accountLabel,
-          disabled: !isLoaded,
           onPress: () => navigation.navigate("SettingsAuth"),
         },
         environmentsRow(gt("Environments"), Object.keys(savedConnectionsById).length),
@@ -140,16 +133,6 @@ function ConfiguredSettingsRouteScreen() {
           target: "SettingsNotifications",
         },
       ]}
-    />
-  );
-}
-
-function LocalSettingsRouteScreen() {
-  const gt = useGT();
-  const { savedConnectionsById } = useSavedRemoteConnections();
-  return (
-    <SettingsList
-      connections={[environmentsRow(gt("Environments"), Object.keys(savedConnectionsById).length)]}
     />
   );
 }

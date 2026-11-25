@@ -1,0 +1,21 @@
+[Unit]
+Description=AgentVela Self-Hosted Relay Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agent-vela-relay
+Group=agent-vela-relay
+WorkingDirectory=/opt/agent-vela-relay
+ExecStart=/usr/local/bin/node --experimental-strip-types /opt/agent-vela-relay/apps/relay/src/bin.ts serve --config /etc/agent-vela-relay/relay.toml
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/agent-vela-relay
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
