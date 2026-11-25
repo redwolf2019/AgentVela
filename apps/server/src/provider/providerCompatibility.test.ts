@@ -129,7 +129,7 @@ describe("provider compatibility", () => {
     );
   });
 
-  it("marks Antigravity below 1.5 broken and recommends 1.5.12 in the bundled manifest", () => {
+  it("marks Antigravity below 1.5.1 broken and recommends 1.5.12 in the bundled manifest", () => {
     const policies = decodeCompatibilityPolicies(bundledManifest.compatibility);
     const antigravity = ProviderDriverKind.make("antigravity");
     for (const version of [
@@ -140,11 +140,13 @@ describe("provider compatibility", () => {
       "1.4.9",
       "agy_acp_server_1.4.5",
       "1.4.5-beta",
+      // The last release that offered Claude and GPT models only to allowlisted editors.
+      "1.5.0",
     ]) {
       const advisory = resolveProviderCompatibility(policies, antigravity, version);
       assert.strictEqual(advisory?.status, "broken", version);
     }
-    const supported = resolveProviderCompatibility(policies, antigravity, "1.5.11");
+    const supported = resolveProviderCompatibility(policies, antigravity, "1.5.1");
     assert.strictEqual(supported?.status, "supported");
     assert.strictEqual(supported?.recommendedRange, ">=1.5.12 <2");
     // Stable releases before 0.1.10 cannot install the CLI, so they keep the policy they shipped with.
