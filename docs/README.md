@@ -70,3 +70,4 @@ anything.
 - [03 · Release](./operations/03_release.md)
 - [04 · Observability](./operations/04_observability.md)
 - [05 · Relay observability](./operations/05_relay-observability.md)
+- [06 · Upstream sync](./operations/06_upstream-sync.md)
