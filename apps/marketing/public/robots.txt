@@ -1,4 +1,2 @@
 User-agent: *
 Allow: /
-
-Sitemap: https://t3.codes/sitemap.xml

@@ -710,7 +710,7 @@ function openLink(url: string) {
     );
 }
 
-function PrimaryAction({ app, mcpUrl }: { readonly app: McpApp; readonly mcpUrl: string }) {
+export function PrimaryAction({ app, mcpUrl }: { readonly app: McpApp; readonly mcpUrl: string }) {
   const [confirmingOutbound, setConfirmingOutbound] = useState(false);
   const gt = useGT();
   const m = useMessages();

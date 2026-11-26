@@ -78,7 +78,7 @@ export const ko: Messages = {
   download: {
     title: "macOS, Windows, Linux용 T3 Code 다운로드 | T3 Code",
     description:
-      "macOS, Windows, Linux용 공식 T3 Code 데스크톱 앱을 다운로드하거나 iOS 및 Android 앱을 받으세요. 공식 다운로드 사이트는 t3.codes뿐입니다.",
+      "GitHub Releases 또는 이 사이트에서 macOS, Windows, Linux용 AgentVela 데스크톱 앱이나 iOS 및 Android 앱을 다운로드하세요.",
     breadcrumb: "다운로드",
     heading: "T3 Code 다운로드",
     channelLabel: "릴리스 채널",

@@ -460,6 +460,12 @@ describe("ssh tunnel scripts", () => {
       NodeChildProcess.execFileSync("sh", ["-c", `sha256sum ${archive} > SHA256SUMS`], {
         cwd: release,
       });
+      const realTarPath = NodeChildProcess.execFileSync("sh", ["-c", "command -v tar"], {
+        encoding: "utf8",
+      }).trim();
+      const usesBsdTar = NodeChildProcess.execFileSync("tar", ["--version"], {
+        encoding: "utf8",
+      }).includes("bsdtar");
       for (const tool of [
         "sh",
         "mkdir",
@@ -472,6 +478,22 @@ describe("ssh tunnel scripts", () => {
         "tar",
         "mv",
       ]) {
+        if (tool === "tar" && usesBsdTar) {
+          NodeFS.writeFileSync(
+            NodePath.join(bin, "tar"),
+            [
+              "#!/bin/sh",
+              "if ! command -v gzip >/dev/null 2>&1; then",
+              '  printf "tar (child): gzip: Cannot exec: No such file or directory\\n" >&2',
+              "  exit 2",
+              "fi",
+              `exec "${realTarPath}" "$@"`,
+              "",
+            ].join("\n"),
+            { mode: 0o755 },
+          );
+          continue;
+        }
         NodeFS.symlinkSync(
           NodeChildProcess.execFileSync("sh", ["-c", `command -v ${tool}`], {
             encoding: "utf8",

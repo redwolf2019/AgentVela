@@ -82,7 +82,7 @@ export const fr: Messages = {
   download: {
     title: "Télécharger T3 Code pour macOS, Windows et Linux | T3 Code",
     description:
-      "Téléchargez l'app de bureau officielle T3 Code pour macOS, Windows ou Linux, ou les apps iOS et Android. t3.codes est le seul site de téléchargement officiel.",
+      "Téléchargez l'app de bureau AgentVela pour macOS, Windows ou Linux depuis GitHub Releases ou ce site, ou les apps iOS et Android.",
     breadcrumb: "Télécharger",
     heading: "Télécharger T3 Code",
     channelLabel: "Canal de publication",
