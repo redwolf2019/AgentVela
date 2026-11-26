@@ -1065,10 +1065,11 @@ export class PullRequestOperationError extends Schema.TaggedError<PullRequestOpe
     listResult: Schema.optional(PullRequestListResult),
     cause: Schema.optional(Schema.Defect()),
   },
-  { httpApiStatus: 502 },
+  // Not 502: the relay answers 502 itself when a tunnel is offline, so an origin 502 would read as that.
+  { httpApiStatus: 503 },
 ) {
   [HttpServerRespondable.symbol]() {
-    return HttpServerResponse.schemaJson(PullRequestOperationError)(this, { status: 502 });
+    return HttpServerResponse.schemaJson(PullRequestOperationError)(this, { status: 503 });
   }
 
   override get message(): string {

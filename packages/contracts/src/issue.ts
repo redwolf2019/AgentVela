@@ -503,10 +503,11 @@ export class IssueOperationError extends Schema.TaggedError<IssueOperationError>
     retryAt: Schema.optional(Schema.Number),
     cause: Schema.optional(Schema.Defect()),
   },
-  { httpApiStatus: 502 },
+  // Not 502: the relay answers 502 itself when a tunnel is offline, so an origin 502 would read as that.
+  { httpApiStatus: 503 },
 ) {
   [HttpServerRespondable.symbol]() {
-    return HttpServerResponse.schemaJson(IssueOperationError)(this, { status: 502 });
+    return HttpServerResponse.schemaJson(IssueOperationError)(this, { status: 503 });
   }
 
   override get message(): string {
@@ -692,10 +693,11 @@ export class IssueTrackerConnectionError extends Schema.TaggedError<IssueTracker
     detail: TrimmedNonEmptyString,
     cause: Schema.optional(Schema.Defect()),
   },
-  { httpApiStatus: 502 },
+  // Not 502: the relay answers 502 itself when a tunnel is offline, so an origin 502 would read as that.
+  { httpApiStatus: 503 },
 ) {
   [HttpServerRespondable.symbol]() {
-    return HttpServerResponse.schemaJson(IssueTrackerConnectionError)(this, { status: 502 });
+    return HttpServerResponse.schemaJson(IssueTrackerConnectionError)(this, { status: 503 });
   }
 
   override get message(): string {

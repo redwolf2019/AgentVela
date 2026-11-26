@@ -2,6 +2,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
+import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 
 import * as ServerConfig from "./config.ts";
@@ -35,8 +36,11 @@ describe("cleanupLegacyUsageFiles", () => {
       expect(yield* fs.exists(scanV3Path)).toBe(false);
       expect(yield* fs.exists(unrelatedPath)).toBe(true);
     }).pipe(
-      Effect.provide(ServerConfig.layerTest(process.cwd(), { prefix: "legacy-usage-cleanup-" })),
-      Effect.provide(NodeServices.layer),
+      Effect.provide(
+        ServerConfig.layerTest(process.cwd(), { prefix: "legacy-usage-cleanup-" }).pipe(
+          Layer.provideMerge(NodeServices.layer),
+        ),
+      ),
     ),
   );
 });
