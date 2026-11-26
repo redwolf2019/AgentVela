@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { MCP_APPS, mcpHandoffAction } from "./mcpApps";
+import { MCP_APPS, mcpHandoffAction, mcpHandoffOutboundUrlHost } from "./mcpApps";
 
 const MCP_URL = "https://prod-a1.t3coderelay.com/mcp?x=1&y=two words";
 
@@ -28,5 +28,14 @@ describe("MCP app links", () => {
     const appLink = action?.appLink == null ? null : new URL(action.appLink);
     expect(appLink?.protocol ?? null).toBe(app.id === "grok-bot" ? "grokbot:" : null);
     if (appLink) expect(appLink.searchParams.get("text")).toBe(action?.copy?.text);
+  });
+
+  it("reports third-party host only for apps that embed the MCP URL in an outbound link", () => {
+    const byId = (id: string) => MCP_APPS.find((candidate) => candidate.id === id)!;
+    expect(mcpHandoffOutboundUrlHost(byId("poke"), MCP_URL)).toBe("poke.com");
+    expect(mcpHandoffOutboundUrlHost(byId("claude"), MCP_URL)).toBe("claude.ai");
+    expect(mcpHandoffOutboundUrlHost(byId("chatgpt"), MCP_URL)).toBeNull();
+    expect(mcpHandoffOutboundUrlHost(byId("grok-bot"), MCP_URL)).toBeNull();
+    expect(mcpHandoffOutboundUrlHost(byId("openclaw"), MCP_URL)).toBeNull();
   });
 });

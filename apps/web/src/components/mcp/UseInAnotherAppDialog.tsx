@@ -62,7 +62,13 @@ import { Spinner } from "../ui/spinner";
 import { toastManager } from "../ui/toast";
 import { WizardFooter, WizardHeader, WizardPanel, WizardPopup, WizardSteps } from "../ui/wizard";
 import { afterFailedCheck, resolveMcpGate } from "./mcpGate";
-import { MCP_APPS, type McpApp, mcpHandoffAction, OTHER_MCP_APP_STEPS } from "./mcpApps";
+import {
+  MCP_APPS,
+  type McpApp,
+  mcpHandoffAction,
+  mcpHandoffOutboundUrlHost,
+  OTHER_MCP_APP_STEPS,
+} from "./mcpApps";
 
 const requestAtom = Atom.make<{ readonly environmentId: EnvironmentId | null } | null>(null).pipe(
   Atom.keepAlive,
@@ -663,7 +669,7 @@ function ConnectStep({
   }
   return (
     <section className="space-y-4">
-      <PrimaryAction app={app} mcpUrl={mcpUrl} />
+      <PrimaryAction key={`${app.id}:${mcpUrl}`} app={app} mcpUrl={mcpUrl} />
       <CopyRow label={gt("URL")} value={mcpUrl} />
       {code}
       <TextButton onClick={() => setAnotherWay(true)}>
@@ -705,9 +711,11 @@ function openLink(url: string) {
 }
 
 function PrimaryAction({ app, mcpUrl }: { readonly app: McpApp; readonly mcpUrl: string }) {
+  const [confirmingOutbound, setConfirmingOutbound] = useState(false);
   const gt = useGT();
   const m = useMessages();
   const action = mcpHandoffAction(app, mcpUrl, m);
+  const outboundHost = mcpHandoffOutboundUrlHost(app, mcpUrl);
   const note = app.note ? <p className="text-xs text-muted-foreground">{m(app.note)}</p> : null;
   if (action === null) {
     return (
@@ -768,11 +776,48 @@ function PrimaryAction({ app, mcpUrl }: { readonly app: McpApp; readonly mcpUrl:
     }
     openApp();
   };
+  const onPrimaryClick = () => {
+    if (outboundHost !== null) {
+      setConfirmingOutbound(true);
+      return;
+    }
+    void handOff();
+  };
   return (
     <div className="space-y-2">
-      <Button className="w-full" onClick={() => void handOff()}>
-        {action.label}
-      </Button>
+      {confirmingOutbound && outboundHost !== null ? (
+        <div
+          role="alert"
+          className="space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-xs"
+        >
+          <p className="text-foreground">
+            {gt("This sends your server's MCP URL to {host}. Continue?", { host: outboundHost })}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                setConfirmingOutbound(false);
+                void handOff();
+              }}
+            >
+              {gt("Continue to {app}", { app: app.name })}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setConfirmingOutbound(false)}>
+              {gt("Cancel")}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button className="w-full" onClick={onPrimaryClick}>
+          {action.label}
+        </Button>
+      )}
+      {outboundHost !== null ? (
+        <p className="text-xs text-muted-foreground">
+          {gt("Opens {host} with this server's MCP URL in the link.", { host: outboundHost })}
+        </p>
+      ) : null}
       {note}
     </div>
   );

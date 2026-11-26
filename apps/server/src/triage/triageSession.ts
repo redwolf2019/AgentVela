@@ -49,6 +49,7 @@ export const writeTriageSession = Effect.fn("triage.writeTriageSession")(functio
   readonly paths: ServerConfig.ServerDerivedPaths;
   readonly entry: TriageEntry;
   readonly server: string;
+  readonly repositoryUrl?: string | undefined;
   readonly sourceClone?: TriageSourceClone | undefined;
 }) {
   const fs = yield* FileSystem.FileSystem;
@@ -72,6 +73,7 @@ export const writeTriageSession = Effect.fn("triage.writeTriageSession")(functio
       os: `${yield* HostProcess.Platform} ${yield* HostProcess.Architecture} (${NodeOS.release()})`,
       nodeVersion: process.version,
       server: input.server,
+      repositoryUrl: input.repositoryUrl,
       sourceClone: input.sourceClone,
       paths: {
         stateDir: paths.stateDir,

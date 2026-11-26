@@ -385,6 +385,7 @@
   "834ca879c14c167b": "Arbetar",
   "582d6df7dfab86fb": "Pausad",
   "ea6583ce92507ee3": "Sover",
+  "7150557773b3818b": "I kö",
   "7ea8cb8af281ce93": "Väntar",
   "1347868f2523140e": "Klar",
   "57d76c4614054271": "Stoppad",
@@ -396,6 +397,7 @@
   "d3890f4eb1508781": "Kör sina egna steg",
   "3e7ced10c9482af0": "{step} arbetar",
   "237e1bcb1cf1bdec": "Sover vid {step}",
+  "efbeb3993ee2c3f5": "Köar för {pool}",
   "3f7b17ac5a20c8d2": "Kör {run}",
   "0306f5f324b8aaa5": "{count} körningar pågår",
   "e8fd779b84a202a2": "Väntar",
@@ -1580,6 +1582,7 @@
   "6848f5bbb2bd9eec": "PDF-dokument",
   "7873a79df0cf6d0e": "Webbsida",
   "0b55696e27387e4e": "Tryck på Shift+Escape för att lämna webbsidan.",
+  "90dfebe26eb86b2d": "Sidans valalternativ",
   "737d3c6bec93f9e6": "Välj filer för sidan",
   "e6a3fa7cfc14f86a": "Webbläsardialog",
   "61a552a67e9e3eac": "Dialogsvar",
@@ -2225,14 +2228,6 @@
   "0bafdf01b3799538": "Committa",
   "2d786f6466f42ba1": "Avbryt",
   "809d74fd98dd8b0f": "Checka ut funktionsgren och fortsätt",
-  "88b4d905ceab8dd2": "Stjärnmärker…",
-  "a3b65ac8567c151f": "Tack för stjärnan!",
-  "eaaab38a83bf32cf": "Det hjälper verkligen T3 Code att växa.",
-  "627b9319f42ac2d5": "Öppna GitHub",
-  "a76da92cec318964": "Gillar du T3 Code?",
-  "7ffe3705e7b0ed0b": "Ge oss en stjärna på GitHub och berätta det!",
-  "4c58cf06d9a4496c": "Stjärnmärk på GitHub",
-  "5bbf199afe39d5e1": "Stäng",
   "6df5a5badc04a75a": "Den här datorn är avstängd",
   "ae659281075cedc6": "Ingen dator ansluten",
   "3ad17519c118edf8": "Slå på den igen eller anslut en annan dator.",
@@ -2297,6 +2292,7 @@
   "d95275127354650e": "Behörigheterna har ändrats för {label}",
   "c87e4484112112e3": "Den här anslutningen använder fortfarande de gamla behörigheterna, så vissa åtgärder kanske inte längre är tillgängliga. Parkoppla igen med en ny länk med de behörigheter du behöver.",
   "41ef5fd3a5051f37": "Öppna Delning och åtkomst",
+  "5bbf199afe39d5e1": "Stäng",
   "5f1f54e42cd5b57a": "Föregående worktree",
   "b11375ba00e506b5": "Klonar {name}",
   "00ad8aeed0a6c461": "Avbryt",
@@ -4566,6 +4562,7 @@
       "c": "”"
     }
   ],
+  "91aadfc843c600de": "Verifiera Google-konto",
   "a2aaca7ff8310186": "Öppna chatt",
   "a3048aaa541b7744": "Aktivitet",
   "4a3cbccb2beedeb0": "bild",
@@ -5914,6 +5911,9 @@
   "711ca95d98300537": "Använd Konfigurera på annat sätt.",
   "8963e62b7e4f94cf": "Öppna {app}",
   "09bb03b6a80d7e1e": "Skaffa {app}",
+  "c376177017cb950d": "This sends your server's MCP URL to {host}. Continue?",
+  "7813d0a47ecea7a3": "Continue to {app}",
+  "b0d005e8d895a934": "Opens {host} with this server's MCP URL in the link.",
   "3e75cf976923f0dc": "Kunde inte hämta en kod från {environment}. Försök igen.",
   "567e62029776b5fd": "Hämtar kod…",
   "91f50686b70bc377": "Hämta kod",
@@ -6519,8 +6519,8 @@
   "e545fcdb83e2c36a": "Lägg till i granskning",
   "2250f241daadd71b": "Lägg till för agent",
   "be9b06fae29cc07a": "Alla commits",
-  "5ef391d5403d7bdd": "{count, plural, one {Visa fler ({count} kvar)} other {Visa fler ({count} kvar)}}",
   "ccd5fc4db08374d7": "{count, plural, one {{count} testfil dold} other {{count} testfiler dolda}}",
+  "5ef391d5403d7bdd": "{count, plural, one {Visa fler ({count} kvar)} other {Visa fler ({count} kvar)}}",
   "c12871955b159db4": "visade i {app}",
   "98b353c208fd7977": "visade",
   "d65b870952bbe4f0": "De här bockarna sparas här, inte på värden",
@@ -8869,6 +8869,7 @@
   "a9cdd8c7073be920": "Kommandopalett: växla",
   "4e0943e8c7a465d1": "Filväljare: växla",
   "df5fdcdf26a6b52a": "Projektsökning: växla",
+  "0ca6fd2b8fcab2c3": "Användning: Visa eller dölj",
   "a513d51b71b95674": "Tema: välj",
   "1ffd8427452372e1": "Utseende: växla mellan",
   "3a3bb4a7551a87cc": "Temaredigerare: växla",
@@ -12263,6 +12264,7 @@
   "9c015d3d034316cb": "Använd piltangenterna för att justera det fokuserade värdet. Håll ned Shift för större steg. Använd Home och End för minsta och högsta värde. Tryck Tab för att växla mellan mättnad och ljusstyrka.",
   "8639d5532561f87f": "Stäng",
   "e1186ad82ee08b33": "Stäng",
+  "a4579e548b768663": "Visa sidofältet",
   "a1b11a1cf39c9dc9": "Ändra storlek på sidofältet",
   "c557090df5722838": "Växla sidofält",
   "bbde430e56272901": "Dra för att ändra storlek på sidofältet",
@@ -12551,6 +12553,8 @@
   "b8dcbc93a2ca1861": "Körningen listar det inte längre.",
   "115c69de3202f664": "Öppna",
   "644eafa9048b62df": "{count, plural, =1 {1:a försöket} =2 {2:a försöket} =3 {3:e försöket} other {försök {count}}}",
+  "0398ca6c1d24b92d": "i kö, näst på tur",
+  "0af6d5ffd5166214": "{count, plural, one {i kö, {count} före} other {i kö, {count} före}}",
   "e39f89c909df4db0": "Kunde inte återuppta körningen",
   "865f034346b82f47": "Avbryta {title}? Dess agenter stoppas och körningen kan inte återupptas.",
   "6bc75632fd9c9136": "Kunde inte avbryta körningen",
@@ -12577,11 +12581,17 @@
   "dd7a1e58c2553933": "vaknar om {duration}",
   "95cc952724dd7310": "vaknar strax",
   "3cc34921c0128593": "körs",
-  "e777db2880f53a46": "ingen svarade",
   "dc90739d391a5e67": "Du svarade {choice}",
+  "4e96712d839ccbff": "{who} svarade {choice}",
+  "e777db2880f53a46": "ingen svarade",
+  "201490988858b511": "återkallad av {by}",
   "389f2563b5b763fd": "Snabba steg",
+  "99451a5d2d40440f": "Återkallad av {by}.",
+  "3ee30a50b70fffab": "Återkallad av {by}: {reason}",
+  "92e129bf413a1220": "återkallad",
   "a41c8d758121ad81": "sov",
   "9db248b770096984": "väntade",
+  "49be26a27dcb30e5": "köade",
   "c76124517af28686": "har körts i {duration}",
   "89102905bf09b0e8": "Följ live",
   "bdf338cdff4118f0": "Transkript",
@@ -12615,6 +12625,49 @@
   "8bffb377e2a6a7de": "dess version är inte längre registrerad",
   "f92d9132f7b85d1a": "Läser in steg…",
   "6ebc59f64c761a49": "Inget än.",
+  "19097cfb8f5a79cf": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " svarade",
+    " ",
+    {
+      "t": "span",
+      "i": 2,
+      "c": {
+        "i": 3,
+        "k": "_gt_value_3",
+        "v": "v"
+      }
+    },
+    "."
+  ],
+  "e7bbf693910057bf": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " svarade",
+    " ",
+    {
+      "t": "span",
+      "i": 2,
+      "c": {
+        "i": 3,
+        "k": "_gt_value_3",
+        "v": "v"
+      }
+    },
+    ": ",
+    {
+      "i": 4,
+      "k": "_gt_value_4",
+      "v": "v"
+    }
+  ],
   "a759dccd157d7dae": [
     "Du svarade",
     " ",
@@ -12648,6 +12701,15 @@
       "v": "v"
     }
   ],
+  "3759768c5d342c22": [
+    "besvarad",
+    " ",
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    }
+  ],
   "c98009be9a273b31": "Öppna körning",
   "c8eb9be36d4d51ad": [
     "Tråd på ",
@@ -12673,6 +12735,14 @@
   ],
   "02dfe6c63fd0b8a1": "Lägg till ett skäl",
   "19abd94828a3bdbc": "Fråga agenten först",
+  "e114d37b32ab0dc7": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " kräver en anledning."
+  ],
   "a18721fa8f328361": "Behöver dig",
   "bbf24e7920c1e86b": "Körs",
   "8d6e18d2ad832db6": "Alla",
@@ -12873,79 +12943,5 @@
   "27d76249d09eb69f": "Granskningsguiden är klar",
   "faa3bb26abb39c93": "Granskningsguiden misslyckades",
   "b7df38b7d8792d78": "Öppna guiden",
-  "9e91e9a77b664e4e": "Kunde inte starta en granskningsguide",
-  "90dfebe26eb86b2d": "Sidans valalternativ",
-  "0ca6fd2b8fcab2c3": "Användning: Visa eller dölj",
-  "a4579e548b768663": "Visa sidofältet",
-  "7150557773b3818b": "I kö",
-  "efbeb3993ee2c3f5": "Köar för {pool}",
-  "0398ca6c1d24b92d": "i kö, näst på tur",
-  "0af6d5ffd5166214": "{count, plural, one {i kö, {count} före} other {i kö, {count} före}}",
-  "49be26a27dcb30e5": "köade",
-  "4e96712d839ccbff": "{who} svarade {choice}",
-  "19097cfb8f5a79cf": [
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    },
-    " svarade",
-    " ",
-    {
-      "t": "span",
-      "i": 2,
-      "c": {
-        "i": 3,
-        "k": "_gt_value_3",
-        "v": "v"
-      }
-    },
-    "."
-  ],
-  "e7bbf693910057bf": [
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    },
-    " svarade",
-    " ",
-    {
-      "t": "span",
-      "i": 2,
-      "c": {
-        "i": 3,
-        "k": "_gt_value_3",
-        "v": "v"
-      }
-    },
-    ": ",
-    {
-      "i": 4,
-      "k": "_gt_value_4",
-      "v": "v"
-    }
-  ],
-  "3759768c5d342c22": [
-    "besvarad",
-    " ",
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    }
-  ],
-  "e114d37b32ab0dc7": [
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    },
-    " kräver en anledning."
-  ],
-  "91aadfc843c600de": "Verifiera Google-konto",
-  "201490988858b511": "återkallad av {by}",
-  "99451a5d2d40440f": "Återkallad av {by}.",
-  "3ee30a50b70fffab": "Återkallad av {by}: {reason}",
-  "92e129bf413a1220": "återkallad"
+  "9e91e9a77b664e4e": "Kunde inte starta en granskningsguide"
 }

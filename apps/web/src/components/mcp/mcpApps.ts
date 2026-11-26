@@ -183,6 +183,12 @@ export const MCP_APPS: readonly McpApp[] = [
 /** The "Something else…" choice: the URL and general steps only. */
 export const OTHER_MCP_APP_STEPS = [msg("Add a remote MCP server with OAuth.")] as const;
 
+/** Third-party host receiving `mcpUrl` in query params for direct one-click connectors. */
+export function mcpHandoffOutboundUrlHost(app: McpApp, mcpUrl: string): string | null {
+  if (app.handoff.kind !== "open") return null;
+  return new URL(app.handoff.link(mcpUrl)).host;
+}
+
 /**
  * The primary button for `app`: its label, the https page it opens, and what it copies first.
  * Null for apps set up with commands. It never copies the approval code.

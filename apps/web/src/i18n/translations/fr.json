@@ -385,6 +385,7 @@
   "834ca879c14c167b": "En cours",
   "582d6df7dfab86fb": "En pause",
   "ea6583ce92507ee3": "En veille",
+  "7150557773b3818b": "En file d’attente",
   "7ea8cb8af281ce93": "En attente",
   "1347868f2523140e": "Terminée",
   "57d76c4614054271": "Arrêtée",
@@ -396,6 +397,7 @@
   "d3890f4eb1508781": "Exécute ses propres étapes",
   "3e7ced10c9482af0": "{step} est en cours",
   "237e1bcb1cf1bdec": "En veille à {step}",
+  "efbeb3993ee2c3f5": "En attente de {pool}",
   "3f7b17ac5a20c8d2": "Exécute {run}",
   "0306f5f324b8aaa5": "{count} exécutions en cours",
   "e8fd779b84a202a2": "En attente",
@@ -1580,6 +1582,7 @@
   "6848f5bbb2bd9eec": "Document PDF",
   "7873a79df0cf6d0e": "Page du navigateur",
   "0b55696e27387e4e": "Appuyez sur Shift+Escape pour quitter la page du navigateur.",
+  "90dfebe26eb86b2d": "Options de sélection de la page",
   "737d3c6bec93f9e6": "Choisir des fichiers pour la page",
   "e6a3fa7cfc14f86a": "Boîte de dialogue du navigateur",
   "61a552a67e9e3eac": "Réponse à la boîte de dialogue",
@@ -2225,14 +2228,6 @@
   "0bafdf01b3799538": "Commiter",
   "2d786f6466f42ba1": "Abandonner",
   "809d74fd98dd8b0f": "Basculer sur une branche de fonctionnalité et continuer",
-  "88b4d905ceab8dd2": "Ajout de l’étoile…",
-  "a3b65ac8567c151f": "Merci pour l’étoile !",
-  "eaaab38a83bf32cf": "Ça aide vraiment T3 Code à grandir.",
-  "627b9319f42ac2d5": "Ouvrir GitHub",
-  "a76da92cec318964": "Vous aimez T3 Code ?",
-  "7ffe3705e7b0ed0b": "Donnez-nous une étoile sur GitHub pour nous le faire savoir !",
-  "4c58cf06d9a4496c": "Mettre une étoile sur GitHub",
-  "5bbf199afe39d5e1": "Ignorer",
   "6df5a5badc04a75a": "Cet ordinateur est éteint",
   "ae659281075cedc6": "Aucun ordinateur connecté",
   "3ad17519c118edf8": "Rallumez-le ou connectez un autre ordinateur.",
@@ -2297,6 +2292,7 @@
   "d95275127354650e": "Les autorisations de {label} ont changé",
   "c87e4484112112e3": "Cette connexion utilise encore les anciennes autorisations ; certaines actions peuvent donc ne plus être disponibles. Appairez-la à nouveau avec un nouveau lien qui a les autorisations nécessaires.",
   "41ef5fd3a5051f37": "Ouvrir Partage et accès",
+  "5bbf199afe39d5e1": "Ignorer",
   "5f1f54e42cd5b57a": "Worktree précédent",
   "b11375ba00e506b5": "Clonage de {name}",
   "00ad8aeed0a6c461": "Annuler",
@@ -4566,6 +4562,7 @@
       "c": " »"
     }
   ],
+  "91aadfc843c600de": "Vérifier le compte Google",
   "a2aaca7ff8310186": "Ouvrir la discussion",
   "a3048aaa541b7744": "Activité",
   "4a3cbccb2beedeb0": "image",
@@ -5914,6 +5911,9 @@
   "711ca95d98300537": "Utilisez Configurer autrement.",
   "8963e62b7e4f94cf": "Ouvrir {app}",
   "09bb03b6a80d7e1e": "Obtenir {app}",
+  "c376177017cb950d": "This sends your server's MCP URL to {host}. Continue?",
+  "7813d0a47ecea7a3": "Continue to {app}",
+  "b0d005e8d895a934": "Opens {host} with this server's MCP URL in the link.",
   "3e75cf976923f0dc": "Impossible d’obtenir un code de {environment}. Réessayez.",
   "567e62029776b5fd": "Obtention du code…",
   "91f50686b70bc377": "Obtenir un code",
@@ -6514,8 +6514,8 @@
   "e545fcdb83e2c36a": "Ajouter à la revue",
   "2250f241daadd71b": "Ajouter à l’agent",
   "be9b06fae29cc07a": "Tous les commits",
-  "5ef391d5403d7bdd": "{count, plural, one {Afficher plus ({count} restant)} other {Afficher plus ({count} restants)}}",
   "ccd5fc4db08374d7": "{count, plural, one {{count} fichier de test masqué} other {{count} fichiers de test masqués}}",
+  "5ef391d5403d7bdd": "{count, plural, one {Afficher plus ({count} restant)} other {Afficher plus ({count} restants)}}",
   "c12871955b159db4": "vus dans {app}",
   "98b353c208fd7977": "vus",
   "d65b870952bbe4f0": "Ces coches sont conservées ici, pas sur l’hôte",
@@ -8862,6 +8862,7 @@
   "a9cdd8c7073be920": "Palette de commandes : afficher/masquer",
   "4e0943e8c7a465d1": "Sélecteur de fichiers : afficher/masquer",
   "df5fdcdf26a6b52a": "Recherche dans le projet : afficher/masquer",
+  "0ca6fd2b8fcab2c3": "Utilisation : Afficher ou masquer",
   "a513d51b71b95674": "Thème : sélectionner",
   "1ffd8427452372e1": "Apparence : alterner",
   "3a3bb4a7551a87cc": "Éditeur de thème : afficher/masquer",
@@ -12255,6 +12256,7 @@
   "9c015d3d034316cb": "Utilisez les flèches pour ajuster la valeur active. Maintenez Shift pour des pas plus grands. Utilisez Home et End pour le minimum et le maximum. Appuyez sur Tab pour passer de la saturation à la luminosité.",
   "8639d5532561f87f": "Fermer",
   "e1186ad82ee08b33": "Fermer",
+  "a4579e548b768663": "Afficher la barre latérale",
   "a1b11a1cf39c9dc9": "Redimensionner la barre latérale",
   "c557090df5722838": "Afficher ou masquer la barre latérale",
   "bbde430e56272901": "Faites glisser pour redimensionner la barre latérale",
@@ -12543,6 +12545,8 @@
   "b8dcbc93a2ca1861": "Cette exécution ne le mentionne plus.",
   "115c69de3202f664": "Ouvrir",
   "644eafa9048b62df": "{count, plural, =1 {1er essai} =2 {2e essai} =3 {3e essai} other {{count}e essai}}",
+  "0398ca6c1d24b92d": "en attente, le prochain",
+  "0af6d5ffd5166214": "{count, plural, one {en attente, {count} devant} other {en attente, {count} devant}}",
   "e39f89c909df4db0": "Impossible de reprendre l’exécution",
   "865f034346b82f47": "Annuler {title} ? Ses agents s’arrêtent et l’exécution ne pourra pas être reprise.",
   "6bc75632fd9c9136": "Impossible d’annuler l’exécution",
@@ -12569,11 +12573,17 @@
   "dd7a1e58c2553933": "réveil dans {duration}",
   "95cc952724dd7310": "réveil imminent",
   "3cc34921c0128593": "en cours",
-  "e777db2880f53a46": "personne n’a répondu",
   "dc90739d391a5e67": "Vous avez répondu {choice}",
+  "4e96712d839ccbff": "{who} a répondu {choice}",
+  "e777db2880f53a46": "personne n’a répondu",
+  "201490988858b511": "retirée par {by}",
   "389f2563b5b763fd": "Étapes rapides",
+  "99451a5d2d40440f": "Retirée par {by}.",
+  "3ee30a50b70fffab": "Retirée par {by} : {reason}",
+  "92e129bf413a1220": "retirée",
   "a41c8d758121ad81": "en veille",
   "9db248b770096984": "a attendu",
+  "49be26a27dcb30e5": "en attente",
   "c76124517af28686": "en cours depuis {duration}",
   "89102905bf09b0e8": "Suivre en direct",
   "bdf338cdff4118f0": "Transcription",
@@ -12607,6 +12617,49 @@
   "8bffb377e2a6a7de": "sa version n’est plus enregistrée",
   "f92d9132f7b85d1a": "Chargement des étapes…",
   "6ebc59f64c761a49": "Rien pour l’instant.",
+  "19097cfb8f5a79cf": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " a répondu",
+    " ",
+    {
+      "t": "span",
+      "i": 2,
+      "c": {
+        "i": 3,
+        "k": "_gt_value_3",
+        "v": "v"
+      }
+    },
+    "."
+  ],
+  "e7bbf693910057bf": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " a répondu",
+    " ",
+    {
+      "t": "span",
+      "i": 2,
+      "c": {
+        "i": 3,
+        "k": "_gt_value_3",
+        "v": "v"
+      }
+    },
+    ": ",
+    {
+      "i": 4,
+      "k": "_gt_value_4",
+      "v": "v"
+    }
+  ],
   "a759dccd157d7dae": [
     "Vous avez répondu",
     " ",
@@ -12640,6 +12693,15 @@
       "v": "v"
     }
   ],
+  "3759768c5d342c22": [
+    "répondue",
+    " ",
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    }
+  ],
   "c98009be9a273b31": "Ouvrir l’exécution",
   "c8eb9be36d4d51ad": [
     "Fil sur ",
@@ -12665,6 +12727,14 @@
   ],
   "02dfe6c63fd0b8a1": "Ajouter une raison",
   "19abd94828a3bdbc": "Demander d’abord à l’agent",
+  "e114d37b32ab0dc7": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " nécessite une raison."
+  ],
   "a18721fa8f328361": "Vous attendent",
   "bbf24e7920c1e86b": "En cours",
   "8d6e18d2ad832db6": "Toutes",
@@ -12866,79 +12936,5 @@
   "27d76249d09eb69f": "Guide de revue prêt",
   "faa3bb26abb39c93": "Échec du guide de revue",
   "b7df38b7d8792d78": "Ouvrir le guide",
-  "9e91e9a77b664e4e": "Impossible de démarrer un guide de revue",
-  "90dfebe26eb86b2d": "Options de sélection de la page",
-  "0ca6fd2b8fcab2c3": "Utilisation : Afficher ou masquer",
-  "a4579e548b768663": "Afficher la barre latérale",
-  "7150557773b3818b": "En file d’attente",
-  "efbeb3993ee2c3f5": "En attente de {pool}",
-  "0398ca6c1d24b92d": "en attente, le prochain",
-  "0af6d5ffd5166214": "{count, plural, one {en attente, {count} devant} other {en attente, {count} devant}}",
-  "49be26a27dcb30e5": "en attente",
-  "4e96712d839ccbff": "{who} a répondu {choice}",
-  "19097cfb8f5a79cf": [
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    },
-    " a répondu",
-    " ",
-    {
-      "t": "span",
-      "i": 2,
-      "c": {
-        "i": 3,
-        "k": "_gt_value_3",
-        "v": "v"
-      }
-    },
-    "."
-  ],
-  "e7bbf693910057bf": [
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    },
-    " a répondu",
-    " ",
-    {
-      "t": "span",
-      "i": 2,
-      "c": {
-        "i": 3,
-        "k": "_gt_value_3",
-        "v": "v"
-      }
-    },
-    ": ",
-    {
-      "i": 4,
-      "k": "_gt_value_4",
-      "v": "v"
-    }
-  ],
-  "3759768c5d342c22": [
-    "répondue",
-    " ",
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    }
-  ],
-  "e114d37b32ab0dc7": [
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    },
-    " nécessite une raison."
-  ],
-  "91aadfc843c600de": "Vérifier le compte Google",
-  "201490988858b511": "retirée par {by}",
-  "99451a5d2d40440f": "Retirée par {by}.",
-  "3ee30a50b70fffab": "Retirée par {by} : {reason}",
-  "92e129bf413a1220": "retirée"
+  "9e91e9a77b664e4e": "Impossible de démarrer un guide de revue"
 }

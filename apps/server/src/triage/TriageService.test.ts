@@ -2,6 +2,7 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { GitCommandError } from "@t3tools/contracts";
 import { assert, it } from "@effect/vitest";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -59,6 +60,7 @@ const makeTriage = (
   Effect.gen(function* () {
     const git = yield* GitVcsDriver.GitVcsDriver;
     const commands: string[] = [];
+    const argsList: Array<ReadonlyArray<string>> = [];
     const triage = yield* Layer.build(TriageService.layer).pipe(
       Effect.map(Context.get(TriageService.TriageService)),
       Effect.provideService(GitVcsDriver.GitVcsDriver, {
@@ -66,6 +68,7 @@ const makeTriage = (
         execute: (input) => {
           const command = input.args[0] ?? "";
           commands.push(command);
+          argsList.push(input.args);
           return answer(command).pipe(
             Effect.map((stdout) => ({
               exitCode: ChildProcessSpawner.ExitCode(0),
@@ -78,7 +81,7 @@ const makeTriage = (
         },
       }),
     );
-    return { triage, commands };
+    return { triage, commands, argsList };
   });
 
 const readContext = Effect.gen(function* () {
@@ -159,5 +162,38 @@ it.effect("does not trust a folder without its own .git, even inside a repo at t
 
     assert.notInclude(commands, "rev-parse");
     assert.include(yield* readContext, "is not a complete checkout");
+  }).pipe(Effect.provide(TestLayer)),
+);
+
+it.effect("defaults triage repository to AgentVela and honors T3CODE_TRIAGE_REPOSITORY_URL", () =>
+  Effect.gen(function* () {
+    const { triage, argsList } = yield* makeTriage();
+    yield* triage.prepare({ client: {} });
+    assert.equal(argsList[0]?.[1], "https://github.com/redwolf2019/AgentVela");
+    assert.include(yield* readContext, "- Repo: https://github.com/redwolf2019/AgentVela");
+
+    const custom = yield* makeTriage().pipe(
+      Effect.provideService(HostProcess.Environment, {
+        T3CODE_TRIAGE_REPOSITORY_URL: "https://git.internal.example/org/agentvela",
+      }),
+    );
+    yield* custom.triage.prepare({ client: {} });
+    assert.equal(custom.argsList[0]?.[1], "https://git.internal.example/org/agentvela");
+    assert.include(yield* readContext, "- Repo: https://git.internal.example/org/agentvela");
+  }).pipe(Effect.provide(TestLayer)),
+);
+
+it.effect("disables triage source cloning when T3CODE_TRIAGE_REPOSITORY_URL is off", () =>
+  Effect.gen(function* () {
+    const { triage, commands } = yield* makeTriage().pipe(
+      Effect.provideService(HostProcess.Environment, {
+        T3CODE_TRIAGE_REPOSITORY_URL: "off",
+      }),
+    );
+    yield* triage.prepare({ client: {} });
+    assert.deepEqual(commands, []);
+    const context = yield* readContext;
+    assert.include(context, "source cloning is disabled by T3CODE_TRIAGE_REPOSITORY_URL.");
+    assert.include(context, "- Repo: disabled");
   }).pipe(Effect.provide(TestLayer)),
 );
