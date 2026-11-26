@@ -32,6 +32,7 @@ Several excluded upstream changes may auto-merge without Git conflict markers. A
 - **Legacy T3 Connect relay**: Keep `infra/relay/` removed and reject `T3 Connect` / `cloudflared` regressions across server, desktop IPC, contracts, and user docs; AgentVela uses `apps/relay/`.
 - **Upstream release bumps**: Keep AgentVela's own versions in `apps/{desktop,server,web}/package.json` and `packages/contracts/package.json`.
 - **Branding and governance docs**: Preserve AgentVela's `README.md`, `README.zh-CN.md`, `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, and de-T3'd sections of `docs/user/*`.
+- **Self-hosted network defaults**: Preserve fail-closed privacy and mirror controls documented in [07_self-hosted-network-hardening.md](07_self-hosted-network-hardening.md) (no `app.t3.codes` fallbacks, no Google Favicon proxy, `enableProviderUpdateChecks: false` default, Expo OTA disabled by default, `ManagedPolicy` telemetry/SSH enforcement, custom vendor endpoint guards, and MCP connector disclosures).
 
 ## Post-merge verification
 

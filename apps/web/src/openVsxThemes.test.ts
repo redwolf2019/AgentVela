@@ -453,4 +453,60 @@ describe("Open VSX themes", () => {
 
     await expect(importOpenVsxThemeExtension(extension)).rejects.toThrow("integrity check");
   });
+
+  it("routes requests through VITE_OPEN_VSX_BASE_URL mirror and disables search when off", async () => {
+    const offFetch = vi.fn();
+    vi.stubGlobal("fetch", offFetch);
+    await expect(searchOpenVsxThemes("dracula", { baseUrlOverride: "off" })).rejects.toThrow(
+      "Open VSX theme downloads are disabled.",
+    );
+    expect(offFetch).not.toHaveBeenCalled();
+
+    const mirrorAssetRoot = "https://mirror.internal/open-vsx/api/demo/theme/1.0.0/file";
+    const seenUrls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        seenUrls.push(url);
+        if (url.includes("/-/search?")) {
+          return new Response(
+            JSON.stringify({ extensions: [{ namespace: "demo", name: "theme" }] }),
+            {
+              status: 200,
+            },
+          );
+        }
+        if (url.endsWith("/api/demo/theme")) {
+          return new Response(
+            JSON.stringify(
+              extensionDetail({
+                files: {
+                  icon: `${mirrorAssetRoot}/icon.png`,
+                  manifest: `${mirrorAssetRoot}/package.json`,
+                  sha256: `${mirrorAssetRoot}/demo.theme-1.0.0.sha256`,
+                  download: `${mirrorAssetRoot}/demo.theme-1.0.0.vsix`,
+                },
+              }),
+            ),
+            { status: 200 },
+          );
+        }
+        if (url.endsWith("/package.json")) {
+          return new Response(
+            JSON.stringify({ license: "MIT", contributes: { themes: [{ path: "./theme.json" }] } }),
+            { status: 200 },
+          );
+        }
+        return new Response(null, { headers: { "content-length": "1024" }, status: 200 });
+      }),
+    );
+
+    const results = await searchOpenVsxThemes("dracula", {
+      baseUrlOverride: "https://mirror.internal/open-vsx",
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0]?.vsixUrl).toBe(`${mirrorAssetRoot}/demo.theme-1.0.0.vsix`);
+    expect(seenUrls.every((url) => url.startsWith("https://mirror.internal/open-vsx/"))).toBe(true);
+  });
 });

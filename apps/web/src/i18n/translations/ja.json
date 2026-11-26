@@ -1377,6 +1377,7 @@
   "029d8d0201aed231": "システム設定を開けません。",
   "9af3083226778d3c": "Open VSX から不正な形式のテーマ詳細が返されました。",
   "b42cb65fd27d4d34": "Open VSX の応答に時間がかかりすぎました。",
+  "33e0e7a10519bf16": "Open VSX theme downloads are disabled.",
   "6521de72c1ad5528": "現在 Open VSX の検索は利用できません。",
   "e8b551b0eed0aa54": "Open VSX から予想外に大きな応答が返されました。",
   "e7368b236e70cacf": "Open VSX から読み取れない応答が返されました。",

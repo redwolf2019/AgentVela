@@ -220,3 +220,31 @@ it.effect("installs from a Hugging Face cache copy instead of downloading", () =
     expect(h.requests).toHaveLength(0);
   }).pipe(Effect.scoped, Effect.provide(dependencies)),
 );
+
+it.effect("uses T3CODE_SPEECH_MODEL_BASE_URL mirror and disables downloads when off", () =>
+  Effect.gen(function* () {
+    const h = yield* harness;
+    h.bodies.current = () => Stream.succeed(bytes);
+    const mirrorStore = yield* h.openStore.pipe(
+      Effect.provideService(HostProcess.Environment, {
+        T3CODE_SPEECH_MODEL_BASE_URL: "https://mirror.internal/hf",
+      }),
+    );
+    expect(yield* mirrorStore.download(h.model)).toBe(h.stale);
+    expect(h.requests.map((request) => request.url)).toEqual([
+      `https://mirror.internal/hf/${h.model.id}/resolve/${h.model.revision}/${h.model.filename}`,
+    ]);
+
+    yield* h.fs.writeFile(h.stale, new Uint8Array(bytes.length));
+    yield* h.fs.remove(`${h.stale}.verified`, { force: true });
+    const countBeforeOff = h.requests.length;
+    const offStore = yield* h.openStore.pipe(
+      Effect.provideService(HostProcess.Environment, {
+        T3CODE_SPEECH_MODEL_BASE_URL: "off",
+      }),
+    );
+    const offResult = yield* Effect.result(offStore.download(h.model));
+    expect(offResult).toMatchObject({ _tag: "Failure", failure: { reason: "disabled" } });
+    expect(h.requests).toHaveLength(countBeforeOff);
+  }).pipe(Effect.scoped, Effect.provide(dependencies)),
+);

@@ -9,6 +9,7 @@ interface ImportMetaEnv {
   readonly VITE_HOSTED_APP_CHANNEL: string;
   readonly VITE_RELEASE_CHANNEL: string;
   readonly T3CODE_DESKTOP_UPDATE_REPOSITORY: string;
+  readonly VITE_OPEN_VSX_BASE_URL?: string;
   readonly APP_VERSION: string;
 }
 

@@ -15,6 +15,7 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import { resolveMirrorUrlOverride } from "@t3tools/shared/url";
 
 import * as ServerConfig from "../config.ts";
 import { expandHomePath } from "../os-jank.ts";
@@ -26,7 +27,7 @@ class SpeechModelDownloadError extends Schema.TaggedError<SpeechModelDownloadErr
   "SpeechModelDownloadError",
   {
     modelId: Schema.String,
-    reason: Schema.Literals(["status", "range", "size", "verification"]),
+    reason: Schema.Literals(["status", "range", "size", "verification", "disabled"]),
     status: Schema.optional(Schema.Number),
   },
 ) {
@@ -70,6 +71,9 @@ export class SpeechModelStore extends Context.Service<
   }
 >()("t3/speech/SpeechModelStore") {}
 
+const DEFAULT_SPEECH_MODEL_BASE_URL = "https://huggingface.co";
+const SPEECH_MODEL_BASE_URL_ENV = "T3CODE_SPEECH_MODEL_BASE_URL";
+
 const DOWNLOAD_ATTEMPTS = 3;
 const PARTIAL_FILENAME =
   /\.gguf\.[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.part$/i;
@@ -82,6 +86,14 @@ const make = Effect.gen(function* () {
   const path = yield* Path.Path;
   const home = yield* HostProcess.HomeDirectory;
   const platform = yield* HostProcess.Platform;
+  const hostEnvironment = yield* HostProcess.Environment;
+  const speechModelOverride = resolveMirrorUrlOverride(hostEnvironment[SPEECH_MODEL_BASE_URL_ENV]);
+  const speechModelBaseUrl =
+    speechModelOverride._tag === "default"
+      ? DEFAULT_SPEECH_MODEL_BASE_URL
+      : speechModelOverride._tag === "url"
+        ? speechModelOverride.url.replace(/\/+$/, "")
+        : null;
   const http = yield* HttpClient.HttpClient;
   const random = yield* SecureRandom.SecureRandom;
   const config = yield* ServerConfig.ServerConfig;
@@ -296,8 +308,11 @@ const make = Effect.gen(function* () {
         const linked = yield* link([model], copy).pipe(Effect.orElseSucceed(() => []));
         if (linked.length > 0) return finalPath;
       }
+      if (speechModelBaseUrl === null) {
+        return yield* new SpeechModelDownloadError({ modelId: model.id, reason: "disabled" });
+      }
       const partialPath = `${finalPath}.${yield* random.uuidV4()}.part`;
-      const url = `https://huggingface.co/${model.id}/resolve/${model.revision}/${model.filename}`;
+      const url = `${speechModelBaseUrl}/${model.id}/resolve/${model.revision}/${model.filename}`;
       return yield* Effect.gen(function* () {
         for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt += 1) {
           const offset = Number((yield* statFile(partialPath))?.size ?? 0);

@@ -1377,6 +1377,7 @@
   "029d8d0201aed231": "Unable to open System Settings.",
   "9af3083226778d3c": "Open VSX returned malformed theme details.",
   "b42cb65fd27d4d34": "Open VSX took too long to respond.",
+  "33e0e7a10519bf16": "Open VSX theme downloads are disabled.",
   "6521de72c1ad5528": "Open VSX search is unavailable right now.",
   "e8b551b0eed0aa54": "Open VSX returned an unexpectedly large response.",
   "e7368b236e70cacf": "Open VSX returned an unreadable response.",

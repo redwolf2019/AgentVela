@@ -1,3 +1,4 @@
+import { resolveMirrorUrlOverride } from "@t3tools/shared/url";
 import { sha256 } from "@noble/hashes/sha2";
 import JSZip from "jszip";
 import { parse, type ParseError } from "jsonc-parser";
@@ -12,7 +13,23 @@ import {
   resolveThemeLabelCollisions,
 } from "./vscodeThemeImport";
 
-const OPEN_VSX_SEARCH_URL = "https://open-vsx.org/api/-/search";
+const DEFAULT_OPEN_VSX_BASE_URL = "https://open-vsx.org";
+
+function resolveOpenVsxTarget(
+  rawOverride: string | undefined = import.meta.env.VITE_OPEN_VSX_BASE_URL,
+): { readonly baseUrl: string; readonly origin: string } | null {
+  const override = resolveMirrorUrlOverride(rawOverride);
+  if (override._tag === "default") {
+    return { baseUrl: DEFAULT_OPEN_VSX_BASE_URL, origin: DEFAULT_OPEN_VSX_BASE_URL };
+  }
+  if (override._tag === "url") {
+    return {
+      baseUrl: override.url.replace(/\/+$/, ""),
+      origin: new URL(override.url).origin,
+    };
+  }
+  return null;
+}
 const MAX_VSIX_BYTES = 20 * 1024 * 1024;
 const MAX_SEARCH_BYTES = 512 * 1024;
 const MAX_DETAIL_BYTES = 256 * 1024;
@@ -108,6 +125,7 @@ export type OpenVsxThemeExtension = {
 export type OpenVsxThemeSearchOptions = {
   signal?: AbortSignal;
   sortBy?: OpenVsxThemeSort;
+  baseUrlOverride?: string;
 };
 
 type ThemeContribution = { label?: unknown; uiTheme?: unknown; path?: unknown };
@@ -134,13 +152,11 @@ function openVsxCollectionId(extensionId: string): string {
     : `open-vsx:${shortHash(extensionId)}`;
 }
 
-function trustedOpenVsxUrl(value: unknown): string | null {
+function trustedOpenVsxUrl(value: unknown, trustedOrigin: string): string | null {
   if (typeof value !== "string") return null;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.toLowerCase() === "open-vsx.org"
-      ? url.toString()
-      : null;
+    return url.origin === trustedOrigin ? url.toString() : null;
   } catch {
     return null;
   }
@@ -176,7 +192,7 @@ function manifestLicenseMatches(manifest: Record<string, unknown>, license: stri
   );
 }
 
-function extensionFromDetail(value: unknown): OpenVsxThemeExtension | null {
+function extensionFromDetail(value: unknown, trustedOrigin: string): OpenVsxThemeExtension | null {
   if (!isRecord(value) || !isRecord(value.files)) {
     throw new Error(m(msg("Open VSX returned malformed theme details.")));
   }
@@ -186,9 +202,9 @@ function extensionFromDetail(value: unknown): OpenVsxThemeExtension | null {
     (typeof value.displayName === "string" ? value.displayName.trim() : "") || extensionName;
   const version = typeof value.version === "string" ? value.version.trim() : "";
   const license = typeof value.license === "string" ? value.license.trim() : "";
-  const manifestUrl = trustedOpenVsxUrl(value.files.manifest);
-  const sha256Url = trustedOpenVsxUrl(value.files.sha256);
-  const vsixUrl = trustedOpenVsxUrl(value.files.download);
+  const manifestUrl = trustedOpenVsxUrl(value.files.manifest, trustedOrigin);
+  const sha256Url = trustedOpenVsxUrl(value.files.sha256, trustedOrigin);
+  const vsixUrl = trustedOpenVsxUrl(value.files.download, trustedOrigin);
   if (!namespace || !extensionName || !version || !manifestUrl || !sha256Url || !vsixUrl) {
     throw new Error(m(msg("Open VSX returned malformed theme details.")));
   }
@@ -204,7 +220,7 @@ function extensionFromDetail(value: unknown): OpenVsxThemeExtension | null {
       typeof value.downloadCount === "number" && Number.isFinite(value.downloadCount)
         ? value.downloadCount
         : 0,
-    iconUrl: trustedOpenVsxUrl(value.files.icon),
+    iconUrl: trustedOpenVsxUrl(value.files.icon, trustedOrigin),
     sourceUrl:
       publicSourceUrl(value.repository) ??
       publicSourceUrl(value.homepage) ??
@@ -241,11 +257,15 @@ async function withSearchTimeout<T>(
 
 export async function searchOpenVsxThemes(
   query: string,
-  { signal, sortBy = "downloadCount" }: OpenVsxThemeSearchOptions = {},
+  { signal, sortBy = "downloadCount", baseUrlOverride }: OpenVsxThemeSearchOptions = {},
 ): Promise<OpenVsxThemeExtension[]> {
   const searchText = query.trim();
   if (!searchText) return [];
-  const url = new URL(OPEN_VSX_SEARCH_URL);
+  const target = resolveOpenVsxTarget(baseUrlOverride);
+  if (target === null) {
+    throw new Error(m(msg("Open VSX theme downloads are disabled.")));
+  }
+  const url = new URL(`${target.baseUrl}/api/-/search`);
   url.searchParams.set("query", searchText);
   url.searchParams.set("category", "Themes");
   url.searchParams.set("sortBy", sortBy);
@@ -277,7 +297,7 @@ export async function searchOpenVsxThemes(
   const details = await Promise.allSettled(
     identities.slice(0, 16).map(([namespace, name]) =>
       withSearchTimeout(async (requestSignal) => {
-        const detailUrl = `https://open-vsx.org/api/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`;
+        const detailUrl = `${target.baseUrl}/api/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`;
         const detailResponse = await fetch(detailUrl, { signal: requestSignal });
         if (!detailResponse.ok) throw new Error(m(msg("Open VSX theme details are unavailable.")));
         const detailBytes = await readCappedResponse(
@@ -286,7 +306,10 @@ export async function searchOpenVsxThemes(
           m(msg("Open VSX returned an unexpectedly large detail response.")),
         );
         try {
-          const extension = extensionFromDetail(JSON.parse(new TextDecoder().decode(detailBytes)));
+          const extension = extensionFromDetail(
+            JSON.parse(new TextDecoder().decode(detailBytes)),
+            target.origin,
+          );
           if (!extension) return null;
           const [manifestResponse, packageResponse] = await Promise.all([
             fetch(extension.manifestUrl, { signal: requestSignal }),
