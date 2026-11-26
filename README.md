@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="./assets/prod/black-macos-1024.png" width="96" height="96" alt="AgentVela" />
+
 # AgentVela
 
 **An open-source, cross-platform command center for AI coding agents.**
@@ -10,6 +12,10 @@ Run, orchestrate, and control multiple coding agents across local and remote mac
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Issues](https://img.shields.io/github/issues/redwolf2019/AgentVela)](https://github.com/redwolf2019/AgentVela/issues)
+
+<br />
+
+<img src="./apps/marketing/src/assets/app-desktop.webp" alt="AgentVela Desktop Workspace" width="100%" />
 
 </div>
 
@@ -35,7 +41,7 @@ AgentVela is in early independent development. Right now, the repository builds 
 
 Near-term priorities:
 
-- **Brand & identity.** Dedicated AgentVela icons, visual assets, and fully updated documentation.
+- **Brand & documentation.** AgentVela's icons and visual assets are in place across Desktop, Web, Mobile, and the site, while reference documentation continues to be updated.
 - **Distribution & releases.** Prebuilt desktop installers (macOS, Windows, Linux) and standalone CLI releases via GitHub Releases.
 - **Self-hosted first.** Streamlined self-hosted remote workflows with zero proprietary cloud dependencies.
 - **Multi-agent orchestration.** Deeper workflow automation and cross-agent coordination tailored to AgentVela's roadmap.

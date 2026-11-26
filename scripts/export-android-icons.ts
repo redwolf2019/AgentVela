@@ -14,9 +14,11 @@ import sharp from "sharp";
 type IconVariant = "dev" | "nightly" | "prod";
 
 const ADAPTIVE_CANVAS = 432;
+const NOTIFICATION_CANVAS = 96;
 const SPLASH_CANVAS = 1152;
-const TEXT = { x: 15.53, y: 37, width: 94.5, height: 57 };
-const WORDMARK_FRACTION = 0.48;
+const TEXT = { x: 18, y: 21, width: 90, height: 83 };
+const WORDMARK_FRACTION = 0.44;
+const NOTIFICATION_FRACTION = 0.74;
 const COMPOSER_CANVAS_PT = 1024;
 const SVG_DENSITY = 300;
 const OUTPUT_DIRECTORY = "apps/mobile/assets";
@@ -27,8 +29,8 @@ export class AndroidIconRenderError extends Schema.TaggedError<AndroidIconRender
   { layer: Schema.String, cause: Schema.Defect() },
 ) {}
 
-const wordmarkTransform = (size: number) => {
-  const scale = (size * WORDMARK_FRACTION) / TEXT.width;
+const wordmarkTransform = (size: number, fraction = WORDMARK_FRACTION) => {
+  const scale = (size * fraction) / TEXT.width;
   const tx = (size - TEXT.width * scale) / 2 - TEXT.x * scale;
   const ty = (size - TEXT.height * scale) / 2 - TEXT.y * scale;
   return `translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${scale.toFixed(4)})`;
@@ -86,12 +88,13 @@ const readLayerSource = Effect.fn("androidIcons.readLayerSource")(function* (
 const renderForeground = Effect.fn("androidIcons.renderForeground")(function* (
   repositoryRoot: string,
   size: number,
+  fraction = WORDMARK_FRACTION,
 ) {
   const text = yield* readLayerSource(repositoryRoot, "prod", "text.svg");
   const paths = text.match(/<path[^>]*\/>/g) ?? [];
   return yield* rasterize(
     "foreground",
-    canvasSvg(size, `<g transform="${wordmarkTransform(size)}">${paths.join("")}</g>`),
+    canvasSvg(size, `<g transform="${wordmarkTransform(size, fraction)}">${paths.join("")}</g>`),
     size,
   );
 });
@@ -187,8 +190,14 @@ const exportAndroidIcons = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const repositoryRoot = path.resolve(import.meta.dirname, "..");
+  const foreground = yield* renderForeground(repositoryRoot, ADAPTIVE_CANVAS);
   const outputs = [
-    ["android-icon-foreground.png", yield* renderForeground(repositoryRoot, ADAPTIVE_CANVAS)],
+    ["android-icon-foreground.png", foreground],
+    ["android-icon-mark.png", foreground],
+    [
+      "android-notification-icon.png",
+      yield* renderForeground(repositoryRoot, NOTIFICATION_CANVAS, NOTIFICATION_FRACTION),
+    ],
     [
       "android-icon-background-dev.png",
       yield* renderDevelopmentBackground(repositoryRoot, ADAPTIVE_CANVAS),

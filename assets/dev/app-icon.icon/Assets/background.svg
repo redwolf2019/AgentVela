@@ -33,13 +33,13 @@
     <path d="M64 4V124M4 64H124" stroke="#F0FCFF" stroke-width="0.3" opacity="0.46"/>
     <rect x="5.75" y="5.75" width="116.5" height="116.5" rx="5.5" stroke="#F1FCFF" stroke-width="0.5" opacity="0.66"/>
 
-    <g stroke="#BFE9F7" stroke-linecap="round" opacity="0.2">
+    <g stroke="#BFE9F7" stroke-linecap="round" opacity="0.22">
       <path d="M14 19L24 12M17 22L29 13" stroke-width="0.5"/>
       <path d="M106 25L115 18M104 30L118 20" stroke-width="0.38"/>
       <path d="M11 108L23 101M16 113L28 105" stroke-width="0.42"/>
       <path d="M102 113L116 104M107 116L120 108" stroke-width="0.46"/>
     </g>
-    <g fill="#D7F4FF" opacity="0.22">
+    <g fill="#D7F4FF" opacity="0.24">
       <circle cx="18" cy="30" r="0.45"/>
       <circle cx="112" cy="38" r="0.35"/>
       <circle cx="22" cy="98" r="0.3"/>

@@ -253,9 +253,13 @@ function AgentActivity(
   // inherits.
   const renderLogo = (height: number, color: Foreground, modifiers: typeof linkModifiers = []) => (
     <HStack
-      modifiers={[frame({ width: height * 1.5, height }), foregroundStyle(color), ...modifiers]}
+      modifiers={[
+        frame({ width: height * (90 / 83), height }),
+        foregroundStyle(color),
+        ...modifiers,
+      ]}
     >
-      <Image assetName="T3Mark" modifiers={[resizable()]} />
+      <Image assetName="AgentVelaMark" modifiers={[resizable()]} />
     </HStack>
   );
 

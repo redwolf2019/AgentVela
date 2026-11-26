@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="./assets/prod/black-macos-1024.png" width="96" height="96" alt="AgentVela" />
+
 # AgentVela
 
 **开源、跨平台的 AI Coding Agent 控制中心。**
@@ -10,6 +12,10 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Issues](https://img.shields.io/github/issues/redwolf2019/AgentVela)](https://github.com/redwolf2019/AgentVela/issues)
+
+<br />
+
+<img src="./apps/marketing/src/assets/app-desktop.webp" alt="AgentVela 桌面端工作台预览" width="100%" />
 
 </div>
 
@@ -35,7 +41,7 @@ AgentVela 目前处于独立演进初期，现阶段支持从源码构建与运�
 
 近期规划：
 
-- **专属品牌与文档**：推出 AgentVela 专属图标、视觉设计与持续更新的完整文档体系。
+- **专属品牌与文档**：已完成 Desktop / Web / Mobile 与官网的 AgentVela 图标和视觉资产替换，参考文档正在持续补全更新。
 - **独立构建与分发**：通过 GitHub Releases 提供 macOS / Windows / Linux 桌面安装包及独立 CLI 分发。
 - **自托管优先**：打造无专有云服务绑定的自托管远程连接与多机协作体验。
 - **多 Agent 编排增强**：围绕 AgentVela 的产品方向，深化工作流自动化与多智能体协作能力。
