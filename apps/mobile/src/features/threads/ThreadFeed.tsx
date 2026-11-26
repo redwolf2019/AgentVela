@@ -84,11 +84,13 @@ import {
 import type { ToolCallVisibility } from "@t3tools/contracts/settings";
 import { encodeComposerContextFragment } from "@t3tools/shared/composerContextClipboard";
 import {
+  formatThreadLink,
   hasThreadLinks,
   hostedThreadLink,
   parseThreadLinkHref,
   threadLinkRefs,
 } from "@t3tools/shared/threadLinks";
+import { resolveHostedAppUrl } from "../cloud/publicConfig";
 import { PROMPT_LINK_MAX_PROMPT_LENGTH } from "@t3tools/shared/promptLinks";
 import {
   parseComposerContextHref,
@@ -3516,7 +3518,12 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       const thread = resolveLinkedThread(href);
       if (thread) {
         if (actionId === "open-thread") onMarkdownLinkPress(href);
-        else if (actionId === "copy-thread-link") copyTextWithHaptic(hostedThreadLink(thread));
+        else if (actionId === "copy-thread-link") {
+          const hostedUrl = resolveHostedAppUrl();
+          copyTextWithHaptic(
+            hostedUrl ? hostedThreadLink(thread, hostedUrl) : formatThreadLink(thread),
+          );
+        }
         return;
       }
       const deviceUrl = deviceLoopbackUrl(href);

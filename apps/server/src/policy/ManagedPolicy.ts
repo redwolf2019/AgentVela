@@ -75,6 +75,12 @@ export function deniedBy(
   return policy.document?.limits?.[capability] === false ? policy.document.organization : undefined;
 }
 
+export const isTelemetryDenied: Effect.Effect<boolean> = Effect.serviceOption(ManagedPolicy).pipe(
+  Effect.map(
+    (policy) => Option.isSome(policy) && deniedBy(policy.value, "telemetry") !== undefined,
+  ),
+);
+
 /** Build the service from a decoded document; fails when the document cannot be enforced. */
 export const fromDocument = Effect.fn("ManagedPolicy.fromDocument")(function* (
   path: string,

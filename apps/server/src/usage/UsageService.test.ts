@@ -216,7 +216,12 @@ const layerService = (input: {
     Layer.provideMerge(Layer.succeed(HostProcess.Platform, input.platform ?? "linux")),
     Layer.provideMerge(Layer.succeed(HostProcess.Hostname, input.hostname ?? "usage-test-host")),
     Layer.provideMerge(Layer.succeed(HostProcess.HomeDirectory, input.home)),
-    Layer.provideMerge(ServerSettings.layerTest(input.settings)),
+    Layer.provideMerge(
+      ServerSettings.layerTest({
+        enableProviderUpdateChecks: true,
+        ...input.settings,
+      }),
+    ),
     Layer.provideMerge(
       Layer.succeed(
         HttpClient.HttpClient,
@@ -4406,5 +4411,57 @@ describe("UsageService", () => {
         `interruption left the next matching request pending at scheduler check ${orphanedAt}`,
       );
     }),
+  );
+
+  it.effect(
+    "skips auto-fetching rates when enableProviderUpdateChecks is false while allowing manual refresh and custom mirrors",
+    () =>
+      Effect.gen(function* () {
+        const { transcript, settings, home } = yield* setup;
+        yield* Effect.promise(() => NodeFSP.writeFile(transcript, claudeLine(1, 5)));
+        const mirrorUrl = "http://127.0.0.1:4321/rates.json";
+        const mirrorRequests: Array<string> = [];
+        const mirrorService = yield* UsageService.make.pipe(
+          Effect.provide(
+            layerService({
+              prefix: "usage-service-optout-mirror-test",
+              home,
+              settings: { ...settings, enableProviderUpdateChecks: false },
+              environment: { T3CODE_USAGE_RATES_URL: mirrorUrl },
+              onRatesFetch: (request) => mirrorRequests.push(request.url),
+              ratesDocument: {
+                "claude-fable-5": { input_cost_per_token: 1e-5, output_cost_per_token: 5e-5 },
+              },
+            }),
+          ),
+        );
+
+        const autoSkipped = yield* mirrorService.readSummary(WINDOW);
+        assert.strictEqual(autoSkipped.pricing.status, "unavailable");
+        assert.strictEqual(autoSkipped.pricing.source, mirrorUrl);
+        assert.deepStrictEqual(mirrorRequests, []);
+
+        const manualPricing = yield* mirrorService.refreshRates;
+        assert.strictEqual(manualPricing.status, "fresh");
+        assert.strictEqual(manualPricing.source, mirrorUrl);
+        assert.deepStrictEqual(mirrorRequests, [mirrorUrl]);
+
+        const offRequests: Array<string> = [];
+        const offService = yield* UsageService.make.pipe(
+          Effect.provide(
+            layerService({
+              prefix: "usage-service-rates-off-test",
+              home,
+              settings: { ...settings, enableProviderUpdateChecks: true },
+              environment: { T3CODE_USAGE_RATES_URL: "off" },
+              onRatesFetch: (request) => offRequests.push(request.url),
+              ratesResponse: () => Effect.die("must not fetch when T3CODE_USAGE_RATES_URL=off"),
+            }),
+          ),
+        );
+        const offPricing = yield* offService.refreshRates;
+        assert.strictEqual(offPricing.status, "unavailable");
+        assert.deepStrictEqual(offRequests, []);
+      }),
   );
 });

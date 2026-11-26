@@ -108,14 +108,19 @@ const layerDesktopEnvironment = Layer.unwrap(
   }),
 );
 
+const layerDesktopUpdatePolicy = DesktopUpdatePolicy.layer.pipe(
+  Layer.provide(DesktopManagedPolicy.layer),
+);
+
 const layerDesktopSshEnvironment = Layer.unwrap(
   Effect.gen(function* () {
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
     const env = yield* HostProcess.Environment;
+    const updatePolicy = yield* DesktopUpdatePolicy.DesktopUpdatePolicy;
     return DesktopSshEnvironment.layer({
       // Per connect: the login shell's environment is installed after this layer is built.
       resolveCliRunner: Effect.sync(() =>
-        DesktopSshEnvironment.resolveDesktopSshCliRunner(environment, env),
+        DesktopSshEnvironment.resolveDesktopSshCliRunner(environment, env, { updatePolicy }),
       ),
       resolveLauncherId: yield* Effect.cached(
         DesktopSshEnvironment.readOrCreateLauncherId(
@@ -161,6 +166,7 @@ const layerDesktopFoundation = Layer.mergeAll(
 ).pipe(Layer.provideMerge(layerDesktopEnvironment));
 
 const layerDesktopSsh = layerDesktopSshEnvironment.pipe(
+  Layer.provide(layerDesktopUpdatePolicy),
   Layer.provideMerge(DesktopSshPasswordPrompts.layer()),
 );
 
@@ -219,13 +225,7 @@ const layerDesktopApplication = Layer.mergeAll(
   DesktopCliCommand.layer,
 ).pipe(
   Layer.provideMerge(layerDesktopSnapShot),
-  Layer.provideMerge(
-    DesktopUpdates.layer.pipe(
-      Layer.provide(DesktopUpdatePolicy.layer),
-      // The same layer as the foundation's, so the policy is still read once.
-      Layer.provide(DesktopManagedPolicy.layer),
-    ),
-  ),
+  Layer.provideMerge(DesktopUpdates.layer.pipe(Layer.provide(layerDesktopUpdatePolicy))),
   // Updates closes the same tunnels the SSH IPC opens before quitAndInstall.
   Layer.provideMerge(layerDesktopSsh),
   Layer.provideMerge(layerDesktopWslBackend),

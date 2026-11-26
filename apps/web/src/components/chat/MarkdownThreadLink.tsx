@@ -4,6 +4,7 @@ import { useGT, useMessages } from "gt-react";
 import { MessagesSquareIcon } from "lucide-react";
 import {
   formatHostedThreadLink,
+  formatThreadLink,
   guessThreadLinkRef,
   threadLinkCandidates,
   type ThreadLink,
@@ -134,11 +135,16 @@ export function MarkdownThreadLink(props: {
   }
   const ref = resolved?.ref ?? writtenRef;
   const title = resolved?.metadata.title.trim() || props.label || gt("Thread");
+  const hostedAppUrl = configuredHostedAppUrl();
   return (
     <ThreadContextChip
       record={{ ...ref, title }}
       projectId={resolved?.metadata.projectId ?? null}
-      copyMarkdown={formatHostedThreadLink(ref, title, configuredHostedAppUrl())}
+      copyMarkdown={
+        hostedAppUrl
+          ? formatHostedThreadLink(ref, title, hostedAppUrl)
+          : formatThreadLink(ref, title)
+      }
     />
   );
 }

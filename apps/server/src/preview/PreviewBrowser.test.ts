@@ -81,6 +81,7 @@ const makeHarness = Effect.fn("test.makePreviewBrowser")(function* (
     readonly body?: Stream.Stream<Uint8Array>;
     readonly wait?: Duration.Input;
     readonly unsupported?: boolean;
+    readonly environment?: NodeJS.ProcessEnv;
   } = {},
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -106,6 +107,7 @@ const makeHarness = Effect.fn("test.makePreviewBrowser")(function* (
   }).pipe(
     Effect.provideService(HostProcess.Platform, hostPlatform),
     Effect.provideService(HostProcess.Architecture, "x64"),
+    Effect.provideService(HostProcess.Environment, options.environment ?? {}),
     Effect.provideService(
       HttpClient.HttpClient,
       HttpClient.make((request) =>
@@ -199,6 +201,47 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("PreviewBrowser",
       expect(yield* fs.exists(path.join(baseDir, "tools", "chrome-headless-shell", "escape"))).toBe(
         false,
       );
+    }),
+  );
+
+  it.effect("supports T3CODE_CHROME_EXECUTABLE_PATH and T3CODE_CHROME_HEADLESS_BASE_URL", () =>
+    Effect.gen(function* () {
+      const mirror = yield* makeHarness({
+        environment: { T3CODE_CHROME_HEADLESS_BASE_URL: "http://127.0.0.1:4321/cft/" },
+      });
+      yield* mirror.browser.executable;
+      expect(mirror.requests).toEqual([
+        "http://127.0.0.1:4321/cft/chrome-headless-shell-fixture.zip",
+      ]);
+
+      const offline = yield* makeHarness({
+        environment: { T3CODE_CHROME_HEADLESS_BASE_URL: "off" },
+      });
+      const disabledError = yield* offline.browser.executable.pipe(Effect.flip);
+      expect(disabledError._tag).toBe("PreviewBrowserInstallError");
+      expect(offline.requests).toEqual([]);
+
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-chrome-bin-" });
+      const customBin = path.join(tempDir, executableName);
+      yield* fs.writeFileString(customBin, "#!/bin/sh\n");
+      if (hostPlatform !== "win32") yield* fs.chmod(customBin, 0o755);
+
+      const override = yield* makeHarness({
+        environment: { T3CODE_CHROME_EXECUTABLE_PATH: customBin },
+      });
+      expect(yield* override.browser.installed).toEqual(Option.some(customBin));
+      expect(yield* override.browser.executable).toBe(customBin);
+      expect(override.requests).toEqual([]);
+
+      const missingOverride = yield* makeHarness({
+        environment: { T3CODE_CHROME_EXECUTABLE_PATH: path.join(tempDir, "missing-chrome") },
+      });
+      expect(yield* missingOverride.browser.installed).toEqual(Option.none());
+      const missingError = yield* missingOverride.browser.executable.pipe(Effect.flip);
+      expect(missingError._tag).toBe("PreviewBrowserInstallError");
+      expect(missingOverride.requests).toEqual([]);
     }),
   );
 });

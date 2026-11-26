@@ -44,4 +44,55 @@ describe("resolveDesktopSshCliRunner", () => {
       });
     }),
   );
+
+  it.effect("disables remote archive downloads when update policy mode is off", () =>
+    Effect.gen(function* () {
+      const environment = yield* packagedEnvironment;
+
+      const runner = resolveDesktopSshCliRunner(
+        environment,
+        {
+          [CLI_RELEASE_BASE_URL_ENV]: "https://mirror.example.com/t3code",
+        },
+        {
+          updatePolicy: {
+            mode: "off",
+            feedUrl: "https://policy.example.com/t3code",
+            message: "Managed by Example Corp.",
+          },
+        },
+      );
+
+      assert.deepStrictEqual(runner, {
+        archiveVersion: "0.0.22",
+        disableArchiveDownload: true,
+        archiveDownloadDisabledMessage: "Managed by Example Corp.",
+      });
+    }),
+  );
+
+  it.effect("prefers the managed update feed URL over T3CODE_RELEASE_BASE_URL", () =>
+    Effect.gen(function* () {
+      const environment = yield* packagedEnvironment;
+
+      const runner = resolveDesktopSshCliRunner(
+        environment,
+        {
+          [CLI_RELEASE_BASE_URL_ENV]: "https://env.example.com/t3code",
+        },
+        {
+          updatePolicy: {
+            mode: "auto",
+            feedUrl: "https://policy.example.com/t3code",
+            message: "Managed by Example Corp.",
+          },
+        },
+      );
+
+      assert.deepStrictEqual(runner, {
+        archiveVersion: "0.0.22",
+        releaseBaseUrl: "https://policy.example.com/t3code",
+      });
+    }),
+  );
 });

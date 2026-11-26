@@ -23,7 +23,7 @@ const authorizationUrl = () => {
 };
 const input = {
   authorizationUrl: authorizationUrl(),
-  returnUrl: "https://app.t3.codes/welcome#agents:remote-environment",
+  returnUrl: "http://127.0.0.1:5173/welcome#agents:remote-environment",
   environmentId: EnvironmentId.make("remote-environment"),
   instanceId: ProviderInstanceId.make("work-codex"),
   flowId: "flow-one",
@@ -51,6 +51,12 @@ describe("Codex desktop handoff", () => {
     expect(
       readCodexAuthHandoff(
         codexAuthHandoffUrl({ ...input, returnUrl: "https://attacker.example/welcome" }),
+        false,
+      ),
+    ).toBeUndefined();
+    expect(
+      readCodexAuthHandoff(
+        codexAuthHandoffUrl({ ...input, returnUrl: "https://app.t3.codes/welcome" }),
         false,
       ),
     ).toBeUndefined();

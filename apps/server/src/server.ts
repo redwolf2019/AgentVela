@@ -236,6 +236,7 @@ const HTTP_PREEMPTIVE_SHUTDOWN_GRACE_MS = 0;
 const layerResourceAttribution = ResourceAttribution.layer;
 const layerApplicationObservability = EventLoopMonitor.layer.pipe(
   Layer.provideMerge(Observability.layer),
+  Layer.provideMerge(ManagedPolicy.layer),
   Layer.provideMerge(layerResourceAttribution),
 );
 
@@ -715,7 +716,7 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
       AntigravityInstallation.AntigravityInstallation.layer.pipe(
         Layer.provide(layerServerSettings),
       ),
-      CodexInstallation.CodexInstallation.layer,
+      CodexInstallation.CodexInstallation.layer.pipe(Layer.provide(layerServerSettings)),
     ),
   ),
 );

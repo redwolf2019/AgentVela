@@ -13,6 +13,7 @@ import { FetchHttpClient, HttpClient } from "effect/http";
 import { OtlpSerialization } from "effect/observability";
 
 import * as ServerConfig from "../config.ts";
+import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 
 const CHECK_TIMEOUT = "5 seconds";
 
@@ -40,6 +41,7 @@ const emptyExport = (
 const make = Effect.gen(function* () {
   const config = yield* ServerConfig.ServerConfig;
   const httpClient = yield* HttpClient.HttpClient;
+  const telemetryDenied = yield* ManagedPolicy.isTelemetryDenied;
 
   const running = {
     traces: { url: config.otlpTracesUrl, export: config.otlpTracesExport },
@@ -51,6 +53,9 @@ const make = Effect.gen(function* () {
     signal,
     url,
   }: OtlpEndpointCheckInput) {
+    if (telemetryDenied) {
+      return { _tag: "Rejected", status: 403 } as const;
+    }
     const { url: runningUrl, export: signalExport } = running[signal];
     const headers = url === runningUrl ? signalExport.headers : undefined;
     const body = yield* Effect.gen(function* () {

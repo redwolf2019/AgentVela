@@ -36,6 +36,7 @@ import {
   probeClaudeWorkspaceSnapshot,
   type ClaudeCapabilitiesProbe,
 } from "../ClaudeProvider.ts";
+import { customClaudeApiEndpointHost, readClaudeSettingsEnv } from "./ClaudeSkills.ts";
 import { makeManagedServerProvider } from "@t3tools/provider-core/server/managedProvider";
 import * as ModelCatalog from "@t3tools/provider-core/server/ModelCatalog";
 import {
@@ -287,7 +288,14 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
               catalog,
               scopedLimitNames,
               (version) =>
-                ClaudeResetCredits.readClaudeResetCredits(configDir, version).pipe(
+                readClaudeSettingsEnv(effectiveConfig, undefined, processEnv).pipe(
+                  Effect.flatMap((settingsEnv) =>
+                    ClaudeResetCredits.readClaudeResetCredits(
+                      configDir,
+                      version,
+                      settingsEnv.ANTHROPIC_BASE_URL ?? processEnv.ANTHROPIC_BASE_URL,
+                    ),
+                  ),
                   Effect.provideService(HttpClient.HttpClient, httpClient),
                   Effect.provideService(FileSystem.FileSystem, fileSystem),
                   Effect.provideService(Path.Path, path),
@@ -368,6 +376,16 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
               ? creditId
               : undefined;
         if (!grantId || !current.version) return "noCredit" as const;
+        const settingsEnv = yield* readClaudeSettingsEnv(
+          effectiveConfig,
+          undefined,
+          processEnv,
+        ).pipe(
+          Effect.provideService(FileSystem.FileSystem, fileSystem),
+          Effect.provideService(Path.Path, path),
+        );
+        const baseUrl = settingsEnv.ANTHROPIC_BASE_URL ?? processEnv.ANTHROPIC_BASE_URL;
+        if (customClaudeApiEndpointHost(baseUrl) !== undefined) return "noCredit" as const;
         const version = current.version;
         return yield* resetCreditCoordinator.redeem(
           configDir,
@@ -378,6 +396,7 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
               version,
               grantId,
               requestId,
+              ...(baseUrl === undefined ? {} : { baseUrl }),
             }),
           ClaudeResetCredits.isSettledClaudeResetCreditFailure,
         );

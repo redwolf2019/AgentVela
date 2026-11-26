@@ -53,6 +53,7 @@ import {
   validateAttachmentUploadToken,
 } from "./assets/AttachmentUpload.ts";
 import * as BrowserTraceCollector from "./observability/BrowserTraceCollector.ts";
+import * as ManagedPolicy from "./policy/ManagedPolicy.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import {
   annotateEnvironmentRequest,
@@ -448,6 +449,7 @@ export const layerOtlpTracesProxyRoute = HttpRouter.add(
     yield* authenticateRawRouteWithScope(AuthOrchestrationOperateScope);
     const request = yield* HttpServerRequest.HttpServerRequest;
     const config = yield* ServerConfig.ServerConfig;
+    const telemetryDenied = yield* ManagedPolicy.isTelemetryDenied;
     const otlpTracesUrl = config.otlpTracesUrl;
     const otlpHeaders = config.otlpTracesExport.headers;
     const browserTraceCollector = yield* BrowserTraceCollector.BrowserTraceCollector;
@@ -463,7 +465,7 @@ export const layerOtlpTracesProxyRoute = HttpRouter.add(
       Effect.catch((cause) => Effect.logWarning("Failed to decode browser OTLP traces", { cause })),
     );
 
-    if (otlpTracesUrl === undefined) {
+    if (telemetryDenied || otlpTracesUrl === undefined) {
       return HttpServerResponse.empty({ status: 204 });
     }
 

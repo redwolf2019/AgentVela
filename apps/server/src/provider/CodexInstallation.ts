@@ -29,6 +29,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import * as NodeCrypto from "node:crypto";
 import * as ServerConfig from "../config.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import { selectManagedRelease } from "./managedRelease.ts";
 import * as ModelManifest from "./ModelManifest.ts";
 
@@ -174,13 +175,21 @@ export class CodexInstallation extends Context.Service<
     CodexInstallation,
     Effect.gen(function* () {
       const config = yield* ServerConfig.ServerConfig;
-      return yield* makeCodexInstallation({ baseDir: config.baseDir });
+      const settings = yield* ServerSettings.ServerSettingsService;
+      return yield* makeCodexInstallation({
+        baseDir: config.baseDir,
+        updateChecksEnabled: settings.getSettings.pipe(
+          Effect.map((value) => value.enableProviderUpdateChecks),
+          Effect.orElseSucceed(() => false),
+        ),
+      });
     }),
   );
 }
 export interface CodexInstallationOptions {
   readonly baseDir: string;
   readonly releaseAsset?: CodexReleaseAsset | null;
+  readonly updateChecksEnabled?: Effect.Effect<boolean>;
   readonly validate?: (
     executable: CodexExecutable,
     expectedVersion: string,
@@ -1027,8 +1036,12 @@ export const makeCodexInstallation = Effect.fn("makeCodexInstallation")(function
           source: "managed",
         }) satisfies ProviderInstallState,
     );
-    // A supported older runtime still resolves, so a raised pin needs its own update.
-    if (asset && compareSemverVersions(installed.version, asset.version) < 0)
+    // A supported older runtime still resolves; auto-upgrade to a raised pin only when update checks are enabled.
+    if (
+      asset &&
+      compareSemverVersions(installed.version, asset.version) < 0 &&
+      (yield* options.updateChecksEnabled ?? Effect.succeed(false))
+    )
       yield* start.pipe(Effect.ignore);
   }).pipe(
     Effect.catch(() =>

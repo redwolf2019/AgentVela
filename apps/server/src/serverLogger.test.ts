@@ -3,7 +3,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as NodeOS from "node:os";
 import * as NodeUtil from "node:util";
 
-import { ExternalLauncherBrowserSpawnError } from "@t3tools/contracts";
+import { ExternalLauncherBrowserSpawnError, type ManagedPolicyDocument } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
@@ -21,6 +21,7 @@ import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
 
 import * as ServerConfig from "./config.ts";
 import * as ExternalLauncher from "./process/externalLauncher.ts";
+import * as ManagedPolicy from "./policy/ManagedPolicy.ts";
 import * as ServerLogger from "./serverLogger.ts";
 import {
   announceStartupPairingUrl,
@@ -103,6 +104,7 @@ const layerConfig = (overrides: Partial<ServerConfig.ServerConfig["Service"]>) =
 const logInSpanThrough = (
   overrides: Partial<ServerConfig.ServerConfig["Service"]>,
   program: Effect.Effect<void> = Effect.log("server logger under test"),
+  policy?: ManagedPolicyDocument,
 ) =>
   Effect.gen(function* () {
     const requests: Array<ExportedRequest> = [];
@@ -124,6 +126,7 @@ const logInSpanThrough = (
           ServerLogger.layer.pipe(
             Layer.provide(layerConfig(overrides)),
             Layer.provide(layerCollector(requests)),
+            Layer.provide(ManagedPolicy.layerTest(policy)),
           ),
           layerTracer,
         ),
@@ -176,6 +179,23 @@ describe("ServerLoggerLive", () => {
       const body = requests.map((request) => request.body).join("\n");
       assert.include(body, '"key":"t3code.server.managed_by","value":{"stringValue":"desktop"}');
       assert.notInclude(body, "service.mode");
+    }),
+  );
+
+  it.effect("suppresses OTLP log exports when managed policy denies telemetry", () =>
+    Effect.gen(function* () {
+      const { requests, spans } = yield* logInSpanThrough(
+        { otlpLogsUrl: "https://collector.example.com/v1/logs" },
+        Effect.log("must stay local"),
+        { schemaVersion: 1, organization: "Example Corp", limits: { telemetry: false } },
+      );
+
+      assert.isEmpty(requests);
+      assert.lengthOf(spans, 1);
+      assert.include(
+        JSON.stringify(spans[0]?.events.map(([name, , attributes]) => [name, attributes]) ?? []),
+        "must stay local",
+      );
     }),
   );
 

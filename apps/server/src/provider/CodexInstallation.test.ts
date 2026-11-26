@@ -434,12 +434,53 @@ it.effect("updates an older supported managed installation to the pinned release
       `${first.installation.managedDirectory}/active.json`,
       '{"version":"0.156.0"}',
     );
-    const restarted = yield* makeHarness({ baseDir: first.baseDir });
+    const restarted = yield* makeHarness({
+      baseDir: first.baseDir,
+      options: { updateChecksEnabled: Effect.succeed(true) },
+    });
     expect((yield* restarted.installation.state).operationId).not.toBeNull();
     expect((yield* terminalState(restarted.installation)).phase).toBe("succeeded");
     expect((yield* restarted.installation.resolve()).version).toBe("0.156.1");
     expect(restarted.downloads()).toBe(1);
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+);
+
+it.effect(
+  "does not auto-download the pinned release on startup when update checks are disabled",
+  () =>
+    Effect.gen(function* () {
+      const first = yield* makeHarness();
+      yield* first.installation.start;
+      yield* terminalState(first.installation);
+      const executable = yield* first.installation.resolve();
+      const oldDirectory = `${first.installation.managedDirectory}/0.156.0`;
+      yield* first.fs.rename(executable.managedVersionDirectory!, oldDirectory);
+      for (const name of ["codex-package.json", ".install-complete.json"]) {
+        const file = `${oldDirectory}/${name}`;
+        yield* first.fs.writeFileString(
+          file,
+          (yield* first.fs.readFileString(file)).replaceAll("0.156.1", "0.156.0"),
+        );
+      }
+      yield* first.fs.writeFileString(
+        `${first.installation.managedDirectory}/active.json`,
+        '{"version":"0.156.0"}',
+      );
+      const restarted = yield* makeHarness({
+        baseDir: first.baseDir,
+        options: { updateChecksEnabled: Effect.succeed(false) },
+      });
+      const initialState = yield* restarted.installation.state;
+      expect(initialState.operationId).toBeNull();
+      expect(initialState.installedVersion).toBe("0.156.0");
+      expect(initialState.version).toBe("0.156.1");
+      expect(restarted.downloads()).toBe(0);
+
+      yield* restarted.installation.start;
+      expect((yield* terminalState(restarted.installation)).phase).toBe("succeeded");
+      expect((yield* restarted.installation.resolve()).version).toBe("0.156.1");
+      expect(restarted.downloads()).toBe(1);
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );
 
 it.effect("rejects corrupted downloads without publishing a runtime", () =>
@@ -556,6 +597,7 @@ it.effect.each(["cached update", "reverify"] as const)(
         }),
         options: {
           releaseAsset: operation === "reverify" ? null : { ...asset, target, sha256: checksum },
+          updateChecksEnabled: Effect.succeed(true),
           validate: () => Deferred.succeed(entered, undefined).pipe(Effect.andThen(Effect.never)),
         },
       });

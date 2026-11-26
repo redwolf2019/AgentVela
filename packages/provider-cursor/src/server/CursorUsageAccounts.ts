@@ -28,6 +28,7 @@ import {
   type CursorCredentialSource,
 } from "./accountCache.ts";
 import * as CursorAccountReader from "./CursorAccountReader.ts";
+import { DEFAULT_CURSOR_API_ENDPOINT, resolveCursorApiEndpoint } from "./apiKey.ts";
 import { readStoredCursorApiKey } from "./credentialStore.ts";
 
 const CURSOR_ACCOUNT_READ_ERROR = "Cursor account usage could not be read.";
@@ -42,6 +43,7 @@ export class CursorUsageAccounts extends Context.Service<
     readonly scan: (input: {
       readonly instances: ReadonlyArray<{
         readonly instanceId: ProviderInstanceId;
+        readonly config?: { readonly apiEndpoint?: string | undefined } | undefined;
         readonly environment: NodeJS.ProcessEnv;
       }>;
       readonly windowStartMs: number;
@@ -268,13 +270,20 @@ const make = Effect.gen(function* () {
 
   const scan: CursorUsageAccounts["Service"]["scan"] = Effect.fn("CursorUsageAccounts.scan")(
     function* ({ instances, windowStartMs, retentionCutoffMs, awaitRefresh }) {
-      const apiKeys = yield* Effect.forEach(instances, ({ instanceId, environment }) =>
-        environment.CURSOR_API_KEY?.trim()
-          ? Effect.succeed(environment.CURSOR_API_KEY.trim())
-          : readStoredCursorApiKey(instanceId).pipe(
-              Effect.provideService(ProviderHost.ProviderHost, host),
-              Effect.orElseSucceed(() => undefined),
-            ),
+      const defaultEndpointInstances = instances.filter(
+        ({ config, environment }) =>
+          resolveCursorApiEndpoint(config?.apiEndpoint, environment) ===
+          DEFAULT_CURSOR_API_ENDPOINT,
+      );
+      const apiKeys = yield* Effect.forEach(
+        defaultEndpointInstances,
+        ({ instanceId, environment }) =>
+          environment.CURSOR_API_KEY?.trim()
+            ? Effect.succeed(environment.CURSOR_API_KEY.trim())
+            : readStoredCursorApiKey(instanceId).pipe(
+                Effect.provideService(ProviderHost.ProviderHost, host),
+                Effect.orElseSucceed(() => undefined),
+              ),
       );
       const uniqueApiKeys = [...new Set(apiKeys.filter((apiKey) => apiKey !== undefined))];
       if (uniqueApiKeys.length > 0) {

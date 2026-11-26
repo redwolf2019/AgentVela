@@ -348,6 +348,51 @@ describe("ssh tunnel scripts", () => {
     },
   );
 
+  it("blocks remote archive downloads when disabled by policy while preserving preinstalled t3", () => {
+    const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-ssh-runner-policy-"));
+    try {
+      const bin = NodePath.join(root, "bin");
+      const home = NodePath.join(root, "home");
+      NodeFS.mkdirSync(bin);
+      NodeFS.mkdirSync(home);
+      NodeFS.writeFileSync(
+        NodePath.join(bin, "curl"),
+        "#!/bin/sh\necho 'download attempt' >&2\nexit 1\n",
+        { mode: 0o755 },
+      );
+      const runner = NodePath.join(root, "run-t3.sh");
+      const script = SshTunnel.buildRemoteT3RunnerScript({
+        archiveVersion: ARCHIVE.archiveVersion,
+        disableArchiveDownload: true,
+        archiveDownloadDisabledMessage: "Updates are off per Example Corp policy.",
+      });
+      assert.notInclude(script, "github.com/pingdotgg/t3code");
+      NodeFS.writeFileSync(runner, script);
+
+      const blocked = NodeChildProcess.spawnSync("sh", [runner, "--version"], {
+        encoding: "utf8",
+        env: { HOME: home, PATH: `${bin}:/usr/bin:/bin` },
+      });
+      assert.notEqual(blocked.status, 0);
+      assert.include(blocked.stderr, "Updates are off per Example Corp policy.");
+      assert.notInclude(blocked.stderr, "download attempt");
+
+      NodeFS.writeFileSync(
+        NodePath.join(bin, "t3"),
+        `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "t3 v${ARCHIVE.archiveVersion}"; exit 0; fi\necho "ran-preinstalled"\n`,
+        { mode: 0o755 },
+      );
+      const preinstalled = NodeChildProcess.spawnSync("sh", [runner, "serve"], {
+        encoding: "utf8",
+        env: { HOME: home, PATH: `${bin}:/usr/bin:/bin` },
+      });
+      assert.equal(preinstalled.status, 0);
+      assert.include(preinstalled.stdout, "ran-preinstalled");
+    } finally {
+      NodeFS.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     { installed: ARCHIVE.archiveVersion, status: 0, reuses: true },
     { installed: ARCHIVE.archiveVersion, status: 1, reuses: false },

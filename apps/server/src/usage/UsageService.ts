@@ -29,6 +29,7 @@ import { HttpClient, HttpClientResponse } from "effect/http";
 
 import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 import { formatMalformedUsageWarning } from "@t3tools/shared/usageFormat";
+import { resolveMirrorUrlOverride } from "@t3tools/shared/url";
 import * as ServerConfig from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import { BUILT_IN_USAGE_DRIVERS, type BuiltInUsageReadersEnv } from "../provider/builtInDrivers.ts";
@@ -261,10 +262,12 @@ export const make = Effect.gen(function* () {
   let ratesLastFailedAtMs: number | null = null;
   let ratesStatus: UsagePricing["status"] = "unavailable";
   const ratesLock = yield* Semaphore.make(1);
+  const ratesUrlOverride = resolveMirrorUrlOverride(hostEnvironment["T3CODE_USAGE_RATES_URL"]);
+  const pricingSource = ratesUrlOverride._tag === "url" ? ratesUrlOverride.url : LITELLM_RATES_URL;
 
   const pricing = (): UsagePricing => ({
     status: ratesStatus,
-    source: LITELLM_RATES_URL,
+    source: pricingSource,
     fetchedAt:
       ratesFetchedAtMs === null ? null : DateTime.formatIso(DateTime.makeUnsafe(ratesFetchedAtMs)),
     knownModels: rates.size,
@@ -297,15 +300,30 @@ export const make = Effect.gen(function* () {
     ),
   );
 
-  const loadRates = Effect.fn("UsageService.loadRates")(function* (force: boolean) {
+  const loadRates = Effect.fn("UsageService.loadRates")(function* ({
+    force,
+    manual = false,
+  }: {
+    readonly force: boolean;
+    readonly manual?: boolean;
+  }) {
     const now = yield* Clock.currentTimeMillis;
     const maxAgeMs = force ? RATES_REFRESH_FLOOR_MS : RATES_TTL_MS;
     yield* loadSavedRates;
     if (ratesFetchedAtMs !== null && now - ratesFetchedAtMs < maxAgeMs) return;
     if (ratesLastFailedAtMs !== null && now - ratesLastFailedAtMs < RATES_REFRESH_FLOOR_MS) return;
+    if (ratesUrlOverride._tag === "off" || ratesUrlOverride._tag === "invalid") return;
+    if (!manual) {
+      const settings = yield* settingsService.getSettings.pipe(
+        Effect.catchCause(() => Effect.succeed(null)),
+      );
+      if (settings !== null && !settings.enableProviderUpdateChecks) return;
+    }
 
-    let fetched = yield* fetchRates(LITELLM_RATES_URL);
-    if (fetched === null) {
+    let fetched = yield* fetchRates(
+      ratesUrlOverride._tag === "url" ? ratesUrlOverride.url : LITELLM_RATES_URL,
+    );
+    if (fetched === null && ratesUrlOverride._tag === "default") {
       fetched = yield* fetchRates(LITELLM_RATES_API_URL, "application/vnd.github.raw+json");
     }
     if (fetched === null) {
@@ -325,7 +343,8 @@ export const make = Effect.gen(function* () {
     );
   });
 
-  const ensureRates = (force: boolean) => ratesLock.withPermit(loadRates(force));
+  const ensureRates = (options: { readonly force: boolean; readonly manual?: boolean }) =>
+    ratesLock.withPermit(loadRates(options));
 
   // Rates are kept for RATES_TTL_MS, so a model released after the table was fetched would stay unpriced
   // that long. A scan that meets a model the table does not list refetches early: once per model against
@@ -338,14 +357,14 @@ export const make = Effect.gen(function* () {
       (model) => !checkedUnlistedModels.has(model) && isUnlistedModel(rates, model),
     );
     if (unlisted.length === 0) return;
-    yield* ensureRates(true);
+    yield* ensureRates({ force: true, manual: false });
     const now = yield* Clock.currentTimeMillis;
     // A failed fetch leaves the models unchecked, so a later scan tries again.
     if (ratesFetchedAtMs === null || now - ratesFetchedAtMs >= RATES_REFRESH_FLOOR_MS) return;
     for (const model of unlisted) checkedUnlistedModels.add(model);
   });
 
-  const refreshRates = ensureRates(true).pipe(
+  const refreshRates = ensureRates({ force: true, manual: true }).pipe(
     Effect.map(pricing),
     Effect.withSpan("UsageService.refreshRates"),
   );
@@ -903,7 +922,7 @@ export const make = Effect.gen(function* () {
         );
       const [, scanned] = yield* Effect.all(
         [
-          fromMemory ? loadSavedRates : provisional ? ensureRates(false) : Effect.void,
+          fromMemory ? loadSavedRates : provisional ? ensureRates({ force: false }) : Effect.void,
           collectDirs(
             resolved,
             windowStartMs,
@@ -918,7 +937,7 @@ export const make = Effect.gen(function* () {
       return { scannedDirs: scanned, fromMemory };
     });
     const [{ scannedDirs, fromMemory }] = yield* Effect.all(
-      [collect, provisional ? Effect.void : ensureRates(false)],
+      [collect, provisional ? Effect.void : ensureRates({ force: false })],
       { concurrency: 2 },
     );
 

@@ -1,6 +1,7 @@
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
+import type { ManagedPolicyDocument } from "@t3tools/contracts";
 import { DEFAULT_SIGNAL_EXPORT } from "@t3tools/shared/observability";
 import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
 import * as Effect from "effect/Effect";
@@ -19,6 +20,7 @@ import {
 import { describe } from "vite-plus/test";
 
 import * as ServerConfig from "../config.ts";
+import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as OtlpEndpointCheck from "./OtlpEndpointCheck.ts";
 
 interface PostedRequest {
@@ -32,6 +34,7 @@ const checkWith = (
   status: number | null,
   overrides: Partial<ServerConfig.ServerConfig["Service"]> = {},
   httpClientLayer?: Layer.Layer<HttpClient.HttpClient>,
+  policy?: ManagedPolicyDocument,
 ) => {
   const requests: Array<PostedRequest> = [];
   const httpClient = HttpClient.make((request, _url, signal) => {
@@ -59,6 +62,7 @@ const checkWith = (
   const layer = OtlpEndpointCheck.layer.pipe(
     Layer.provide(httpClientLayer ?? Layer.succeed(HttpClient.HttpClient, httpClient)),
     Layer.provide(configLayer),
+    Layer.provide(ManagedPolicy.layerTest(policy)),
     Layer.provide(NodeServices.layer),
   );
   return { requests, layer };
@@ -201,6 +205,27 @@ describe("OtlpEndpointCheck", () => {
 
       assert.strictEqual(requests[0]?.headers["x-api-key"], "secret");
       assert.isUndefined(requests[1]?.headers["x-api-key"]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.effect("rejects endpoint checks without sending requests when telemetry is denied", () => {
+    const { requests, layer } = checkWith(
+      200,
+      {
+        otlpTracesUrl: "https://collector.example.com/v1/traces",
+        otelEnvironment: OtelEnvironment.none,
+      },
+      undefined,
+      { schemaVersion: 1, organization: "Example Corp", limits: { telemetry: false } },
+    );
+    return Effect.gen(function* () {
+      const result = yield* check({
+        signal: "traces",
+        url: "https://collector.example.com/v1/traces",
+      });
+
+      assert.deepStrictEqual(result, { _tag: "Rejected", status: 403 });
+      assert.isEmpty(requests);
     }).pipe(Effect.provide(layer));
   });
 });

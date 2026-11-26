@@ -17,5 +17,14 @@ describe("provider auth return destinations", () => {
     "t3code://attacker/welcome",
     "t3code://app/welcome/../evil",
     "https://attacker.example/welcome",
+    "https://app.t3.codes/welcome",
   ])("rejects %s", (url) => expect(providerAuthReturnUrl(url)).toBeUndefined());
+
+  it("allows explicitly allowlisted hosted origins", () => {
+    expect(
+      providerAuthReturnUrl("https://hosted.example.com/welcome?code=secret#agents:machine-id", [
+        "https://hosted.example.com",
+      ]),
+    ).toBe("https://hosted.example.com/welcome#agents:machine-id");
+  });
 });

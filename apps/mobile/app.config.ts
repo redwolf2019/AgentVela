@@ -109,8 +109,32 @@ function resolveAppVariant(value: string | undefined): AppVariant {
 }
 
 const variant = VARIANT_CONFIG[APP_VARIANT];
-// Copied thread links open the app. app.t3.codes/.well-known lists every variant's identifiers.
-const HOSTED_APP_HOST = "app.t3.codes";
+const hostedAppUrl = resolveHostedAppOrigin(
+  repoEnv.EXPO_PUBLIC_HOSTED_APP_URL ?? repoEnv.T3CODE_HOSTED_APP_URL,
+);
+const hostedAppHost = hostedAppUrl ? new URL(hostedAppUrl).host : null;
+const easProjectId = repoEnv.T3CODE_MOBILE_EAS_PROJECT_ID?.trim() || undefined;
+const easOwner = repoEnv.T3CODE_MOBILE_EAS_OWNER?.trim() || undefined;
+const mobileUpdatesUrl =
+  repoEnv.T3CODE_MOBILE_UPDATES_URL?.trim() ||
+  (easProjectId ? `https://u.expo.dev/${easProjectId}` : undefined);
+const mobileUpdatesEnabled =
+  repoEnv.T3CODE_MOBILE_UPDATES_ENABLED === "1" && Boolean(mobileUpdatesUrl);
+
+function resolveHostedAppOrigin(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "https:" || url.pathname !== "/" || url.search !== "" || url.hash !== "") {
+      return null;
+    }
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
 const iosBundleIdentifier = isIosPersonalTeamBuild
   ? personalTeamBundleIdentifier!
   : variant.iosBundleIdentifier;
@@ -236,12 +260,19 @@ const config: ExpoConfig = {
   orientation: "portrait",
   icon: variant.assets.appIcon,
   userInterfaceStyle: "automatic",
-  updates: {
-    enabled: repoEnv.T3CODE_MOBILE_UPDATES_ENABLED !== "0",
-    url: "https://u.expo.dev/d763fcb8-d37c-41ea-a773-b54a0ab4a454",
-    checkAutomatically: "ON_LOAD",
-    fallbackToCacheTimeout: 0,
-  },
+  updates:
+    mobileUpdatesEnabled && mobileUpdatesUrl
+      ? {
+          enabled: true,
+          url: mobileUpdatesUrl,
+          checkAutomatically: "ON_LOAD",
+          fallbackToCacheTimeout: 0,
+        }
+      : {
+          enabled: false,
+          checkAutomatically: "NEVER",
+          fallbackToCacheTimeout: 0,
+        },
   ios: {
     icon: variant.assets.iosIcon,
     supportsTablet: true,
@@ -249,7 +280,7 @@ const config: ExpoConfig = {
     bundleIdentifier: iosBundleIdentifier,
     // Avoid Personal Team fallback: it cannot sign App Groups, Apple sign-in or push entitlements.
     appleTeamId: "ARK85ZXQ4Z",
-    associatedDomains: [`applinks:${HOSTED_APP_HOST}`],
+    ...(hostedAppHost ? { associatedDomains: [`applinks:${hostedAppHost}`] } : {}),
     entitlements: {
       "keychain-access-groups": [`$(AppIdentifierPrefix)${variant.iosBundleIdentifier}`],
     },
@@ -301,14 +332,18 @@ const config: ExpoConfig = {
     predictiveBackGestureEnabled: true,
     // expo-sensors declares this for its pedometer, which the app does not use.
     blockedPermissions: ["android.permission.ACTIVITY_RECOGNITION"],
-    intentFilters: [
-      {
-        action: "VIEW",
-        autoVerify: true,
-        data: [{ scheme: "https", host: HOSTED_APP_HOST, pathPrefix: "/threads/" }],
-        category: ["BROWSABLE", "DEFAULT"],
-      },
-    ],
+    ...(hostedAppHost
+      ? {
+          intentFilters: [
+            {
+              action: "VIEW",
+              autoVerify: true,
+              data: [{ scheme: "https", host: hostedAppHost, pathPrefix: "/threads/" }],
+              category: ["BROWSABLE", "DEFAULT"],
+            },
+          ],
+        }
+      : {}),
   },
   web: {
     favicon: variant.assets.appIcon,
@@ -457,14 +492,13 @@ const config: ExpoConfig = {
   extra: {
     appVariant: APP_VARIANT,
     iosPersonalTeamBuild: isIosPersonalTeamBuild,
+    hostedAppUrl,
     relay: {
       url: repoEnv.T3CODE_RELAY_URL ?? null,
     },
-    eas: {
-      projectId: "d763fcb8-d37c-41ea-a773-b54a0ab4a454",
-    },
+    ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
   },
-  owner: "pingdotgg",
+  ...(easOwner ? { owner: easOwner } : {}),
   experiments: {
     // Metro only runs babel-plugin-react-compiler when this is set; see src/reactCompilerCoverage.test.ts.
     reactCompiler: true,

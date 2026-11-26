@@ -9,12 +9,15 @@ import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import { HttpClient, HttpClientResponse } from "effect/http";
 
 import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import { resolveMirrorUrlOverride } from "@t3tools/shared/url";
 import { ServerConfig } from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import { hasValidClaudeManifestAdapters } from "./ClaudeModelManifest.ts";
@@ -213,6 +216,10 @@ export const make = Effect.gen(function* () {
   const settingsService = yield* ServerSettings.ServerSettingsService;
   const httpClient = yield* HttpClient.HttpClient;
   const serviceScope = yield* Effect.scope;
+  const hostEnvironment = yield* Effect.serviceOption(HostProcess.Environment).pipe(
+    Effect.map((option) => Option.getOrElse(option, () => process.env)),
+  );
+  const manifestUrlOverride = resolveMirrorUrlOverride(hostEnvironment.T3CODE_MODEL_MANIFEST_URL);
 
   const cachePath = path.join(config.stateDir, "model-manifest.json");
   let manifest = BUNDLED_MODEL_MANIFEST;
@@ -252,9 +259,14 @@ export const make = Effect.gen(function* () {
       Effect.catchCause(() => Effect.succeed(null)),
     );
     if (settings !== null && !settings.enableProviderUpdateChecks) return manifest;
+    if (manifestUrlOverride._tag === "off" || manifestUrlOverride._tag === "invalid") {
+      return manifest;
+    }
+    const manifestUrl =
+      manifestUrlOverride._tag === "url" ? manifestUrlOverride.url : MODEL_MANIFEST_URL;
 
     lastAttemptMs = now;
-    const fetched = yield* httpClient.get(MODEL_MANIFEST_URL).pipe(
+    const fetched = yield* httpClient.get(manifestUrl).pipe(
       Effect.flatMap(HttpClientResponse.filterStatusOk),
       Effect.flatMap((response) => response.json),
       Effect.flatMap((json) => decodeManifest(json)),

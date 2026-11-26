@@ -32,6 +32,7 @@ import * as Option from "effect/Option";
 import serverPackageJson from "../../../server/package.json" with { type: "json" };
 
 import type * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
+import type * as DesktopUpdatePolicy from "../updates/DesktopUpdatePolicy.ts";
 
 import * as DesktopSshPasswordPrompts from "./DesktopSshPasswordPrompts.ts";
 
@@ -82,6 +83,9 @@ export interface DesktopSshEnvironmentLayerOptions {
 export const resolveDesktopSshCliRunner = (
   environment: DesktopEnvironment.DesktopEnvironment["Service"],
   env: NodeJS.ProcessEnv,
+  options?: {
+    readonly updatePolicy?: Pick<DesktopUpdatePolicy.UpdatePolicy, "mode" | "feedUrl" | "message">;
+  },
 ): SshTunnel.RemoteT3RunnerOptions => {
   const devRemoteEntryPath = Option.getOrUndefined(environment.devRemoteT3ServerEntryPath);
   if (environment.isDevelopment && devRemoteEntryPath !== undefined) {
@@ -90,7 +94,17 @@ export const resolveDesktopSshCliRunner = (
       nodeEngineRange: serverPackageJson.engines.node,
     };
   }
-  const releaseBaseUrl = env[CLI_RELEASE_BASE_URL_ENV]?.trim() || undefined;
+  if (options?.updatePolicy?.mode === "off") {
+    return {
+      archiveVersion: environment.appVersion,
+      disableArchiveDownload: true,
+      archiveDownloadDisabledMessage:
+        options.updatePolicy.message ??
+        "Remote t3 archive download is disabled by managed policy. Install t3 on the remote host and try again.",
+    };
+  }
+  const releaseBaseUrl =
+    options?.updatePolicy?.feedUrl?.trim() || env[CLI_RELEASE_BASE_URL_ENV]?.trim() || undefined;
   return {
     archiveVersion: environment.appVersion,
     ...(releaseBaseUrl === undefined ? {} : { releaseBaseUrl }),

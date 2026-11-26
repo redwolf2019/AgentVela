@@ -12,13 +12,26 @@ type UntrustedSection<T> = {
 };
 
 type ExpoExtra =
-  | {
+  | ({
       readonly [Section in keyof CloudPublicConfig]?: UntrustedSection<CloudPublicConfig[Section]>;
-    }
+    } & {
+      readonly hostedAppUrl?: unknown;
+    })
   | undefined;
 
 function trimNonEmpty(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+export function resolveHostedAppUrl(extra: ExpoExtra = Constants.expoConfig?.extra): string | null {
+  const raw = trimNonEmpty(extra?.hostedAppUrl);
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
 }
 
 export function resolveDefaultRelayUrl(

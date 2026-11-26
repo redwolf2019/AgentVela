@@ -20,6 +20,7 @@ import {
   resolveSpawnCommand,
   SpawnExecutableResolution,
 } from "@t3tools/shared/shell";
+import { resolveMirrorUrlOverride } from "@t3tools/shared/url";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
@@ -713,7 +714,10 @@ export const makeAcpRegistryCatalog = Effect.fn("AcpRegistryCatalog.make")(funct
     return yield* Effect.promise(async () => executableResolver(command, platform, environment));
   });
   const platformTarget = resolveAcpRegistryPlatformTarget(platform, architecture);
-  const registryUrl = input.registryUrl ?? ACP_REGISTRY_URL;
+  const registrySetting =
+    input.registryUrl !== undefined
+      ? ({ _tag: "url", url: input.registryUrl } as const)
+      : resolveMirrorUrlOverride(hostEnvironment.T3CODE_ACP_REGISTRY_URL);
   const registryDirectory = path.join(input.cacheDir, "acp-registry");
   const registryCachePath = path.join(registryDirectory, "registry.json");
   const installsDirectory = input.toolsDir;
@@ -936,7 +940,22 @@ export const makeAcpRegistryCatalog = Effect.fn("AcpRegistryCatalog.make")(funct
     );
 
   const fetchRegistry = Effect.fn("AcpRegistryCatalog.fetchRegistry")(function* () {
-    yield* assertHttpsUrl(registryUrl, "ACP Registry index URL must use HTTPS.");
+    if (registrySetting._tag === "off") {
+      return yield* new AcpRegistryError({
+        reason: "registry_unavailable",
+        detail: "ACP Registry network fetches are disabled by T3CODE_ACP_REGISTRY_URL.",
+      });
+    }
+    if (registrySetting._tag === "invalid") {
+      return yield* new AcpRegistryError({
+        reason: "registry_unavailable",
+        detail: "T3CODE_ACP_REGISTRY_URL must use HTTPS or loopback HTTP without credentials.",
+      });
+    }
+    const registryUrl = registrySetting._tag === "url" ? registrySetting.url : ACP_REGISTRY_URL;
+    if (input.registryUrl !== undefined || registrySetting._tag === "default") {
+      yield* assertHttpsUrl(registryUrl, "ACP Registry index URL must use HTTPS.");
+    }
     const response = yield* httpClient.execute(HttpClientRequest.get(registryUrl)).pipe(
       Effect.flatMap(HttpClientResponse.filterStatusOk),
       Effect.mapError(

@@ -2419,4 +2419,64 @@ describe("acpRegistryManagedBinaryDirectories", () => {
       expect(missing).toEqual([]);
     }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
+
+  it.effect("honors T3CODE_ACP_REGISTRY_URL mirror overrides and offline mode", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const mirrorUrl = "http://127.0.0.1:4321/custom-registry.json";
+      const mirrorRequests: Array<string> = [];
+      const agent = {
+        ...makeAgent({ npx: { package: "example-agent@1.0.0" } }),
+        version: "1.0.0",
+      };
+      const mirrorCacheDir = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-acp-mirror-",
+      });
+      const mirrorResolver = yield* AcpRegistrySupport.makeAcpRegistryCatalog({
+        cacheDir: mirrorCacheDir,
+        toolsDir: `${mirrorCacheDir}/tools`,
+      }).pipe(
+        Effect.provideService(HostProcess.Environment, { T3CODE_ACP_REGISTRY_URL: mirrorUrl }),
+        Effect.provide(
+          layerResolver((request) => {
+            mirrorRequests.push(request.url);
+            return Effect.succeed(
+              HttpClientResponse.fromWeb(request, new Response(makeRegistry(agent))),
+            );
+          }),
+        ),
+      );
+      expect(yield* mirrorResolver.refreshIndex()).toBe(false);
+      expect(mirrorRequests).toEqual([mirrorUrl]);
+
+      const offlineRequests: Array<string> = [];
+      const offlineCacheDir = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-acp-offline-",
+      });
+      yield* fileSystem.makeDirectory(`${offlineCacheDir}/acp-registry`, { recursive: true });
+      yield* fileSystem.writeFileString(
+        `${offlineCacheDir}/acp-registry/registry.json`,
+        makeRegistry(agent),
+      );
+      const offlineResolver = yield* AcpRegistrySupport.makeAcpRegistryCatalog({
+        cacheDir: offlineCacheDir,
+        toolsDir: `${offlineCacheDir}/tools`,
+      }).pipe(
+        Effect.provideService(HostProcess.Environment, { T3CODE_ACP_REGISTRY_URL: "off" }),
+        Effect.provideService(SpawnExecutableResolution, (command: string) => command),
+        Effect.provide(
+          layerResolver((request) => {
+            offlineRequests.push(request.url);
+            return Effect.die("must not fetch when T3CODE_ACP_REGISTRY_URL=off");
+          }),
+        ),
+      );
+      expect(yield* offlineResolver.inspect(settings())).toMatchObject({
+        status: "ready",
+        version: "1.0.0",
+      });
+      expect(yield* offlineResolver.refreshIndex()).toBe(false);
+      expect(offlineRequests).toEqual([]);
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  );
 });

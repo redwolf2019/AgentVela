@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - Effect has no incremental digest.
 import * as EffectNodeStream from "@effect/platform-node/NodeStream";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import { parseUrl, resolveMirrorUrlOverride } from "@t3tools/shared/url";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -75,6 +76,18 @@ export interface PreviewBrowserRelease {
   readonly sha256: string;
 }
 
+const DEFAULT_CHROME_FOR_TESTING_BASE_URL =
+  "https://storage.googleapis.com/chrome-for-testing-public";
+
+const rewriteReleaseUrl = (releaseUrl: string, baseUrl: string): string => {
+  const normalizedBase = baseUrl.replace(/\/+$/u, "");
+  if (releaseUrl.startsWith(`${DEFAULT_CHROME_FOR_TESTING_BASE_URL}/`)) {
+    return `${normalizedBase}${releaseUrl.slice(DEFAULT_CHROME_FOR_TESTING_BASE_URL.length)}`;
+  }
+  const parsed = parseUrl(releaseUrl);
+  return parsed ? `${normalizedBase}${parsed.pathname}${parsed.search}` : normalizedBase;
+};
+
 const previewBrowserRelease = (
   platform: NodeJS.Platform,
   arch: NodeJS.Architecture,
@@ -85,7 +98,7 @@ const previewBrowserRelease = (
     : {
         version: VERSION,
         platform: chrome,
-        url: `https://storage.googleapis.com/chrome-for-testing-public/${VERSION}/${chrome}/chrome-headless-shell-${chrome}.zip`,
+        url: `${DEFAULT_CHROME_FOR_TESTING_BASE_URL}/${VERSION}/${chrome}/chrome-headless-shell-${chrome}.zip`,
         ...ARCHIVES[chrome],
       };
 };
@@ -167,8 +180,17 @@ export const makePreviewBrowser = Effect.fn("PreviewBrowser.make")(function* (
   const serviceScope = yield* Effect.scope;
   const platform = yield* HostProcess.Platform;
   const arch = yield* HostProcess.Architecture;
-  const release =
+  const environment = yield* Effect.serviceOption(HostProcess.Environment).pipe(
+    Effect.map((option) => Option.getOrElse(option, () => ({}) as NodeJS.ProcessEnv)),
+  );
+  const explicitExecutablePath = environment["T3CODE_CHROME_EXECUTABLE_PATH"]?.trim() || undefined;
+  const mirrorOverride = resolveMirrorUrlOverride(environment["T3CODE_CHROME_HEADLESS_BASE_URL"]);
+  const baseRelease =
     options.release === undefined ? previewBrowserRelease(platform, arch) : options.release;
+  const release =
+    baseRelease !== null && mirrorOverride._tag === "url"
+      ? { ...baseRelease, url: rewriteReleaseUrl(baseRelease.url, mirrorOverride.url) }
+      : baseRelease;
   const wait = options.wait ?? "45 seconds";
   const installRoot = path.join(
     options.baseDir,
@@ -182,20 +204,22 @@ export const makePreviewBrowser = Effect.fn("PreviewBrowser.make")(function* (
   let state: InstallState = { _tag: "idle" };
   const progress = { downloadedBytes: 0, unpacking: false };
 
-  const installedExecutable = (release: PreviewBrowserRelease) => {
-    const executable = path.join(installRoot, release.version, executableName);
-    return fs.stat(executable).pipe(
+  const checkExecutable = (executablePath: string) =>
+    fs.stat(executablePath).pipe(
       Effect.map((info) =>
         info.type === "File" && (platform === "win32" || (info.mode & 0o111) !== 0)
-          ? Option.some(executable)
+          ? Option.some(executablePath)
           : Option.none<string>(),
       ),
       Effect.orElseSucceed(() => Option.none<string>()),
     );
-  };
+
+  const installedExecutable = (release: PreviewBrowserRelease) =>
+    checkExecutable(path.join(installRoot, release.version, executableName));
 
   const download = Effect.fn("PreviewBrowser.download")(
     function* (release: PreviewBrowserRelease, archivePath: string) {
+      const downloadHost = parseUrl(release.url)?.host ?? "storage.googleapis.com";
       const response = yield* http
         .execute(HttpClientRequest.get(release.url))
         .pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
@@ -233,12 +257,13 @@ export const makePreviewBrowser = Effect.fn("PreviewBrowser.make")(function* (
           detail: "The download failed its size or SHA-256 check. Nothing was installed.",
         });
       }
+      return downloadHost;
     },
     Effect.timeout(DOWNLOAD_TIMEOUT),
-    Effect.mapError(
+    Effect.mapError((cause) =>
       wrapFailure(
-        "The download from storage.googleapis.com failed. Check this machine's network access.",
-      ),
+        `The download from ${parseUrl(release?.url ?? "")?.host ?? "storage.googleapis.com"} failed. Check this machine's network access.`,
+      )(cause),
     ),
   );
 
@@ -367,6 +392,24 @@ export const makePreviewBrowser = Effect.fn("PreviewBrowser.make")(function* (
           state = { _tag: "installed", executable: installed.value };
           return state;
         }
+        if (mirrorOverride._tag === "off") {
+          return {
+            _tag: "failed",
+            error: new PreviewBrowserInstallError({
+              detail:
+                "Automatic headless browser download is disabled. Set T3CODE_CHROME_EXECUTABLE_PATH to a local binary.",
+            }),
+          } satisfies InstallState;
+        }
+        if (mirrorOverride._tag === "invalid") {
+          return {
+            _tag: "failed",
+            error: new PreviewBrowserInstallError({
+              detail:
+                "T3CODE_CHROME_HEADLESS_BASE_URL must use HTTPS or loopback HTTP without credentials.",
+            }),
+          } satisfies InstallState;
+        }
         const done = yield* Deferred.make<string, PreviewBrowserInstallError>();
         progress.downloadedBytes = 0;
         progress.unpacking = false;
@@ -406,6 +449,13 @@ export const makePreviewBrowser = Effect.fn("PreviewBrowser.make")(function* (
     );
 
   const executable = Effect.gen(function* () {
+    if (explicitExecutablePath !== undefined) {
+      const verified = yield* checkExecutable(explicitExecutablePath);
+      if (Option.isSome(verified)) return verified.value;
+      return yield* new PreviewBrowserInstallError({
+        detail: "T3CODE_CHROME_EXECUTABLE_PATH does not point to an executable file.",
+      });
+    }
     if (release === null) {
       return yield* new PreviewBrowserUnsupportedError({ platform, arch });
     }
@@ -433,7 +483,12 @@ export const makePreviewBrowser = Effect.fn("PreviewBrowser.make")(function* (
     }
   }).pipe(Effect.withSpan("PreviewBrowser.executable"));
 
-  const installed = release === null ? Effect.succeedNone : installedExecutable(release);
+  const installed =
+    explicitExecutablePath !== undefined
+      ? checkExecutable(explicitExecutablePath)
+      : release === null
+        ? Effect.succeedNone
+        : installedExecutable(release);
 
   return PreviewBrowser.of({ executable, installed });
 });

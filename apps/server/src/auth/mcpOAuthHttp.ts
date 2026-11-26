@@ -16,9 +16,7 @@ import { HttpServerRequest, HttpServerResponse } from "effect/http";
 import * as HttpEffect from "effect/http/HttpEffect";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 
-import { DEFAULT_HOSTED_APP_URL } from "@t3tools/shared/connectAuth";
-
-import { agentApprovalAppUrlConfig } from "../cloud/publicConfig.ts";
+import { hostedAppUrlConfig } from "../cloud/publicConfig.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as RelayLinkService from "../relay/RelayLinkService.ts";
 import * as EnvironmentAuth from "./EnvironmentAuth.ts";
@@ -80,28 +78,28 @@ export const layer = HttpApiBuilder.group(
     const environmentAuth = yield* EnvironmentAuth.EnvironmentAuth;
     const relayLink = yield* RelayLinkService.RelayLinkService;
     const serverEnvironment = yield* ServerEnvironment.ServerEnvironmentIdentity;
-    const hostedAppUrl = yield* agentApprovalAppUrlConfig.pipe(
-      Effect.orElseSucceed(() => DEFAULT_HOSTED_APP_URL),
-    );
-    // When this host is served via a self-hosted relay, direct owners to approve on the hosted UI.
+    const hostedAppUrl = yield* hostedAppUrlConfig.pipe(Effect.orElseSucceed(Option.none));
+    // When served via a relay and a hosted UI origin is configured, approve there; otherwise stay local.
     const hostedApprovalUrl = (issuer: string, search: string) =>
-      relayLink.getStatus().pipe(
-        Effect.flatMap((state) =>
-          state.linked &&
-          state.endpoint !== null &&
-          new URL(state.endpoint.httpBaseUrl).hostname === new URL(issuer).hostname
-            ? serverEnvironment.getEnvironmentId.pipe(
-                Effect.map((environmentId) => {
-                  const url = new URL(HOSTED_APPROVAL_PATH, hostedAppUrl);
-                  url.search = search;
-                  url.searchParams.set("environment", environmentId);
-                  return Option.some(url.toString());
-                }),
-              )
-            : Effect.succeedNone,
-        ),
-        Effect.orElseSucceed(Option.none),
-      );
+      Option.isNone(hostedAppUrl)
+        ? Effect.succeedNone
+        : relayLink.getStatus().pipe(
+            Effect.flatMap((state) =>
+              state.linked &&
+              state.endpoint !== null &&
+              new URL(state.endpoint.httpBaseUrl).hostname === new URL(issuer).hostname
+                ? serverEnvironment.getEnvironmentId.pipe(
+                    Effect.map((environmentId) => {
+                      const url = new URL(HOSTED_APPROVAL_PATH, hostedAppUrl.value);
+                      url.search = search;
+                      url.searchParams.set("environment", environmentId);
+                      return Option.some(url.toString());
+                    }),
+                  )
+                : Effect.succeedNone,
+            ),
+            Effect.orElseSucceed(Option.none),
+          );
     const protectedResource = () =>
       requestUrls.pipe(Effect.map(McpOAuth.protectedResourceMetadata));
 

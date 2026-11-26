@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 
 import { hostedAppUrlConfig, makeRelayUrlConfig } from "./publicConfig.ts";
@@ -21,6 +22,18 @@ it.effect("allows private LAN or loopback HTTP relay URL overrides", () =>
       provideEnv({ T3CODE_RELAY_URL: "http://192.168.1.50:8787/" }),
     );
     assert.strictEqual(localUrl, "http://192.168.1.50:8787");
+  }),
+);
+
+it.effect("returns none when T3CODE_HOSTED_APP_URL is unset and some when valid", () =>
+  Effect.gen(function* () {
+    assert.deepStrictEqual(yield* hostedAppUrlConfig.pipe(provideEnv({})), Option.none());
+    assert.deepStrictEqual(
+      yield* hostedAppUrlConfig.pipe(
+        provideEnv({ T3CODE_HOSTED_APP_URL: "https://hosted.example.com/" }),
+      ),
+      Option.some("https://hosted.example.com"),
+    );
   }),
 );
 

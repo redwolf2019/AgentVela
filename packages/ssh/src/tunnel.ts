@@ -112,6 +112,8 @@ export interface RemoteT3RunnerOptions {
   readonly nodeEngineRange?: string | null;
   readonly archiveVersion?: string | null;
   readonly releaseBaseUrl?: string | null;
+  readonly disableArchiveDownload?: boolean;
+  readonly archiveDownloadDisabledMessage?: string | null;
 }
 
 export interface SshEnvironmentManagerOptions {
@@ -494,10 +496,16 @@ fi
 # Self-contained release archive: no Node, npm, or compiler on the remote.
 # Unpacked into the pinned-runtime layout so \`t3 service install\` reuses it.
 T3_RELEASE_BASE_URL=@@T3_RELEASE_BASE_URL@@
+T3_DISABLE_ARCHIVE_DOWNLOAD=@@T3_DISABLE_ARCHIVE_DOWNLOAD@@
+T3_ARCHIVE_DOWNLOAD_DISABLED_MESSAGE=@@T3_ARCHIVE_DOWNLOAD_DISABLED_MESSAGE@@
 T3_RUNTIME_DIR="$HOME/.t3/runtime/versions/$T3_ARCHIVE_VERSION"
 t3_runtime_ready() {
   [ -x "$T3_RUNTIME_DIR/t3" ] && [ "$(cat "$T3_RUNTIME_DIR/.install-complete" 2>/dev/null)" = "$T3_ARCHIVE_VERSION" ]
 }
+if ! t3_runtime_ready && [ "$T3_DISABLE_ARCHIVE_DOWNLOAD" = "1" ]; then
+  printf '%s\\n' "$T3_ARCHIVE_DOWNLOAD_DISABLED_MESSAGE" >&2
+  exit 1
+fi
 if ! t3_runtime_ready; then
   mkdir -p "$HOME/.t3/runtime/versions"
   T3_LOCK="$HOME/.t3/runtime/versions/.$T3_ARCHIVE_VERSION.install.lock"
@@ -1162,15 +1170,22 @@ export function buildRemoteT3RunnerScript(input?: RemoteT3RunnerOptions): string
   if (archiveVersion !== "" && !EXACT_ARCHIVE_VERSION.test(archiveVersion)) {
     throw new SshInvalidArchiveVersionError({ archiveVersion });
   }
-  const releaseBaseUrl = cliReleaseDownloadBaseUrl("", input?.releaseBaseUrl ?? undefined).replace(
-    /\/v$/u,
-    "",
-  );
+  const disableArchiveDownload = input?.disableArchiveDownload === true;
+  const archiveDownloadDisabledMessage =
+    input?.archiveDownloadDisabledMessage?.trim() ||
+    "Remote t3 archive download is disabled by managed policy. Install t3 on the remote host and try again.";
+  const releaseBaseUrl = disableArchiveDownload
+    ? ""
+    : cliReleaseDownloadBaseUrl("", input?.releaseBaseUrl ?? undefined).replace(/\/v$/u, "");
   return stripTrailingNewlines(
     applyScriptPlaceholders(REMOTE_RUNNER_SCRIPT, {
       T3_NODE_SCRIPT_PATH: shellSingleQuote(nodeScriptPath),
       T3_ARCHIVE_VERSION: shellSingleQuote(archiveVersion),
       T3_RELEASE_BASE_URL: shellSingleQuote(releaseBaseUrl),
+      T3_DISABLE_ARCHIVE_DOWNLOAD: shellSingleQuote(disableArchiveDownload ? "1" : "0"),
+      T3_ARCHIVE_DOWNLOAD_DISABLED_MESSAGE: shellSingleQuote(
+        disableArchiveDownload ? archiveDownloadDisabledMessage : "",
+      ),
       T3_ARCHIVE_LOCK_WAIT_SECONDS: String(REMOTE_ARCHIVE_LOCK_WAIT_SECONDS),
       T3_ARCHIVE_DOWNLOAD_SECONDS: String(REMOTE_ARCHIVE_DOWNLOAD_SECONDS),
       T3_ARCHIVE_CHECKSUMS_SECONDS: String(REMOTE_ARCHIVE_CHECKSUMS_SECONDS),

@@ -6,6 +6,17 @@ import * as HttpClientResponse from "effect/http/HttpClientResponse";
 
 export const DEFAULT_CURSOR_API_ENDPOINT = "https://api2.cursor.sh";
 
+export function resolveCursorApiEndpoint(
+  apiEndpoint: string | undefined,
+  environment: NodeJS.ProcessEnv,
+): string {
+  return (
+    apiEndpoint?.trim() ||
+    environment.CURSOR_API_ENDPOINT?.trim() ||
+    DEFAULT_CURSOR_API_ENDPOINT
+  ).replace(/\/+$/, "");
+}
+
 const ApiKeyExchange = Schema.Struct({ accessToken: Schema.NonEmptyString });
 
 /** Trades a user API key for the access token Cursor's RPCs accept, as `@cursor/sdk` does. */

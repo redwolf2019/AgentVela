@@ -168,7 +168,15 @@ effectIt.layer(NodeServices.layer)("readClaudeResetCredits", (it) => {
         Effect.provideService(HostProcess.Platform, "linux"),
         Effect.provideService(HttpClient.HttpClient, respond(429, {})),
       );
-      expect([darwin, limited]).toEqual([undefined, undefined]);
+      const customEndpoint = yield* ClaudeResetCredits.readClaudeResetCredits(
+        configDir,
+        "2.1.0",
+        "https://proxy.example.com/anthropic",
+      ).pipe(
+        Effect.provideService(HostProcess.Platform, "linux"),
+        Effect.provideService(HttpClient.HttpClient, refuseRequests),
+      );
+      expect([darwin, limited, customEndpoint]).toEqual([undefined, undefined, undefined]);
     }),
   );
 });
@@ -256,6 +264,23 @@ effectIt.layer(NodeServices.layer)("consumeClaudeResetCredit", (it) => {
       ]) {
         expect(yield* consume(refuseRequests, ids)).toMatchObject({ _tag: "Failure" });
       }
+    }),
+  );
+
+  it.effect("skips official API requests when ANTHROPIC_BASE_URL targets a custom endpoint", () =>
+    Effect.gen(function* () {
+      const login = yield* writeLogin;
+      const outcome = yield* ClaudeResetCredits.consumeClaudeResetCredit({
+        ...login,
+        version: "2.1.0",
+        grantId: "grant_a",
+        requestId: "r-1",
+        baseUrl: "https://proxy.example.com",
+      }).pipe(
+        Effect.provideService(HostProcess.Platform, "linux"),
+        Effect.provideService(HttpClient.HttpClient, refuseRequests),
+      );
+      expect(outcome).toBe("noCredit");
     }),
   );
 });

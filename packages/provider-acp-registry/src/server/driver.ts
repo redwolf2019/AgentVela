@@ -277,6 +277,7 @@ function baseSnapshot(
     readonly version: string | null;
     readonly status: ServerProvider["status"];
     readonly auth: ServerProvider["auth"];
+    readonly allowRemoteIcon?: boolean;
     readonly documentationUrl?: string;
     readonly message?: string;
     readonly probe?: AcpRegistryConfigurationProbeResult;
@@ -284,10 +285,10 @@ function baseSnapshot(
   },
 ): ServerProvider {
   const iconUrl =
-    input.settings.source === "local"
-      ? null
-      : (resolveOfficialAcpRegistryIconUrl(input.probe?.probe.icon) ??
-        officialAcpRegistryIconUrlForAgentId(input.settings.agentId));
+    input.allowRemoteIcon === true && input.settings.source !== "local"
+      ? (resolveOfficialAcpRegistryIconUrl(input.probe?.probe.icon) ??
+        officialAcpRegistryIconUrlForAgentId(input.settings.agentId))
+      : null;
   return {
     instanceId: input.instanceId,
     driver: DRIVER_KIND,
@@ -423,7 +424,12 @@ function applyAcpRegistryUrlAuthAction(
 }
 
 const buildInitialAcpRegistrySnapshot = Effect.fn("AcpRegistryDriver.buildInitialSnapshot")(
-  function* (input: SnapshotIdentity & { readonly settings: AcpRegistrySettings }) {
+  function* (
+    input: SnapshotIdentity & {
+      readonly settings: AcpRegistrySettings;
+      readonly allowRemoteIcon?: boolean;
+    },
+  ) {
     const checkedAt = DateTime.formatIso(yield* DateTime.now);
     return baseSnapshot({
       ...input,
@@ -443,6 +449,7 @@ export function buildCheckedAcpRegistrySnapshot(
   input: SnapshotIdentity & {
     readonly settings: AcpRegistrySettings;
     readonly checkedAt: string;
+    readonly allowRemoteIcon?: boolean;
     readonly inspection:
       | AcpRegistrySupport.AcpRegistryInspection
       | { readonly status: "failed"; readonly message: string };
@@ -509,6 +516,7 @@ export const checkAcpRegistryProviderStatus = Effect.fn("AcpRegistryDriver.check
       readonly settings: AcpRegistrySettings;
       readonly cwd: string;
       readonly environment: NodeJS.ProcessEnv;
+      readonly allowRemoteIcon?: boolean;
       readonly modelDiscovery?: Omit<AcpRegistryModelDiscovery, "onProbed"> & {
         readonly onProbed: (provider: ServerProvider) => Effect.Effect<ReadonlyArray<string>>;
       };
@@ -581,6 +589,7 @@ export const checkAcpRegistryProviderReadiness = Effect.fn(
   input: SnapshotIdentity & {
     readonly settings: AcpRegistrySettings;
     readonly environment: NodeJS.ProcessEnv;
+    readonly allowRemoteIcon?: boolean;
   },
 ): Effect.fn.Return<ServerProvider, never, AcpRegistrySupport.AcpRegistryCatalog> {
   const checkedAt = DateTime.formatIso(yield* DateTime.now);
@@ -778,10 +787,19 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
         yield* coordinator.getUrlAuthAction(instanceId),
       );
     });
+    const snapshotSettings = yield* makeProviderSnapshotSettingsSource(effectiveConfig);
     // A local executable's version comes only from probing it, so readiness checks reuse the last report.
     const reportedLocalVersion = yield* Ref.make<string | null>(null);
-    const checkProvider = checkAcpRegistryProviderReadiness(readinessInput).pipe(
-      Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, catalog),
+    const checkProvider = Effect.gen(function* () {
+      const enableProviderUpdateChecks = yield* snapshotSettings.getSettings.pipe(
+        Effect.map((settings) => settings.enableProviderUpdateChecks),
+        Effect.orElseSucceed(() => false),
+      );
+      return yield* checkAcpRegistryProviderReadiness({
+        ...readinessInput,
+        allowRemoteIcon: enableProviderUpdateChecks,
+      }).pipe(Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, catalog));
+    }).pipe(
       Effect.flatMap((provider) =>
         Ref.get(reportedLocalVersion).pipe(
           Effect.map((version) =>
@@ -807,6 +825,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
       });
     });
     const enrichProvider = Effect.fn("AcpRegistryDriver.enrichProvider")(function* (
+      allowRemoteIcon: boolean,
       publishProbed: (
         provider: ServerProvider,
         modelsFromModelSelect: boolean,
@@ -816,6 +835,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
       const provider = yield* checkAcpRegistryProviderStatus(
         {
           ...readinessInput,
+          allowRemoteIcon,
           cwd: host.paths.cwd,
           modelDiscovery: {
             // Publish what the probe found first; discovery only adds options to it.
@@ -874,6 +894,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
     }));
     const enrichProviderCached = Effect.fn("AcpRegistryDriver.enrichProviderCached")(function* (
       baseSnapshot: ServerProvider,
+      enableProviderUpdateChecks: boolean,
       publish: (enriched: {
         readonly provider: ServerProvider;
         readonly generation: number;
@@ -883,7 +904,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
         readonly runtimeChanged: boolean;
       }) => Effect.Effect<void>,
     ) {
-      if (hasRegistryAgent) {
+      if (hasRegistryAgent && enableProviderUpdateChecks) {
         yield* catalog
           .refreshIndex({
             maxAgeMs: PROBE_SUCCESS_TTL_MS,
@@ -905,8 +926,10 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
       const now = yield* Clock.currentTimeMillis;
       const cacheState = yield* Ref.get(enrichmentCache);
       const cached = cacheState.entry;
+      const expectRemoteIcon = enableProviderUpdateChecks && effectiveConfig.source !== "local";
       if (
         cached !== null &&
+        (!hasRegistryAgent || Boolean(cached.provider.iconUrl) === expectRemoteIcon) &&
         isAcpRegistryCacheValid(
           cached,
           inspectedVersion,
@@ -960,6 +983,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
         }
       });
       const { provider: enriched, modelsFromModelSelect } = yield* enrichProvider(
+        enableProviderUpdateChecks,
         (provider, fromSelect) =>
           remember(provider).pipe(
             Effect.andThen(
@@ -984,7 +1008,6 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
         runtimeChanged,
       };
     });
-    const snapshotSettings = yield* makeProviderSnapshotSettingsSource(effectiveConfig);
     const snapshot = yield* makeManagedServerProvider<
       ProviderSnapshotSettings<AcpRegistrySettings>
     >({
@@ -993,16 +1016,21 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
       streamSettings: snapshotSettings.streamSettings,
       haveSettingsChanged: haveProviderSnapshotSettingsChanged,
       // Inspection may fetch the registry when its disk cache is missing; creation must not wait on that.
-      initialSnapshot: () => buildInitialAcpRegistrySnapshot(readinessInput),
+      initialSnapshot: (settings) =>
+        buildInitialAcpRegistrySnapshot({
+          ...readinessInput,
+          allowRemoteIcon: settings.enableProviderUpdateChecks,
+        }),
       checkProvider,
       enrichSnapshot: Effect.fn("enrichSnapshot")(function* ({
+        settings,
         snapshot,
         getSnapshot,
         publishSnapshot,
       }) {
         let targetSnapshot = snapshot;
         if (!targetSnapshot.installed) {
-          if (!hasRegistryAgent) return;
+          if (!hasRegistryAgent || !settings.enableProviderUpdateChecks) return;
           const refresh = catalog
             .refreshIndex({
               maxAgeMs: PROBE_SUCCESS_TTL_MS,
@@ -1065,7 +1093,11 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
               yield* publishSnapshot(yield* withLiveRuntimeState(provider));
             }),
           );
-        const enrichment = enrichProviderCached(targetSnapshot, publishEnriched);
+        const enrichment = enrichProviderCached(
+          targetSnapshot,
+          settings.enableProviderUpdateChecks,
+          publishEnriched,
+        );
         const publishEnrichment = (
           Option.isSome(runtimeCoordinator)
             ? runtimeCoordinator.value.runBackgroundProbe(

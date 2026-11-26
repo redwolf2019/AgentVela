@@ -22,7 +22,19 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { msg } from "gt-react";
 import { m } from "~/i18n/messages";
 
-/** A shareable link to a prompt on the hosted app, or null when the prompt cannot fit in one. */
+function promptLinkOrigin(): string | null {
+  const configured = configuredHostedAppUrl();
+  if (configured) return configured;
+  if (
+    typeof window !== "undefined" &&
+    (window.location.protocol === "http:" || window.location.protocol === "https:")
+  ) {
+    return window.location.origin;
+  }
+  return null;
+}
+
+/** A shareable link to a prompt on the hosted or current web app, or null when unavailable. */
 export function promptLinkFor(
   prompt: string,
   context?: {
@@ -33,7 +45,8 @@ export function promptLinkFor(
 ): string | null {
   const trimmed = isAttachmentOnlyBootstrapPrompt(prompt) ? "" : prompt.trim();
   if (trimmed.length === 0 || trimmed.length > PROMPT_LINK_MAX_PROMPT_LENGTH) return null;
-  return buildNewThreadLink({ prompt: trimmed, ...context, origin: configuredHostedAppUrl() });
+  const origin = promptLinkOrigin();
+  return origin ? buildNewThreadLink({ prompt: trimmed, ...context, origin }) : null;
 }
 
 export function promptLinkRepositoryOf(

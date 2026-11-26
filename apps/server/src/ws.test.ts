@@ -1206,7 +1206,7 @@ it.effect.each([
       yield* Deferred.await(settingsSubscribed);
 
       // Later updates expose a dropped buffered event as a value mismatch, not a timeout.
-      const latestSettings = yield* settings.updateSettings({ enableProviderUpdateChecks: false });
+      const latestSettings = yield* settings.updateSettings({ enableProviderUpdateChecks: true });
       const latestKeybindings = yield* keybindings.upsertKeybindingRule({
         key: "mod+alt+z",
         command: "terminal.split",

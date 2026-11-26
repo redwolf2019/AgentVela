@@ -13,6 +13,7 @@ import * as OtlpTracer from "effect/observability/OtlpTracer";
 import * as Statement from "effect/sql/Statement";
 
 import * as ServerConfig from "../config.ts";
+import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as ResourceAttribution from "../resourceTelemetry/ResourceAttribution.ts";
 import * as ServerLogger from "../serverLogger.ts";
 import * as BrowserTraceCollector from "./BrowserTraceCollector.ts";
@@ -22,6 +23,9 @@ import * as OtlpExportFailures from "./OtlpExportFailures.ts";
 export const layer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* ServerConfig.ServerConfig;
+    const telemetryDenied = yield* ManagedPolicy.isTelemetryDenied;
+    const otlpTracesUrl = telemetryDenied ? undefined : config.otlpTracesUrl;
+    const otlpMetricsUrl = telemetryDenied ? undefined : config.otlpMetricsUrl;
 
     const traces = config.otlpTracesExport;
     const metrics = config.otlpMetricsExport;
@@ -55,10 +59,10 @@ export const layer = Layer.unwrap(
             }),
         });
         const delegate =
-          config.otlpTracesUrl === undefined
+          otlpTracesUrl === undefined
             ? undefined
             : yield* OtlpTracer.make({
-                url: config.otlpTracesUrl,
+                url: otlpTracesUrl,
                 exportInterval: `${traces.exportIntervalMs} millis`,
                 headers: traces.headers,
                 resource,
@@ -84,10 +88,10 @@ export const layer = Layer.unwrap(
     ).pipe(Layer.provide(OtlpExporter.layerFlusher), Layer.provideMerge(layerSerialization));
 
     const metricsLayer =
-      config.otlpMetricsUrl === undefined
+      otlpMetricsUrl === undefined
         ? Layer.empty
         : OtlpMetrics.layer({
-            url: config.otlpMetricsUrl,
+            url: otlpMetricsUrl,
             exportInterval: `${metrics.exportIntervalMs} millis`,
             headers: metrics.headers,
             resource,

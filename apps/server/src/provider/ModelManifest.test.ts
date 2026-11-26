@@ -9,6 +9,7 @@ import * as Path from "effect/Path";
 import * as TestClock from "effect/testing/TestClock";
 import { HttpClient, HttpClientResponse } from "effect/http";
 
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as ServerConfig from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as ModelManifest from "./ModelManifest.ts";
@@ -248,21 +249,30 @@ const INVALID_REMOTE_MANIFESTS: ReadonlyArray<ModelManifest.ModelManifestData> =
   }),
 ];
 
-const layerHttpClient = (handler: () => Response) =>
+const layerHttpClient = (handler: (url: string) => Response) =>
   Layer.succeed(
     HttpClient.HttpClient,
-    HttpClient.make((request) => Effect.succeed(HttpClientResponse.fromWeb(request, handler()))),
+    HttpClient.make((request) =>
+      Effect.succeed(HttpClientResponse.fromWeb(request, handler(request.url))),
+    ),
   );
 
 const layerService = (input: {
   readonly prefix: string;
-  readonly response: () => Response;
+  readonly response: (url: string) => Response;
   readonly settings?: Parameters<typeof ServerSettings.layerTest>[0];
+  readonly environment?: NodeJS.ProcessEnv;
 }) =>
   ServerConfig.layerTest(process.cwd(), { prefix: input.prefix }).pipe(
     Layer.provideMerge(NodeServices.layer),
-    Layer.provideMerge(ServerSettings.layerTest(input.settings ?? {})),
+    Layer.provideMerge(
+      ServerSettings.layerTest({
+        enableProviderUpdateChecks: true,
+        ...input.settings,
+      }),
+    ),
     Layer.provideMerge(layerHttpClient(input.response)),
+    Layer.provideMerge(Layer.succeed(HostProcess.Environment, input.environment ?? {})),
   );
 
 describe("ModelManifest service", () => {
@@ -426,6 +436,64 @@ describe("ModelManifest service", () => {
           prefix: "model-manifest-optout-test",
           response: () => Response.json(REMOTE_MANIFEST),
           settings: { enableProviderUpdateChecks: false },
+        }),
+      ),
+    ),
+  );
+
+  it.effect("defaults provider update checks to off and honors T3CODE_MODEL_MANIFEST_URL", () =>
+    Effect.gen(function* () {
+      let defaultFetchCount = 0;
+      const defaultService = yield* ModelManifest.make.pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            ServerSettings.layerTest({}),
+            layerHttpClient(() => {
+              defaultFetchCount += 1;
+              return Response.json(REMOTE_MANIFEST);
+            }),
+          ),
+        ),
+      );
+      assert.deepStrictEqual(yield* defaultService.refresh, ModelManifest.BUNDLED_MODEL_MANIFEST);
+      assert.strictEqual(defaultFetchCount, 0);
+
+      let offFetchCount = 0;
+      const offService = yield* ModelManifest.make.pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            layerHttpClient(() => {
+              offFetchCount += 1;
+              return Response.json(REMOTE_MANIFEST);
+            }),
+            Layer.succeed(HostProcess.Environment, { T3CODE_MODEL_MANIFEST_URL: "off" }),
+          ),
+        ),
+      );
+      assert.deepStrictEqual(yield* offService.forceRefresh, ModelManifest.BUNDLED_MODEL_MANIFEST);
+      assert.strictEqual(offFetchCount, 0);
+
+      const mirrorUrl = "http://127.0.0.1:4321/manifest.json";
+      const mirrorRequests: Array<string> = [];
+      const mirrorService = yield* ModelManifest.make.pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            layerHttpClient((url) => {
+              mirrorRequests.push(url);
+              return Response.json(REMOTE_MANIFEST);
+            }),
+            Layer.succeed(HostProcess.Environment, { T3CODE_MODEL_MANIFEST_URL: mirrorUrl }),
+          ),
+        ),
+      );
+      assert.deepStrictEqual(yield* mirrorService.forceRefresh, REMOTE_MANIFEST);
+      assert.deepStrictEqual(mirrorRequests, [mirrorUrl]);
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        layerService({
+          prefix: "model-manifest-default-and-mirror-test",
+          response: () => Response.json(REMOTE_MANIFEST),
         }),
       ),
     ),

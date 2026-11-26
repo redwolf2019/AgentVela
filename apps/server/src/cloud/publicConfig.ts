@@ -1,4 +1,3 @@
-import { DEFAULT_HOSTED_APP_URL } from "@t3tools/shared/connectAuth";
 import { normalizeRelayUrl } from "@t3tools/shared/relayUrl";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
@@ -6,7 +5,6 @@ import * as Schema from "effect/Schema";
 import * as SchemaIssue from "effect/SchemaIssue";
 
 declare const __T3CODE_BUILD_RELAY_URL__: string | undefined;
-declare const __T3CODE_BUILD_CHANNEL__: "nightly" | "latest" | undefined;
 
 function validateRelayUrl(value: string) {
   const relayUrl = normalizeRelayUrl(value);
@@ -36,22 +34,12 @@ export function makeRelayUrlConfig(fallback = buildTimeRelayUrl) {
   );
 }
 
-export const hostedAppUrlConfig = makePublicValueConfig(
-  "T3CODE_HOSTED_APP_URL",
-  DEFAULT_HOSTED_APP_URL,
-).pipe(Config.mapEffect(validateHostedAppUrl));
-
-const NIGHTLY_HOSTED_APP_URL = "https://nightly.app.t3.codes";
-
-/**
- * Where agent sign-ins are approved when using the hosted web app.
- */
-export const agentApprovalAppUrlConfig = makePublicValueConfig(
-  "T3CODE_HOSTED_APP_URL",
-  typeof __T3CODE_BUILD_CHANNEL__ !== "undefined" && __T3CODE_BUILD_CHANNEL__ === "nightly"
-    ? NIGHTLY_HOSTED_APP_URL
-    : DEFAULT_HOSTED_APP_URL,
-).pipe(Config.mapEffect(validateHostedAppUrl));
+export const hostedAppUrlConfig = Config.option(
+  Config.NonEmptyString("T3CODE_HOSTED_APP_URL").pipe(
+    Config.map((value) => value.trim()),
+    Config.mapEffect(validateHostedAppUrl),
+  ),
+);
 
 function validateHostedAppUrl(value: string) {
   try {
@@ -79,11 +67,4 @@ function validateHostedAppUrl(value: string) {
       ),
     );
   }
-}
-
-function makePublicValueConfig(name: string, fallback: string) {
-  const runtimeConfig = Config.NonEmptyString(name);
-  return (fallback ? runtimeConfig.pipe(Config.withDefault(fallback)) : runtimeConfig).pipe(
-    Config.map((value) => value.trim()),
-  );
 }

@@ -17,6 +17,7 @@ import {
 } from "@t3tools/contracts/agentVelaRelay";
 import { expect, it } from "@effect/vitest";
 import * as Clock from "effect/Clock";
+import * as ConfigProvider from "effect/ConfigProvider";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Effect from "effect/Effect";
@@ -74,6 +75,7 @@ const notLinked: HostRelayStatus = {
 const makeLayerRoutes = (
   capture: (auth: EnvironmentAuth.EnvironmentAuth["Service"]) => void,
   linkStatus: HostRelayStatus,
+  env: Readonly<Record<string, string>> = {},
 ) =>
   Layer.mergeAll(
     Layer.effectDiscard(
@@ -105,6 +107,7 @@ const makeLayerRoutes = (
       ),
     ),
     Layer.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
+    Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env }))),
   );
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
@@ -129,14 +132,19 @@ type Handler = (request: Request) => Effect.Effect<Response>;
 const withRoutes = <A, E>(
   use: (handler: Handler, auth: EnvironmentAuth.EnvironmentAuth["Service"]) => Effect.Effect<A, E>,
   linkState = notLinked,
+  env: Readonly<Record<string, string>> = {},
 ) =>
   Effect.gen(function* () {
     const random = yield* SecureRandom.SecureRandom;
     const context = Context.make(SecureRandom.SecureRandom, random);
     let routerAuth: EnvironmentAuth.EnvironmentAuth["Service"] | undefined;
-    const layerRoutes = makeLayerRoutes((auth) => {
-      routerAuth = auth;
-    }, linkState);
+    const layerRoutes = makeLayerRoutes(
+      (auth) => {
+        routerAuth = auth;
+      },
+      linkState,
+      env,
+    );
     return yield* Effect.acquireUseRelease(
       Effect.sync(() => HttpRouter.toWebHandler(layerRoutes, { disableLogger: true })),
       (web) =>
@@ -805,10 +813,10 @@ it.live("an app approval code approves only an app sign-in, at its own level", (
 );
 
 it.effect(
-  "sends an app sign-in on the linked tunnel to the hosted app, and a link to its own page",
+  "keeps relay authorization local by default and redirects when T3CODE_HOSTED_APP_URL is set",
   () =>
     Effect.gen(function* () {
-      const handoff = (tunnelHostname: string, peerLink = false) =>
+      const handoff = (tunnelHostname: string, peerLink = false, hostedAppUrl?: string) =>
         withRoutes(
           (handler) =>
             Effect.gen(function* () {
@@ -841,18 +849,26 @@ it.effect(
               wsBaseUrl: TrimmedNonEmptyString.make(`wss://${tunnelHostname}`),
             },
           },
+          hostedAppUrl ? { T3CODE_HOSTED_APP_URL: hostedAppUrl } : {},
         );
 
-      const onTunnel = yield* handoff("box.example.ts.net");
+      const defaultOnTunnel = yield* handoff("box.example.ts.net");
+      expect(defaultOnTunnel.location).toBe(`/connect-agent?${defaultOnTunnel.query}`);
+
+      const onTunnel = yield* handoff("box.example.ts.net", false, "https://hosted.example.com");
       const hosted = new URL(onTunnel.location);
-      expect(`${hosted.origin}${hosted.pathname}`).toBe("https://app.t3.codes/approve-agent");
+      expect(`${hosted.origin}${hosted.pathname}`).toBe("https://hosted.example.com/approve-agent");
       expect(hosted.searchParams.get("environment")).toEqual(expect.any(String));
       hosted.searchParams.delete("environment");
       expect(hosted.searchParams.toString()).toBe(onTunnel.query);
 
-      const elsewhere = yield* handoff("other.t3coderelay.com");
+      const elsewhere = yield* handoff(
+        "other.t3coderelay.com",
+        false,
+        "https://hosted.example.com",
+      );
       expect(elsewhere.location).toBe(`/connect-agent?${elsewhere.query}`);
-      const peerLink = yield* handoff("box.example.ts.net", true);
+      const peerLink = yield* handoff("box.example.ts.net", true, "https://hosted.example.com");
       expect(peerLink.location).toBe(`/connect-agent?${peerLink.query}`);
     }),
 );

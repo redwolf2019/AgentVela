@@ -13,7 +13,11 @@ import {
   makeUnavailableUsageLimits,
   makeUsageLimits,
 } from "@t3tools/provider-core/server/usageLimits";
-import { DEFAULT_CURSOR_API_ENDPOINT, exchangeCursorApiKey } from "./apiKey.ts";
+import {
+  DEFAULT_CURSOR_API_ENDPOINT,
+  exchangeCursorApiKey,
+  resolveCursorApiEndpoint,
+} from "./apiKey.ts";
 
 const CursorUsageResponse = Schema.Struct({
   billingCycleStart: Schema.optional(Schema.Union([Schema.String, Schema.Number])),
@@ -68,11 +72,7 @@ export const readCursorUsageLimits = Effect.fn("readCursorUsageLimits")(function
 ) {
   const checkedAt = DateTime.formatIso(yield* DateTime.now);
   return yield* Effect.gen(function* () {
-    const endpoint = (
-      settings.apiEndpoint?.trim() ||
-      environment.CURSOR_API_ENDPOINT?.trim() ||
-      DEFAULT_CURSOR_API_ENDPOINT
-    ).replace(/\/$/, "");
+    const endpoint = resolveCursorApiEndpoint(settings.apiEndpoint, environment);
     let token = environment.CURSOR_AUTH_TOKEN?.trim();
     const apiKey = environment.CURSOR_API_KEY?.trim();
     if (!token && apiKey) {

@@ -170,6 +170,7 @@ describe("acpRegistrySnapshotReadiness", () => {
       ...identity,
       settings: decodeSettings({ agentId: "test-agent" }),
       checkedAt: "2026-08-13T10:00:00.000Z",
+      allowRemoteIcon: true,
       inspection: {
         status: "ready",
         agentId: "test-agent",
@@ -205,6 +206,20 @@ describe("acpRegistrySnapshotReadiness", () => {
     expect(provider.iconUrl).toBe(
       "https://cdn.agentclientprotocol.com/registry/v1/latest/test-agent.svg",
     );
+    expect(
+      buildCheckedAcpRegistrySnapshot({
+        ...identity,
+        settings: decodeSettings({ agentId: "test-agent" }),
+        checkedAt: "2026-08-13T10:00:00.000Z",
+        allowRemoteIcon: false,
+        inspection: {
+          status: "ready",
+          agentId: "test-agent",
+          version: "1.0.0",
+          distribution: "npx",
+        },
+      }).iconUrl,
+    ).toBeUndefined();
     expect(provider.setup).toMatchObject({
       canAuthenticate: false,
       documentationUrl: "https://example.test/agent/setup",
@@ -1503,6 +1518,10 @@ it.layer(driverLayer, { excludeTestServices: true })("AcpRegistryDriver", (it) =
     "refreshes stale registry indexes in the background for installed and uninstalled agents",
     () =>
       Effect.gen(function* () {
+        yield* (yield* TestProviderHost.TestProviderHostSettings).set({
+          ...DEFAULT_SERVER_SETTINGS,
+          enableProviderUpdateChecks: true,
+        });
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "acp-driver-upd-" });
@@ -1711,6 +1730,67 @@ it.layer(driverLayer, { excludeTestServices: true })("AcpRegistryDriver", (it) =
           (yield* instance.snapshot.getSnapshot).models.find((m) => m.slug === "probed-c")
             ?.isDefault,
         ).toBe(true);
+      }),
+  );
+
+  it.effect(
+    "skips background refreshIndex and omits remote iconUrl when update checks are off",
+    () =>
+      Effect.gen(function* () {
+        yield* (yield* TestProviderHost.TestProviderHostSettings).set({
+          ...DEFAULT_SERVER_SETTINGS,
+          enableProviderUpdateChecks: false,
+        });
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const directory = yield* fileSystem.makeTempDirectoryScoped({
+          prefix: "acp-driver-no-upd-",
+        });
+        const agentPath = path.join(directory, "agent.mjs");
+        const modelsPath = path.join(directory, "models.json");
+        yield* fileSystem.writeFileString(agentPath, fakeAgentSource);
+        yield* fileSystem.writeFileString(modelsPath, JSON.stringify(["model-v1"]));
+
+        let refreshes = 0;
+        const instance = yield* AcpRegistryDriver.create({
+          instanceId: ProviderInstanceId.make("acpRegistry_no_refresh"),
+          displayName: identity.displayName,
+          enabled: true,
+          environment: [],
+          config: decodeSettings({ agentId: "test-agent" }),
+        }).pipe(
+          Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, {
+            ...catalogWithInspection({
+              status: "ready",
+              agentId: "test-agent",
+              version: "1.0.0",
+              distribution: "npx",
+            }),
+            refreshIndex: () =>
+              Effect.sync(() => {
+                refreshes += 1;
+                return false;
+              }),
+            resolve: () =>
+              Effect.succeed({
+                distribution: "npx" as const,
+                spawn: { command: process.execPath, args: [agentPath, modelsPath] },
+              }),
+          }),
+        );
+
+        const settled = yield* instance.snapshot.streamChanges.pipe(
+          Stream.filter((snapshot) => snapshot.status === "ready"),
+          Stream.runHead,
+          Effect.forkScoped({ startImmediately: true }),
+        );
+        yield* instance.snapshot.refresh;
+        const snapshot = yield* Fiber.join(settled);
+        expect(Option.isSome(snapshot)).toBe(true);
+        if (Option.isSome(snapshot)) {
+          expect(snapshot.value.iconUrl).toBeUndefined();
+        }
+        expect(refreshes).toBe(0);
       }),
   );
 
