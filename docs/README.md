@@ -38,7 +38,7 @@ Start with the [development runbook](./operations/00_development.md) and
 
 Internal docs preserve architectural decisions, trust boundaries, conventions, and cross-cutting
 traps that the source alone does not explain. Most code changes do not need an internal
-documentation update. Follow the [documentation rules](../AGENTS.md#documentation) before adding
+documentation update. Follow the [documentation rules](../AGENTS.md#documentation--maintenance) before adding
 anything.
 
 ### Internals (in reading order)
