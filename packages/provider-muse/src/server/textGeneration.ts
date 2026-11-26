@@ -21,7 +21,7 @@ import {
   type MuseSdkHost,
 } from "./sdk.ts";
 import { museModelCapabilities, resolveMuseReasoningEffort } from "./modelCatalog.ts";
-import { isMuseUsageLimitFailure } from "./usageLimits.ts";
+import { isMuseUsageLimitFailure } from "./protocol.ts";
 import type { ProviderTextGeneration } from "@t3tools/provider-core/server/textGeneration";
 import {
   generatedThreadTitle,

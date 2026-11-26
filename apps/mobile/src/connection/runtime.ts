@@ -32,8 +32,6 @@ const layerSnapshotLoader = Layer.mergeAll(
 );
 
 const layerConnectionCore = Connection.layerWithSelfHostedRelay({
-  usageLimitSources: true,
-  usageLimitsCommand: true,
   providerCatalogsOnDemand: true,
   providerCatalogDigests: true,
   providerStatusDeltas: true,

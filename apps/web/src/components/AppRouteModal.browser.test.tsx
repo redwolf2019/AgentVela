@@ -99,7 +99,7 @@ describe("AppRouteModal", () => {
 
   it("stays open when a held Esc repeats after closing a nested menu", async () => {
     await using _screen = await render(
-      <AppRouteModal label="Usage">
+      <AppRouteModal label="Settings">
         <Menu>
           <MenuTrigger>All providers</MenuTrigger>
           <MenuPopup>
@@ -107,11 +107,11 @@ describe("AppRouteModal", () => {
           </MenuPopup>
         </Menu>
       </AppRouteModal>,
-      { router: "/usage" },
+      { router: "/settings/general" },
     );
-    const usage = page.getByRole("dialog", { name: "Usage" });
+    const settingsModal = page.getByRole("dialog", { name: "Settings" });
     const trigger = page.getByRole("button", { name: "All providers" });
-    await expect.element(usage).toHaveFocus();
+    await expect.element(settingsModal).toHaveFocus();
 
     (trigger.element() as HTMLElement).focus();
     await userEvent.keyboard("{Enter}");
@@ -120,7 +120,7 @@ describe("AppRouteModal", () => {
     await userEvent.keyboard("{Escape}");
     await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
     await expect.element(trigger).toHaveFocus();
-    await expect.element(usage).toHaveAttribute("data-open");
+    await expect.element(settingsModal).toHaveAttribute("data-open");
 
     await act(() =>
       trigger.element().dispatchEvent(
@@ -132,9 +132,9 @@ describe("AppRouteModal", () => {
         }),
       ),
     );
-    await expect.element(usage).toHaveAttribute("data-open");
+    await expect.element(settingsModal).toHaveAttribute("data-open");
 
     await userEvent.keyboard("{Escape}");
-    await expect.element(usage).not.toBeInTheDocument();
+    await expect.element(settingsModal).not.toBeInTheDocument();
   });
 });

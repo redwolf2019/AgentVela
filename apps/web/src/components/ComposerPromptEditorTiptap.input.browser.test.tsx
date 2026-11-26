@@ -358,17 +358,17 @@ it.each([
 ])(
   "leaves Mod+%s to an app command bound to it instead of formatting (composer command: %s, declined capture command: %s)",
   async (key, composerClaimsKey, declinedCapture) => {
-    const openUsage = vi.fn((event: KeyboardEvent) => {
+    const openNewChat = vi.fn((event: KeyboardEvent) => {
       if (declinedCapture) return false;
       event.preventDefault();
     });
     using _commands = {
       [Symbol.dispose]: registerCommands(
-        { "usage.open": openUsage },
+        { "chat.new": openNewChat },
         {
           keybindings: () => [
             {
-              command: "usage.open",
+              command: "chat.new",
               shortcut: {
                 key,
                 metaKey: false,
@@ -394,7 +394,7 @@ it.each([
     const modifier = isMacPlatform(navigator.platform) ? "Meta" : "Control";
     await userEvent.keyboard(`{${modifier}>}${key}{/${modifier}}`);
     expect(composerCommand).toHaveBeenCalled();
-    expect(openUsage).toHaveBeenCalledTimes(composerClaimsKey ? 0 : 1);
+    expect(openNewChat).toHaveBeenCalledTimes(composerClaimsKey ? 0 : 1);
     expect(serializeEditorDoc(editor.state.doc).value).toBe(declinedCapture ? "`word`" : "word");
   },
 );

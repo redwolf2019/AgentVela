@@ -39,8 +39,6 @@ const options = {
     "SettingsEnvironments",
     "SettingsAppearance",
     "SettingsOpenSourceLicenses",
-    "SettingsUsage",
-    "SettingsUsageAccount",
   ],
   routeParamList: {},
   routeGetIdList: {},
@@ -252,8 +250,11 @@ describe("Android Settings tab", () => {
 
   it("stays selected under a settings page until a list tab returns to Home", () => {
     const previous = legacyHistory();
-    const usage = apply(openTab(previous, "settings"), StackActions.push("SettingsUsage"));
-    const list = openTab(usage, "pullRequests");
+    const appearance = apply(
+      openTab(previous, "settings"),
+      StackActions.push("SettingsAppearance"),
+    );
+    const list = openTab(appearance, "pullRequests");
     expect(names(list)).toEqual(["Home"]);
     expect(list.routes[0]?.key).toBe(previous.routes[0]?.key);
   });

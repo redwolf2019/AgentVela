@@ -1,6 +1,5 @@
 // Context tags are runtime singletons; drivers need multiple instances.
 import type {
-  ProviderConsumeResetCreditOutcome,
   AcpRegistryListSessionsResult,
   AcpRegistryListProvidersResult,
   AcpRegistryOperationError,
@@ -21,7 +20,6 @@ import type { ProviderAuthController } from "./auth.ts";
 import type { ProviderDriverError } from "./errors.ts";
 import type { ManagedServerProvider } from "./snapshot.ts";
 import type { ProviderTextGeneration } from "./textGeneration.ts";
-import type { ProviderUsageReader } from "./usage.ts";
 
 export interface ProviderDriverMetadata {
   readonly displayName: string;
@@ -60,9 +58,6 @@ export interface ProviderInstance {
   readonly invalidateCaches?: Effect.Effect<void>;
   /** Moves a long-lived service onto a newly updated binary before its version is read back. */
   readonly afterUpdate?: Effect.Effect<void, ProviderDriverError>;
-  readonly consumeResetCredit?: (
-    creditId: string | undefined,
-  ) => Effect.Effect<ProviderConsumeResetCreditOutcome, ProviderDriverError>;
   readonly orchestrationAdapter: ProviderAdapter.ProviderAdapterV2["Service"];
   readonly textGeneration: ProviderTextGeneration;
   readonly auth?: ProviderAuthController;
@@ -116,7 +111,7 @@ export interface ProviderDriverCreateInput<Config> {
 }
 
 /** create calls with different instanceId/config must share no mutable state. */
-export interface ProviderDriver<Config, R = never, UsageR = never> {
+export interface ProviderDriver<Config, R = never> {
   readonly driverKind: ProviderDriverKind;
   readonly metadata: ProviderDriverMetadata;
   // Codec keeps DecodingServices = never; Schema would widen it through AnyProviderDriver.
@@ -126,10 +121,6 @@ export interface ProviderDriver<Config, R = never, UsageR = never> {
   readonly create: (
     input: ProviderDriverCreateInput<Config>,
   ) => Effect.Effect<ProviderInstance, ProviderDriverError, R | Scope.Scope>;
-  readonly usage?: ProviderUsageReader<Config, UsageR>;
 }
 
-export type AnyProviderDriver<R = never, UsageR = unknown> = ProviderDriver<any, R, UsageR>;
-
-export type ProviderUsageReaderEnv<Driver> =
-  Driver extends ProviderDriver<any, any, infer UsageR> ? UsageR : never;
+export type AnyProviderDriver<R = never> = ProviderDriver<any, R>;

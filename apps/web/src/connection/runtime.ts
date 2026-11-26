@@ -31,8 +31,6 @@ const layerSnapshotLoader = Layer.mergeAll(
 
 const layerConnectionCore = Connection.layerWithSelfHostedRelay({
   environmentThemes: true,
-  usageLimitSources: true,
-  usageLimitsCommand: true,
 });
 
 type ConnectionLayerSource =

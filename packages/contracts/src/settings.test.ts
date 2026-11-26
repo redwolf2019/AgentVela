@@ -135,28 +135,23 @@ describe("ClientSettings terminal close confirmation", () => {
   });
 });
 
-describe("ServerSettings usage price overrides", () => {
-  const prices = { inputCostPerMillionTokens: 2, outputCostPerMillionTokens: 8 };
-
-  it("rejects empty model IDs and incomplete input/output pricing", () => {
-    for (const usagePriceOverrides of [
-      { " ": prices },
-      { "example-model": { inputCostPerMillionTokens: 2 } },
-      { "example-model": { outputCostPerMillionTokens: 8 } },
-    ]) {
-      expect(() => decodeServerSettingsPatch({ usagePriceOverrides })).toThrow();
-    }
-  });
-
-  it("ignores an invalid model filter without dropping the other settings", () => {
-    const valid = { include: [{ provider: "newer-provider", model: "orbit-1" }] };
-    expect(decodeServerSettings({ usageModelFilter: valid }).usageModelFilter).toEqual(valid);
+describe("ServerSettings legacy usage fields", () => {
+  it("ignores retired usage fields when decoding old settings payloads", () => {
     const settings = decodeServerSettings({
-      usageModelFilter: { exclude: [{ model: "" }] },
+      usageLimitSources: { hub: { kind: "cliproxy", url: "http://127.0.0.1:8317" } },
+      usageHistoryRetentionDays: 365,
+      usagePriceOverrides: {
+        "example-model": { inputCostPerMillionTokens: 2, outputCostPerMillionTokens: 8 },
+      },
       usageModelAliases: { "drift-9": "orbit-1" },
+      usageModelFilter: { include: [{ model: "orbit-1" }] },
+      fallbackModelSelection: { instanceId: "codex", model: "gpt-5" },
+      autoResumeLimitedThreads: true,
     });
-    expect(settings.usageModelFilter).toBeUndefined();
-    expect(settings.usageModelAliases).toEqual({ "drift-9": "orbit-1" });
+    expect(settings.autoResumeLimitedThreads).toBe(true);
+    expect(decodeClientSettings({ threadDetailsUsageEnabled: true }).threadDetailsItems).toEqual(
+      {},
+    );
   });
 });
 

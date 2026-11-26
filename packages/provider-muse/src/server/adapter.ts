@@ -51,23 +51,19 @@ import {
   MuseDelta,
   MuseItemEvent,
   MuseSessionResult,
-  MuseSubscriptionUsage,
   MuseTokenUsageEvent,
   MuseTodoList,
   MuseRetryScheduled,
   MuseTurnCompleted,
   MuseTurnStartResult,
   MuseUserInput,
+  isMuseUsageLimitFailure,
   museApprovalChoices,
   museApprovalDecision,
   museApprovalOptions,
+  museUsageLimitResetAt,
   type MuseItem,
 } from "./protocol.ts";
-import {
-  isMuseUsageLimitFailure,
-  museUsageLimitResetAt,
-  museUsageToLimits,
-} from "./usageLimits.ts";
 import {
   createMuseSdkHostEffect,
   MuseSdkError,
@@ -79,7 +75,6 @@ import {
   type MuseSdkHost,
 } from "./sdk.ts";
 import type * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
-import type { ManagedServerProvider } from "@t3tools/provider-core/server/snapshot";
 import {
   providerMessageTextWithAttachmentPaths,
   isProviderNativeImageAttachment,
@@ -208,8 +203,6 @@ export interface MuseAdapterV2Options {
   readonly createHost?: typeof createMuseSdkHost;
   readonly requestTimeoutMs?: number;
   readonly nativeEventLogger?: ProviderEventLoggers.EventNdjsonLogger;
-  /** Receives every account-wide usage report, whichever session's host sent it. */
-  readonly onUsageLimits?: ManagedServerProvider["applyUsageLimits"];
   readonly continuationRequests?: {
     readonly offer: (
       request: ProviderContinuationRequests.ProviderContinuationRequest,
@@ -282,7 +275,6 @@ const INFORMATIONAL_NOTIFICATIONS = new Set([
   "session/todoListChanged",
   "turn/retryScheduled",
   "turn/modelRetryScheduled",
-  "usage/changed",
 ]);
 const TOOLS_WITH_NATIVE_ROWS = new Set(["write_todos", "request_user_input", "workflow"]);
 // Reminder children and other runtime items can start while the model is still retrying.
@@ -358,7 +350,6 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
       let thread: OrchestrationV2ProviderThread | undefined;
       let active: ActiveTurn | undefined;
       let lastProviderTurn: OrchestrationV2ProviderTurn | undefined;
-      let latestSubscriptionUsage: MuseSubscriptionUsage | undefined;
       const agentEndedAt = new Map<string, DateTime.Utc>();
       const resolveModel = Effect.fnUntraced(function* (selection: ModelSelection) {
         if (selection.model !== MUSE_DEFAULT_MODEL) return selection.model;
@@ -1091,11 +1082,10 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
             message: detail ?? "Muse turn failed.",
             ...(usageLimited
               ? {
-                  resetAt: museUsageLimitResetAt(
-                    latestSubscriptionUsage,
-                    DateTime.toEpochMillis(completedAt),
-                    { quota, message: detail },
-                  ),
+                  resetAt: museUsageLimitResetAt(DateTime.toEpochMillis(completedAt), {
+                    quota,
+                    message: detail,
+                  }),
                 }
               : {}),
           });
@@ -1399,14 +1389,6 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
       });
       const handleNotification = Effect.fnUntraced(function* (method: string, data: unknown) {
         const params = yield* decode(recordSchema, data);
-        // usage/changed is account-wide and carries no session ID.
-        if (method === "usage/changed") {
-          latestSubscriptionUsage = yield* decode(MuseSubscriptionUsage, params);
-          if (options.onUsageLimits) {
-            yield* options.onUsageLimits(museUsageToLimits(latestSubscriptionUsage));
-          }
-          return;
-        }
         if (params.sessionId !== nativeSessionId) return;
         if (method === "view/gap")
           return yield* protocolError("Muse delivery gap requires session recovery");

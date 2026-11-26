@@ -134,7 +134,6 @@ interface ThreadLifecycleInput {
   readonly sendInFlightRef: { current: boolean };
   readonly setOptimisticUserMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   readonly setThreadError: ReturnType<typeof makeThreadErrorSetter>;
-  readonly clearUsageLimitsFor: (threadKey: string) => void;
   readonly beginLocalDispatch: LocalDispatchState["beginLocalDispatch"];
   readonly resetLocalDispatch: LocalDispatchState["resetLocalDispatch"];
   readonly scrollToEnd: (animated?: boolean) => void;
@@ -184,7 +183,6 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     sendInFlightRef,
     setOptimisticUserMessages,
     setThreadError,
-    clearUsageLimitsFor,
     beginLocalDispatch,
     resetLocalDispatch,
     scrollToEnd,
@@ -597,8 +595,6 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         const error = squashAtomCommandFailure(result);
         setThreadError(threadId, thrownErrorMessage(error, m) ?? failureMessage);
       }
-    } else {
-      clearUsageLimitsFor(routeThreadKey);
     }
     sendInFlightRef.current = false;
   };

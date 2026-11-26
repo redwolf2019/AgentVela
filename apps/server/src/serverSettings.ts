@@ -143,7 +143,6 @@ const normalizeServerSettings = (
 
 export interface SettingsClient {
   readonly secretReferences: boolean;
-  readonly httpUsageLimitSources?: boolean;
 }
 
 export function redactServerSettingsForClient(
@@ -164,14 +163,6 @@ export function redactServerSettingsForClient(
   return {
     ...shaped,
     secretProviders: withoutUnknownSecretProviderConfigs(shaped),
-    // Older clients decode only "cliproxy" sources and reject the whole settings payload otherwise.
-    usageLimitSources: client.httpUsageLimitSources
-      ? shaped.usageLimitSources
-      : Object.fromEntries(
-          Object.entries(shaped.usageLimitSources).filter(
-            ([, source]) => source.kind === "cliproxy",
-          ),
-        ),
   };
 }
 
@@ -432,7 +423,6 @@ function decodeSettingsFile(
         {
           ...managed.defaults,
           continueThreadsAfterServerUpdate: false,
-          usageHistoryRetentionDays: "unlimited",
           requireConnectDeviceApproval: true,
           enablePreviewTunnel: false,
           enableAgentBrowserAccess: false,
@@ -588,7 +578,6 @@ const ATOMIC_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "sourceControlWriterModelSelection",
   "reviewGuideModelSelection",
   "textGenerationModelSelection",
-  "fallbackModelSelection",
   "pullRequestMergeMethod",
   // Empty by default, these hold one whole value, which a managed policy can default.
   ...Object.entries(DEFAULT_SERVER_SETTINGS).flatMap(([key, value]) =>

@@ -852,4 +852,30 @@ it.layer(NodeServices.layer)("keybindings", (it) => {
         );
       }).pipe(Effect.scoped, Effect.provide(layerKeybindings())),
   );
+
+  it.effect(
+    "silently ignores retired usage.* commands and usagePageOpen when-clauses in keybindings config",
+    () =>
+      Effect.gen(function* () {
+        const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* fileSystem.makeDirectory(path.dirname(keybindingsConfigPath), { recursive: true });
+        yield* fileSystem.writeFileString(
+          keybindingsConfigPath,
+          JSON.stringify([
+            { key: "mod+u", command: "usage.open" },
+            { key: "mod+shift+u", command: "usage.limits" },
+            { key: "1", command: "usage.period.day", when: "usagePageOpen" },
+            { key: "mod+j", command: "terminal.toggle" },
+          ]),
+        );
+
+        const keybindings = yield* Keybindings.Keybindings;
+        const state = yield* keybindings.loadConfigState;
+        assert.deepEqual(state.issues, []);
+        assert.isTrue(state.keybindings.some((rule) => rule.command === "terminal.toggle"));
+        assert.isFalse(state.keybindings.some((rule) => String(rule.command).startsWith("usage.")));
+      }).pipe(Effect.provide(layerKeybindings())),
+  );
 });

@@ -12,7 +12,7 @@ import { limitRecoveryOwnsSnooze } from "@t3tools/client-runtime/state/thread-ex
 import {
   CHATGPT_USAGE_LIMIT_CODE,
   CHATGPT_WORKSPACE_USAGE_LIMIT_CODE,
-} from "@t3tools/shared/usageLimits";
+} from "@t3tools/shared/chatGptSharing";
 import { GaugeIcon } from "lucide-react";
 import { useState } from "react";
 import { useDeadlinePassed } from "../../hooks/useDeadline";

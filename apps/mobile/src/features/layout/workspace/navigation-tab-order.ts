@@ -1,6 +1,6 @@
 import { msg } from "gt-react-native";
 
-export const NAVIGATION_TAB_ORDER = ["threads", "pullRequests", "issues", "usage"] as const;
+export const NAVIGATION_TAB_ORDER = ["threads", "pullRequests", "issues"] as const;
 /** Built, but left out of the tab bar while workflows are a soft launch on web. */
 type UnlistedTab = "workflows";
 export type NavigationTab = (typeof NAVIGATION_TAB_ORDER)[number] | UnlistedTab;
@@ -32,7 +32,6 @@ export const NAVIGATION_TAB_LABELS: Readonly<Record<NavigationTab, string>> = {
   pullRequests: msg("Pulls", { $context: "navigation tab, pull requests" }),
   issues: msg("Issues", { $context: "navigation tab, issues from an issue tracker" }),
   workflows: msg("Workflows", { $context: "navigation tab, durable workflow runs" }),
-  usage: msg("Usage", { $context: "navigation tab, provider usage limits" }),
 };
 
 function isNavigationTab(value: unknown): value is NavigationTab {

@@ -1,11 +1,52 @@
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m as resolveMessage } from "~/i18n/messages";
 import { ProcessSignalActions } from "./ProcessSignalActions";
-import { resolveUsageAccess } from "@t3tools/client-runtime/state/usage-access";
+import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
 import { environmentSession } from "../../state/session";
-import { AuthOrchestrationOperateScope } from "@t3tools/contracts";
+import {
+  AuthDiagnosticsReadScope,
+  AuthEnvironmentMaintainScope,
+  AuthOrchestrationOperateScope,
+  sessionGrantsScope,
+  type SessionGrantInput,
+} from "@t3tools/contracts";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
-import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
+
+function resolveDiagnosticsAccess(
+  input: {
+    readonly connectionPhase: EnvironmentConnectionPhase;
+    readonly session: SessionGrantInput | null;
+    readonly hasSessionError: boolean;
+  },
+  resolve: MessageResolver,
+) {
+  if (input.hasSessionError) {
+    return {
+      canReadDiagnostics: false,
+      isPending: false,
+      error: resolve(msg("Could not check this connection's access to diagnostics.")),
+    };
+  }
+  if (input.session === null) {
+    const isPending =
+      input.connectionPhase === "connected" ||
+      input.connectionPhase === "connecting" ||
+      input.connectionPhase === "reconnecting";
+    return {
+      canReadDiagnostics: false,
+      isPending,
+      error: isPending ? null : resolve(msg("This environment is not connected.")),
+    };
+  }
+  const canReadDiagnostics = sessionGrantsScope(input.session, AuthDiagnosticsReadScope);
+  return {
+    canReadDiagnostics,
+    isPending: false,
+    error: canReadDiagnostics
+      ? null
+      : resolve(msg("This connection does not have access to diagnostics.")),
+  };
+}
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import {
   AlertTriangleIcon,
@@ -793,7 +834,7 @@ function DiagnosticsSettingsBody() {
     environmentId === null ? null : environmentSession.sessionStateAtom(environmentId),
     m,
   );
-  const diagnosticsAccess = resolveUsageAccess(
+  const diagnosticsAccess = resolveDiagnosticsAccess(
     {
       connectionPhase: environment?.connection.phase ?? "available",
       session: session.data,

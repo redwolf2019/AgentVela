@@ -1,4 +1,5 @@
 import type { ProviderApprovalDecision } from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";
 
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1));
@@ -162,26 +163,33 @@ export const MuseTurnCompleted = Schema.Struct({
   usage: Schema.optional(MuseUsage),
 });
 /** The latest instant a JavaScript Date holds; formatting a later one throws. */
-export const LATEST_DATE_MS = 8.64e15;
-const DateMillis = Schema.Finite.check(
-  Schema.isGreaterThan(0),
-  Schema.isLessThanOrEqualTo(LATEST_DATE_MS),
-);
-/** Latest response subscription windows; verbatim Meta percentages may exceed 100. */
-export const MuseSubscriptionUsage = Schema.Struct({
-  observedAtMs: DateMillis,
-  tier: Schema.String,
-  window: Schema.Struct({
-    usedPercent: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0)),
-    windowDurationMins: Schema.Finite.check(Schema.isGreaterThan(0)),
-    resetsAtMs: DateMillis,
-  }),
-  weekly: Schema.Struct({
-    usedPercent: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0)),
-    resetsAtMs: DateMillis,
-  }),
-});
-export type MuseSubscriptionUsage = typeof MuseSubscriptionUsage.Type;
+const LATEST_DATE_MS = 8.64e15;
+
+/** Credential proxies may omit error.quota from 429 refusals; inspect text too. */
+export function isMuseUsageLimitFailure(message: string | undefined): boolean {
+  return message !== undefined && /\b429\b/.test(message) && /quota|usage limit/i.test(message);
+}
+
+const NAMED_RESET =
+  /\bresets at (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))/i;
+
+export function museUsageLimitResetAt(
+  nowMs: number,
+  refusal?: {
+    readonly quota?: { readonly resetsAtMs: number } | undefined;
+    readonly message?: string | undefined;
+  },
+): string | null {
+  const named = refusal?.message?.match(NAMED_RESET)?.[1];
+  const resets = [
+    refusal?.quota?.resetsAtMs,
+    named === undefined ? undefined : Date.parse(named),
+  ].filter(
+    (ms): ms is number =>
+      ms !== undefined && Number.isFinite(ms) && ms > nowMs && ms <= LATEST_DATE_MS,
+  );
+  return resets.length > 0 ? DateTime.formatIso(DateTime.makeUnsafe(Math.max(...resets))) : null;
+}
 /** `turn/retryScheduled` carries `reason`; `turn/modelRetryScheduled` carries the HTTP failure. */
 export const MuseRetryScheduled = Schema.Struct({
   turnId: NonEmptyString,

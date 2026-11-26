@@ -107,7 +107,7 @@ describe("mobile connection storage", () => {
   });
 
   it("persists tab order locally and retains it when another preference changes", async () => {
-    const navigationTabOrder = ["usage", "threads", "pullRequests"];
+    const navigationTabOrder = ["issues", "threads", "pullRequests"];
     const hiddenNavigationTabs = ["issues", "home"];
     await savePreferencesPatch({ navigationTabOrder, hiddenNavigationTabs });
     await savePreferencesPatch({ baseFontSize: 19 });
@@ -121,14 +121,14 @@ describe("mobile connection storage", () => {
   it("ignores invalid tab-order entries without dropping other saved preferences", async () => {
     mocks.setPreferencesJson(
       JSON.stringify({
-        navigationTabOrder: ["usage", null, 4, "threads"],
+        navigationTabOrder: ["issues", null, 4, "threads"],
         hiddenNavigationTabs: ["home", null],
         baseFontSize: 18,
       }),
       1,
     );
     await expect(loadPreferences()).resolves.toEqual({
-      navigationTabOrder: ["usage", "threads"],
+      navigationTabOrder: ["issues", "threads"],
       hiddenNavigationTabs: ["home"],
       baseFontSize: 18,
     });

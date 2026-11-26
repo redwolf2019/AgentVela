@@ -4,8 +4,8 @@ import { installThreadOutboxDelivery } from "./state/threadOutboxDelivery";
 import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
 import { requireNativeModule } from "expo";
-import { useLocale } from "gt-react-native";
-import { useEffect, useRef, useState } from "react";
+import { useLocale, useMessages } from "gt-react-native";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Platform, StatusBar } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -77,10 +77,9 @@ import {
 } from "./lib/foundation-fast-refresh";
 import { useMobileNavigationTheme } from "./lib/useMobileNavigationTheme";
 import { installUiRuntimeMemoryWarningGc } from "./lib/useUiRuntimeMemoryWarningGc";
-import { SubscriptionUsageCoordinator } from "./widgets/SubscriptionUsageCoordinator";
 import { ConnectDeviceApprovalCoordinator } from "./features/connection/ConnectDeviceApprovalCoordinator";
-import { installSubscriptionUsageRefresh } from "./widgets/useSubscriptionUsage";
 import { GlobalVoiceInputControl } from "./features/voice-input/GlobalVoiceInputControl";
+import { republishAgentActivityWidget } from "./widgets/publishAgentActivityWidget";
 import {
   launchSplashHomeRowsPending,
   settleLaunchSplashHomeRows,
@@ -209,7 +208,6 @@ const appServiceDisposers = [
     pendingThreadIdsAtom: threadEnvironment.pendingThreadIdsAtom,
   }),
   installAppearanceRuntime(),
-  installSubscriptionUsageRefresh(),
   installPermissionUpdateNotice(),
   installThreadOutboxDelivery(),
   installComposerAttachmentUploads(),
@@ -272,6 +270,25 @@ function QuickActionsLanguage() {
   return null;
 }
 
+function AgentActivityWidgetLanguage() {
+  const locale = useLocale();
+  const resolve = useMessages();
+  const republishActivity = useEffectEvent(() => {
+    republishAgentActivityWidget(resolve).catch((error: unknown) => {
+      console.warn("Could not update agent activity widget", error);
+    });
+  });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- republishes the agent activity widget's copy in the new UI language
+  useEffect(
+    () => republishActivity(),
+    [
+      // oxlint-disable-next-line react/exhaustive-effect-dependencies -- the widget's copy follows the UI language.
+      locale,
+    ],
+  );
+  return null;
+}
+
 export default function App() {
   return (
     <RegistryContext.Provider value={appAtomRegistry}>
@@ -302,7 +319,7 @@ function AppContent() {
     <>
       <SplashScreenCoordinator />
       <QuickActionsLanguage />
-      <SubscriptionUsageCoordinator />
+      <AgentActivityWidgetLanguage />
       <ConnectDeviceApprovalCoordinator />
       <GestureHandlerRootView className="flex-1">
         <KeyboardProvider statusBarTranslucent>

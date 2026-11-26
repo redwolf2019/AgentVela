@@ -127,10 +127,6 @@ function readInitialThreadSidebarWidth(): number {
   }
 }
 
-function readUsagePageOpen(router: AnyRouter) {
-  return router.state.location.pathname === "/usage";
-}
-
 function isKeybindingCaptureTarget(event: KeyboardEvent) {
   return event.target instanceof HTMLElement && event.target.closest("[data-keybinding-capture]");
 }
@@ -149,7 +145,7 @@ function readRoutePanelsOpen(router: AnyRouter) {
   };
 }
 
-export function registerNavigationHistoryCommands(router: AnyRouter): () => void {
+function registerNavigationHistoryCommands(router: AnyRouter): () => void {
   return registerCommands(
     {
       "navigation.back": (event) => {
@@ -167,7 +163,6 @@ export function registerNavigationHistoryCommands(router: AnyRouter): () => void
       when: (event) => !isKeybindingCaptureTarget(event),
       context: () => ({
         ...readRoutePanelsOpen(router),
-        usagePageOpen: readUsagePageOpen(router),
       }),
     },
   );
@@ -317,16 +312,13 @@ function registerAppShellCommands(router: AnyRouter, shellElement: Element): () 
 function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
   const gt = useGT();
   const router = useRouter();
-  const usagePageOpen = useLocation({ select: (location) => location.pathname === "/usage" });
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { toggleSidebar } = useSidebar();
   const mobileSidebarSheetMounted = useMobileSidebarSheetMounted();
   const isSidebarVisible = useSidebarVisibility();
   const environmentIdentificationMode = useEnvironmentIdentificationMode();
   const stageBackdropVariant = useSidebarStageBackdropVariant(environmentIdentificationMode);
-  const shortcutLabel = shortcutLabelForCommand(keybindings, "sidebar.toggle", {
-    context: { usagePageOpen },
-  });
+  const shortcutLabel = shortcutLabelForCommand(keybindings, "sidebar.toggle");
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window keydown listener that toggles the sidebar on its shortcut
   useEffect(() => {
@@ -355,7 +347,6 @@ function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
             terminalFocus: isTerminalFocused(),
             previewFocus: isPreviewFocused(),
             ...readRoutePanelsOpen(router),
-            usagePageOpen,
           },
         })
       )
@@ -374,7 +365,7 @@ function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
       window.removeEventListener("keydown", onKeyDown, true);
       unsubscribe?.();
     };
-  }, [keybindings, router, showSidebar, toggleSidebar, usagePageOpen]);
+  }, [keybindings, router, showSidebar, toggleSidebar]);
 
   // The control lives as long as the shell, so it carries the shell's commands. Created
   // once so re-renders never re-register them.

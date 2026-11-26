@@ -97,7 +97,6 @@ const ACTION_ICONS: Record<string, AppSymbolName> = {
   settings: "gearshape",
   appearance: "paintbrush",
   environments: "desktopcomputer",
-  usage: "chart.bar.xaxis",
   archive: "archivebox",
   files: "doc.text",
   terminal: "terminal",
@@ -340,13 +339,6 @@ export function CommandPalette(props: {
         title: gt("Scheduled tasks"),
         searchTerms: ["schedule", "automations", "recurring"],
         run: () => openSettings(navigation, "SettingsScheduledTasks"),
-      },
-      {
-        key: "usage",
-        kind: "action",
-        title: gt("Usage", { $context: "command, opens usage settings" }),
-        searchTerms: ["limits", "accounts", "quota"],
-        run: () => openSettings(navigation, "SettingsUsage"),
       },
       {
         key: "archive",

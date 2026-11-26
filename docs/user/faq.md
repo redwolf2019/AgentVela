@@ -26,7 +26,7 @@ Build the React Native client from source using [apps/mobile/README.md](../../ap
 
 ## Can I add a bunch of accounts for one provider?
 
-You can add separate provider instances in **Settings → Providers** (for example, a personal and work profile)—see [Codex](./providers-codex.md#use-multiple-accounts) and [Claude](./providers-claude.md#separate-accounts-or-configurations). For larger credential pools, manage routing outside AgentVela through an external proxy such as [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) and view pooled limits under Usage ([Connect a hub](./usage.md#connect-a-cliproxyapi-hub)).
+You can add separate provider instances in **Settings → Providers** (for example, a personal and work profile)—see [Codex](./providers-codex.md#use-multiple-accounts) and [Claude](./providers-claude.md#separate-accounts-or-configurations). For larger credential pools, manage routing outside AgentVela through an external proxy such as [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI).
 
 ## Can I use an API key or OpenRouter instead of a subscription?
 

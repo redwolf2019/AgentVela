@@ -137,8 +137,6 @@ import {
 } from "./features/settings/SettingsOpenSourceLicensesRouteScreen";
 import { SettingsProjectGroupingRouteScreen } from "./features/settings/SettingsProjectGroupingRouteScreen";
 import { SettingsProjectOverviewRouteScreen } from "./features/settings/SettingsProjectOverviewRouteScreen";
-import { UsageLimitAccountScreen } from "./features/usage/UsageLimitsPooled";
-import { UsageRouteScreen } from "./features/usage/UsageRouteScreen";
 import { WorkflowRunRouteScreen } from "./features/workflows/WorkflowRunRouteScreen";
 import { WorkflowStepSheet } from "./features/workflows/WorkflowStepSheet";
 import { SettingsAboutRouteScreen } from "./features/settings/SettingsAboutRouteScreen";
@@ -201,10 +199,8 @@ const ROUTE_TITLES: Readonly<Record<string, string>> = {
   SettingsScheduledTaskThread: msg("Destination"),
   SettingsClientStorage: msg("Client Storage"),
   SettingsDiagnostics: msg("Diagnostics"),
-  SettingsUsageAccount: msg("Account"),
   SettingsOpenSourceLicenses: msg("Open source licenses"),
   SettingsOpenSourceLicense: msg("License notice"),
-  SettingsUsage: msg("Usage"),
   ComponentCatalog: msg("UI components"),
   NewTaskProject: msg("Choose project"),
   NewTaskEnvironment: msg("Environment"),
@@ -408,12 +404,6 @@ const SETTINGS_SCREENS = {
     linking: "settings/diagnostics",
     options: settingsPage(),
   }),
-  // These params snapshot the tap time, local filters, and freshly aggregated pools.
-  // A linking path would round-trip them as URL query strings and preserve stale values.
-  SettingsUsageAccount: createNativeStackScreen({
-    screen: UsageLimitAccountScreen,
-    options: settingsPage(),
-  }),
   SettingsOpenSourceLicenses: createNativeStackScreen({
     screen: SettingsOpenSourceLicensesRouteScreen,
     linking: "settings/open-source-licenses",
@@ -422,11 +412,6 @@ const SETTINGS_SCREENS = {
   SettingsOpenSourceLicense: createNativeStackScreen({
     screen: SettingsOpenSourceLicenseRouteScreen,
     linking: "settings/open-source-licenses/:entryKey",
-    options: settingsPage(),
-  }),
-  SettingsUsage: createNativeStackScreen({
-    screen: UsageRouteScreen,
-    linking: "settings/usage",
     options: settingsPage(),
   }),
   SettingsAuth: createNativeStackScreen({

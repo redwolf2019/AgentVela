@@ -7,7 +7,6 @@ import {
   SecretProviderKind,
   ServerSettings,
   ServerSettingsPatch,
-  UsageLimitSourceId,
   type ServerProvider,
 } from "@t3tools/contracts";
 import * as Duration from "effect/Duration";
@@ -59,24 +58,6 @@ describe("fallbackTextGenerationModelSelection", () => {
     ).toEqual({ instanceId: "opencode", model: "opencode/big-pickle" });
   });
 
-  it("replaces and clears the fallback without carrying model options", () => {
-    const fallbackModelSelection = { instanceId: ProviderInstanceId.make("codex"), model: "new" };
-    const settings = applyServerSettingsPatch(
-      {
-        ...DEFAULT_SERVER_SETTINGS,
-        fallbackModelSelection: {
-          ...fallbackModelSelection,
-          model: "old",
-          options: [{ id: "effort", value: "high" }],
-        },
-      },
-      { fallbackModelSelection },
-    );
-    expect(settings.fallbackModelSelection).toEqual(fallbackModelSelection);
-    expect(
-      applyServerSettingsPatch(settings, { fallbackModelSelection: null }).fallbackModelSelection,
-    ).toBeNull();
-  });
   it("falls back to a configured non-default instance", () => {
     const configured = ProviderInstanceId.make("codex_work");
     const providerInstances = {
@@ -657,29 +638,6 @@ describe("serverSettings helpers", () => {
     });
   });
 
-  it("upserts and removes usageLimitSources per entry so concurrent edits cannot clobber", () => {
-    const hubA = UsageLimitSourceId.make("cliproxy-a");
-    const hubB = UsageLimitSourceId.make("cliproxy-b");
-    const source = (url: string) => ({
-      kind: "cliproxy" as const,
-      url,
-      managementKey: "secret",
-      enabled: true,
-    });
-    const current = {
-      ...DEFAULT_SERVER_SETTINGS,
-      usageLimitSources: { [hubA]: source("http://a:8318") },
-    };
-
-    const added = applyServerSettingsPatch(current, {
-      usageLimitSources: { [hubB]: source("http://b:8318") },
-    });
-    expect(Object.keys(added.usageLimitSources)).toEqual([hubA, hubB]);
-
-    const removed = applyServerSettingsPatch(added, { usageLimitSources: { [hubA]: null } });
-    expect(Object.keys(removed.usageLimitSources)).toEqual([hubB]);
-  });
-
   it("upserts and removes secretProviders per entry so concurrent edits cannot clobber", () => {
     const personal = SecretProviderId.make("personal");
     const work = SecretProviderId.make("work");
@@ -700,28 +658,6 @@ describe("serverSettings helpers", () => {
 
     const removed = applyServerSettingsPatch(added, { secretProviders: { [personal]: null } });
     expect(Object.keys(removed.secretProviders)).toEqual([work]);
-  });
-
-  it("replaces and removes individual usage prices without clobbering other models", () => {
-    const prices = { inputCostPerMillionTokens: 2, outputCostPerMillionTokens: 8 };
-    const current = applyServerSettingsPatch(DEFAULT_SERVER_SETTINGS, {
-      usagePriceOverrides: { "example-model": { ...prices, cacheReadCostPerMillionTokens: 0.5 } },
-    });
-    const added = applyServerSettingsPatch(current, {
-      usagePriceOverrides: { "other-model": prices },
-    });
-    const replaced = applyServerSettingsPatch(added, {
-      usagePriceOverrides: { "example-model": prices },
-    });
-    expect(replaced.usagePriceOverrides).toEqual({
-      "example-model": prices,
-      "other-model": prices,
-    });
-    const removed = applyServerSettingsPatch(replaced, {
-      usagePriceOverrides: { "example-model": null },
-    });
-    expect(removed.usagePriceOverrides).toEqual({ "other-model": prices });
-    expect(current.usagePriceOverrides["example-model"]?.cacheReadCostPerMillionTokens).toBe(0.5);
   });
 
   it("stores background activity profiles as a versioned object and syncs legacy aliases", () => {

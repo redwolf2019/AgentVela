@@ -3,7 +3,7 @@ import type { EnvironmentId } from "@t3tools/contracts";
 import {
   CHATGPT_USAGE_LIMIT_CODE,
   CHATGPT_WORKSPACE_USAGE_LIMIT_CODE,
-} from "@t3tools/shared/usageLimits";
+} from "@t3tools/shared/chatGptSharing";
 import * as Clipboard from "expo-clipboard";
 import type { ReactNode } from "react";
 import { act } from "react";

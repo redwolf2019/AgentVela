@@ -25,7 +25,6 @@ export const THREAD_DETAILS_ITEMS = [
     defaultVisible: true,
   },
   { id: "sideChats", label: msg("Side chats"), defaultVisible: true },
-  { id: "usage", label: msg("Usage limits"), defaultVisible: false },
   { id: "context", label: msg("Context window"), defaultVisible: false },
 ] as const;
 
@@ -33,17 +32,7 @@ export type ThreadDetailsItemId = (typeof THREAD_DETAILS_ITEMS)[number]["id"];
 export type ThreadDetailsVisibility = Readonly<Record<ThreadDetailsItemId, boolean>>;
 
 type ThreadDetailsItem = (typeof THREAD_DETAILS_ITEMS)[number];
-type ThreadDetailsItemSettings = Pick<
-  ClientSettings,
-  "threadDetailsItems" | "threadDetailsUsageEnabled"
->;
-
-// People who turned on the retired Labs toggle keep Usage and Context until they change them here.
-function defaultVisible(item: ThreadDetailsItem, settings: ThreadDetailsItemSettings) {
-  return item.id === "usage" || item.id === "context"
-    ? settings.threadDetailsUsageEnabled
-    : item.defaultVisible;
-}
+type ThreadDetailsItemSettings = Pick<ClientSettings, "threadDetailsItems">;
 
 export function resolveThreadDetailsVisibility(
   settings: ThreadDetailsItemSettings,
@@ -51,7 +40,7 @@ export function resolveThreadDetailsVisibility(
   return Object.fromEntries(
     THREAD_DETAILS_ITEMS.map((item) => [
       item.id,
-      settings.threadDetailsItems[item.id] ?? defaultVisible(item, settings),
+      settings.threadDetailsItems[item.id] ?? item.defaultVisible,
     ]),
   ) as Record<ThreadDetailsItemId, boolean>;
 }
@@ -63,15 +52,13 @@ export function setThreadDetailsItem(
   visible: boolean,
 ): ClientSettings["threadDetailsItems"] {
   const { [item.id]: _previous, ...rest } = settings.threadDetailsItems;
-  return visible === defaultVisible(item, settings) ? rest : { ...rest, [item.id]: visible };
+  return visible === item.defaultVisible ? rest : { ...rest, [item.id]: visible };
 }
 
 export function isDefaultThreadDetailsVisibility(visibility: ThreadDetailsVisibility) {
   return THREAD_DETAILS_ITEMS.every((item) => visibility[item.id] === item.defaultVisible);
 }
 
-/** Also clears the retired Labs flag, so Usage and Context return to off. */
 export const RESET_THREAD_DETAILS_ITEMS = {
   threadDetailsItems: {},
-  threadDetailsUsageEnabled: false,
 } satisfies Partial<ClientSettings>;

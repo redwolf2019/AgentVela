@@ -23,7 +23,6 @@ export const SETTINGS_PAGE_TARGETS = [
   "SettingsClientStorage",
   "SettingsDiagnostics",
   "SettingsOpenSourceLicenses",
-  "SettingsUsage",
 ] as const;
 
 export type SettingsPageTarget = (typeof SETTINGS_PAGE_TARGETS)[number];

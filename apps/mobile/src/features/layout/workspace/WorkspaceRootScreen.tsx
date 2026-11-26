@@ -175,8 +175,7 @@ function WorkspaceRootContent() {
           }}
         />
         <SafeAreaInsetsContext value={compactTabs ? { ...insets, bottom: 0 } : insets}>
-          {/* Usage draws its own header, and skips its body itself. */}
-          {headerOnly && (settingsOpen || state.selectedTab !== "usage") ? null : settingsOpen ? (
+          {headerOnly ? null : settingsOpen ? (
             <WorkspaceSettingsList />
           ) : enabled.length === 0 ? (
             <WorkspaceNoTabs />

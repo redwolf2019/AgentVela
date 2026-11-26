@@ -11,8 +11,6 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import * as HttpClient from "effect/http/HttpClient";
-import { cursorRateModel } from "./accountUsage.ts";
-import { readCursorUsageLimits } from "./usageLimits.ts";
 
 import * as ProviderHost from "@t3tools/provider-core/server/ProviderHost";
 import { makeCursorTextGeneration } from "./textGeneration.ts";
@@ -39,7 +37,6 @@ import { makeCursorAuth } from "./auth.ts";
 import * as CursorCredentialStore from "./credentialStore.ts";
 import * as CursorAgentSdk from "./CursorAgentSdk.ts";
 import * as CursorSdk from "./CursorSdk.ts";
-import * as CursorUsageAccounts from "./CursorUsageAccounts.ts";
 
 const decodeCursorSettings = Schema.decodeSync(CursorSettings);
 const isSdkRunnerError = Schema.is(CursorAgentSdk.CursorAgentSdkRunnerError);
@@ -59,11 +56,7 @@ export type CursorDriverEnv =
   | CursorSdk.CursorSdk
   | ProviderHost.ProviderHost;
 
-export const CursorDriver: ProviderDriver<
-  CursorSettings,
-  CursorDriverEnv,
-  CursorUsageAccounts.CursorUsageAccounts
-> = {
+export const CursorDriver: ProviderDriver<CursorSettings, CursorDriverEnv> = {
   driverKind: DRIVER_KIND,
   metadata: {
     displayName: "Cursor",
@@ -71,22 +64,6 @@ export const CursorDriver: ProviderDriver<
   },
   configSchema: CursorSettings,
   defaultConfig: (): CursorSettings => decodeCursorSettings({}),
-  usage: {
-    kind: "scan",
-    provider: "cursor",
-    rateModel: cursorRateModel,
-    scan: ({ instances, windowStartMs, retentionCutoffMs, awaitRefresh }) =>
-      CursorUsageAccounts.CursorUsageAccounts.pipe(
-        Effect.flatMap((accounts) =>
-          accounts.scan({
-            instances,
-            windowStartMs,
-            retentionCutoffMs,
-            awaitRefresh,
-          }),
-        ),
-      ),
-  },
   create: Effect.fn("CursorDriver.create")(function* ({
     instanceId,
     displayName,
@@ -228,20 +205,6 @@ export const CursorDriver: ProviderDriver<
             CURSOR_API_KEY: apiKey,
           },
           auth.usesApiKey ? "api-key" : "browser",
-        ).pipe(
-          Effect.filterOrElse(
-            (snapshot) =>
-              !(
-                effectiveConfig.enabled &&
-                snapshot.installed &&
-                snapshot.auth.status === "authenticated"
-              ),
-            (snapshot) =>
-              readCursorUsageLimits(effectiveConfig, {
-                ...processEnv,
-                CURSOR_API_KEY: apiKey,
-              }).pipe(Effect.map((usageLimits) => ({ ...snapshot, usageLimits }))),
-          ),
         ),
       ),
       Effect.provideService(FileSystem.FileSystem, fileSystem),

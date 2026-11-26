@@ -5,10 +5,9 @@ AgentVela defaults to a fail-closed network posture so self-hosted, LAN, Tailsca
 ## Default Privacy Posture
 
 - **No hosted web fallback**: Missing `T3CODE_HOSTED_APP_URL` / `VITE_HOSTED_APP_URL` stops hosted pairing links and cross-surface redirects instead of falling back to `app.t3.codes`.
-- **Background provider checks disabled**: `enableProviderUpdateChecks` defaults to `false`, disabling startup and periodic Model Manifest fetches, npm/upstream CLI update checks, ACP Registry background refreshes, automatic Codex binary upgrades, and background usage-rate refreshes.
+- **Background provider checks disabled**: `enableProviderUpdateChecks` defaults to `false`, disabling startup and periodic Model Manifest fetches, npm/upstream CLI update checks, ACP Registry background refreshes, and automatic Codex binary upgrades.
 - **No external favicon proxy**: External links render without calling `www.google.com/s2/favicons`, and external images/icons send `referrerPolicy="no-referrer"`.
 - **Mobile OTA disabled**: `u.expo.dev` EAS updates stay off unless `T3CODE_MOBILE_UPDATES_ENABLED=1` is paired with an explicit `T3CODE_MOBILE_UPDATES_URL` or `T3CODE_MOBILE_EAS_PROJECT_ID`.
-- **Custom endpoint isolation**: Setting `ANTHROPIC_BASE_URL` or `CURSOR_API_ENDPOINT` (`settings.apiEndpoint`) skips official vendor quota/reset-credit probes.
 - **Third-party MCP disclosure**: One-click MCP links that embed the environment URL in query parameters (`Poke`, `Claude`) disclose the target host and require explicit confirmation.
 
 ## Environment Overrides and Mirrors
@@ -23,7 +22,6 @@ HTTPS mirror URLs (or `http://` on loopback hosts) are validated fail-closed. Se
 | Desktop update repository   | `T3CODE_DESKTOP_UPDATE_REPOSITORY`                                                           | `redwolf2019/AgentVela`                                                                                     | Format: `<owner>/<repo>`                                                      |
 | ACP Registry index & icons  | `T3CODE_ACP_REGISTRY_URL`                                                                    | `https://cdn.agentclientprotocol.com/registry/v1/latest`                                                    | Supports custom mirror or `off`                                               |
 | Model manifest              | `T3CODE_MODEL_MANIFEST_URL`                                                                  | `https://raw.githubusercontent.com/redwolf2019/AgentVela/main/apps/server/src/provider/model-manifest.json` | Supports mirror or `off`; falls back to bundled manifest                      |
-| Usage pricing rates         | `T3CODE_USAGE_RATES_URL`                                                                     | `https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json`               | Supports mirror or `off`                                                      |
 | Preview Chrome binary / CDN | `T3CODE_CHROME_EXECUTABLE_PATH`, `T3CODE_CHROME_HEADLESS_BASE_URL`                           | System Chrome / Google CFT CDN                                                                              | `BASE_URL=off` disables downloads; `EXECUTABLE_PATH` uses preinstalled Chrome |
 | Local Speech GGUF models    | `T3CODE_SPEECH_MODEL_BASE_URL`                                                               | `https://huggingface.co`                                                                                    | Supports mirror or `off` (local linking still works)                          |
 | Open VSX theme marketplace  | `VITE_OPEN_VSX_BASE_URL`                                                                     | `https://open-vsx.org`                                                                                      | Web build/runtime mirror URL or `off`                                         |

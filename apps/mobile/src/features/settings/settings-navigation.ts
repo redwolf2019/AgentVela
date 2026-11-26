@@ -27,8 +27,7 @@ export function isSettingsRoute(name: string): boolean {
 
 /**
  * Settings is open while its `Settings` route is under the topmost workspace page and that
- * page is a Settings page. A Settings page pushed without it, such as a usage account opened
- * from the Usage tab, stays a detail of the current tab.
+ * page is a Settings page. A Settings page pushed without it stays a detail of the current tab.
  */
 export function settingsOpenIn(workspaceRoutes: readonly { readonly name: string }[]): boolean {
   return (

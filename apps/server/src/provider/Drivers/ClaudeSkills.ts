@@ -12,7 +12,47 @@ import { parse as parseYamlDocument } from "yaml";
 
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
 
-import { claudeAccountConfigPath, readClaudeOauthAccount } from "../claudeResetCredits.ts";
+const ClaudeAccountConfig = Schema.Struct({
+  oauthAccount: Schema.optional(
+    Schema.Struct({
+      organizationUuid: Schema.optional(Schema.String),
+      accountUuid: Schema.optional(Schema.Unknown),
+    }),
+  ),
+});
+
+const readAccountConfigJson = Effect.fn("ClaudeSkills.readAccountConfigJson")(function* <
+  S extends Schema.Top,
+>(schema: S, file: string) {
+  const fs = yield* FileSystem.FileSystem;
+  return yield* fs.readFileString(file).pipe(
+    Effect.catchTags({
+      PlatformError: (error) =>
+        error.reason._tag === "NotFound" ? Effect.succeed("{}") : Effect.fail(error),
+    }),
+    Effect.flatMap(Schema.decodeEffect(Schema.fromJsonString(schema))),
+  );
+});
+
+const readClaudeOauthAccount = (accountConfigPath: string) =>
+  readAccountConfigJson(ClaudeAccountConfig, accountConfigPath).pipe(
+    Effect.map((config) => config.oauthAccount),
+    Effect.orElseSucceed(() => undefined),
+  );
+
+export const readClaudeOrganizationId = (accountConfigPath: string) =>
+  readClaudeOauthAccount(accountConfigPath).pipe(
+    Effect.map((account) => account?.organizationUuid?.trim() || undefined),
+  );
+
+export const claudeAccountConfigPath = Effect.fn("claudeAccountConfigPath")(function* (
+  configDir: string | undefined,
+) {
+  const path = yield* Path.Path;
+  return configDir
+    ? path.join(configDir, ".claude.json")
+    : path.join(yield* HostProcess.HomeDirectory, ".claude.json");
+});
 
 type ClaudeSkillScope = "user" | "project";
 

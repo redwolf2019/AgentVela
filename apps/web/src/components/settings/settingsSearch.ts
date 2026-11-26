@@ -322,14 +322,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("new thread project provider reasoning effort")],
   },
   {
-    id: "fallback-model",
-    title: msg("Fallback model"),
-    to: "/settings/threads",
-    scope: "environment-defaults",
-    searchTerms: [msg("fallback agent provider out of usage new threads")],
-    environmentOnly: true,
-  },
-  {
     id: "default-permissions",
     title: msg("Permissions"),
     to: "/settings/threads",
@@ -392,7 +384,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/appearance",
     searchTerms: [
       msg(
-        "customize show hide panel card environment editor scripts branch pull request git changes servers automations lineage usage limits 5 hour weekly quota tokens context window",
+        "customize show hide panel card environment editor scripts branch pull request git changes servers automations lineage context window",
       ),
     ],
   },
@@ -1082,17 +1074,6 @@ export const SETTINGS_SEARCH_ITEMS = [
         "agents cli codex claude cursor grok fx kiro opencode antigravity google sign in sign out install subscription instances authentication api key models configuration binary path config directory codex_home shadow home endpoint arguments environment variables display name accent color custom favorite hidden auto compact native sessions import resume",
       ),
     ],
-  },
-  {
-    id: "usage-providers",
-    title: msg("Usage providers"),
-    to: "/settings/providers",
-    searchTerms: [
-      msg(
-        "usage sources CLIProxyAPI CLI proxy hub quota subscription limits management key add remove",
-      ),
-    ],
-    providerSettingsOnly: true,
   },
   {
     id: "text-generators",

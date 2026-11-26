@@ -43,6 +43,26 @@ import {
   parseKeybindingWhenExpression,
 } from "@t3tools/shared/keybindings";
 
+const RETIRED_USAGE_COMMANDS: ReadonlySet<string> = new Set([
+  "usage.open",
+  "usage.cost",
+  "usage.tokens",
+  "usage.limits",
+  "usage.period.day",
+  "usage.period.week",
+  "usage.period.month",
+  "usage.period.quarter",
+]);
+
+function isRetiredUsageKeybindingEntry(entry: unknown): boolean {
+  if (typeof entry !== "object" || entry === null) return false;
+  const record = entry as { readonly command?: unknown; readonly when?: unknown };
+  if (typeof record.command === "string" && RETIRED_USAGE_COMMANDS.has(record.command)) {
+    return true;
+  }
+  return typeof record.when === "string" && /\busagePageOpen\b/.test(record.when);
+}
+
 export const ResolvedKeybindingFromConfig = KeybindingRule.pipe(
   Schema.decodeTo(
     Schema.toType(ResolvedKeybindingRule),
@@ -350,6 +370,9 @@ const make = Effect.gen(function* () {
     const keybindings: KeybindingRule[] = [];
     const issues: ServerConfigIssue[] = [];
     for (const [index, entry] of decodedEntries.value.entries()) {
+      if (isRetiredUsageKeybindingEntry(entry)) {
+        continue;
+      }
       const decodedRule = decodeKeybindingRuleExit(entry);
       if (decodedRule._tag === "Failure") {
         const detail = Cause.pretty(decodedRule.cause);

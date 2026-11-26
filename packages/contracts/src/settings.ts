@@ -22,8 +22,6 @@ import {
   TrimmedNonEmptyString,
   TrimmedString,
 } from "./baseSchemas.ts";
-import { UsageLimitSourceId } from "./usageLimitSourceId.ts";
-import { UsageModelFilter } from "./usage.ts";
 import { SecretProviderId, SecretProviderSlug } from "./secretReference.ts";
 import { containsSecretReference, SettingsSecretValue } from "./settingsSecretValue.ts";
 import { EnvironmentMachineKind, ThreadEnvMode, WorktreeSubmodules } from "./environment.ts";
@@ -555,8 +553,6 @@ export const ClientSettingsSchema = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed("status" as const)),
   ),
   screenReaderWindowTitle: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-  // Retired Labs toggle. Still read as the default for the Usage item in threadDetailsItems.
-  threadDetailsUsageEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   // Sparse show/hide overrides for thread details card items. Missing ids use the client's
   // default, so new items appear for everyone and unknown ids survive a downgrade.
   threadDetailsItems: Schema.Record(Schema.String, Schema.Boolean).pipe(
@@ -621,20 +617,6 @@ export const ClientSettingsSchema = Schema.Struct({
 export type ClientSettings = typeof ClientSettingsSchema.Type;
 
 export const DEFAULT_CLIENT_SETTINGS: ClientSettings = Schema.decodeSync(ClientSettingsSchema)({});
-
-const UsageModelTokenPrice = Schema.Number.check(
-  Schema.isFinite(),
-  Schema.isGreaterThanOrEqualTo(0),
-);
-
-/** Omitted cache rates use the input rate. */
-export const UsageModelPriceOverride = Schema.Struct({
-  inputCostPerMillionTokens: UsageModelTokenPrice,
-  outputCostPerMillionTokens: UsageModelTokenPrice,
-  cacheReadCostPerMillionTokens: Schema.optionalKey(UsageModelTokenPrice),
-  cacheWriteCostPerMillionTokens: Schema.optionalKey(UsageModelTokenPrice),
-});
-export type UsageModelPriceOverride = typeof UsageModelPriceOverride.Type;
 
 export const makeBinaryPathSetting = (fallback: string) =>
   TrimmedString.pipe(
@@ -947,18 +929,6 @@ export const AntigravitySettings = makeProviderSettingsSchema(
   { order: ["authMethod", "apiKey", "gcpProject", "gcpLocation", "binaryPath"] },
 );
 export type AntigravitySettings = typeof AntigravitySettings.Type;
-
-export const UsageLimitSourceConfig = Schema.Struct({
-  kind: Schema.Literals(["cliproxy", "http"]),
-  label: Schema.optional(TrimmedNonEmptyString),
-  url: TrimmedNonEmptyString,
-  managementKey: SettingsSecretValue.pipe(
-    Schema.withDecodingDefault(Effect.succeed("")),
-    secretSetting,
-  ),
-  enabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
-});
-export type UsageLimitSourceConfig = typeof UsageLimitSourceConfig.Type;
 
 export const TextGeneratorKind = Schema.Literals(["openaiCompatible", "anthropic"]);
 export type TextGeneratorKind = typeof TextGeneratorKind.Type;
@@ -1372,11 +1342,6 @@ const WorkflowSkippedRunsKept = Schema.Int.check(
   Schema.isBetween({ minimum: 0, maximum: MAX_WORKFLOW_SKIPPED_RUNS_KEPT }),
 );
 
-const UsageHistoryRetentionDays = Schema.Union([
-  Schema.Int.check(Schema.isGreaterThan(0)),
-  Schema.Literal("unlimited"),
-]);
-
 const CloudSpeechCredential = SettingsSecretValue.pipe(
   Schema.withDecodingDefault(Effect.succeed("")),
 );
@@ -1453,9 +1418,6 @@ export const ServerSettings = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed({})),
   ),
   defaultModelSelection: Schema.NullOr(ModelSelection).pipe(
-    Schema.withDecodingDefault(Effect.succeed(null)),
-  ),
-  fallbackModelSelection: Schema.NullOr(ModelSelection).pipe(
     Schema.withDecodingDefault(Effect.succeed(null)),
   ),
   defaultRuntimeMode: RuntimeMode.pipe(
@@ -1611,31 +1573,12 @@ export const ServerSettings = Schema.Struct({
   offeredSourceControlProviders: Schema.Record(Schema.String, Schema.Boolean).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
   ),
-  // User-chosen ids preserve rows across edits; undecodable entries round-trip untouched.
-  usageLimitSources: Schema.Record(UsageLimitSourceId, UsageLimitSourceConfig).pipe(
-    Schema.withDecodingDefault(Effect.succeed({})),
-  ),
   textGenerators: Schema.Record(ProviderInstanceId, TextGeneratorConfig).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
   ),
   secretProviders: Schema.Record(SecretProviderId, SecretProviderConfig).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
   ),
-
-  usageHistoryRetentionDays: UsageHistoryRetentionDays.pipe(
-    Schema.withDecodingDefault(Effect.succeed(92)),
-  ),
-
-  usagePriceOverrides: Schema.Record(TrimmedNonEmptyString, UsageModelPriceOverride).pipe(
-    Schema.withDecodingDefault(Effect.succeed({})),
-  ),
-
-  usageModelAliases: Schema.Record(TrimmedNonEmptyString, TrimmedNonEmptyString).pipe(
-    Schema.withDecodingDefault(Effect.succeed({})),
-  ),
-
-  /** Sent by the Usage tab with each summary request to this environment; edit in settings.json. Invalid values are ignored. */
-  usageModelFilter: ForwardCompatibleOptional(UsageModelFilter),
 });
 export type ServerSettings = typeof ServerSettings.Type;
 
@@ -1917,7 +1860,6 @@ export const ServerSettingsPatch = Schema.Struct({
   ),
   defaultModelSelection: Schema.optionalKey(Schema.NullOr(ModelSelection)),
   defaultRuntimeMode: Schema.optionalKey(RuntimeMode),
-  fallbackModelSelection: Schema.optionalKey(Schema.NullOr(ModelSelection)),
   /** Replaces each project's override set; null removes it. Omitted providerInstances retains its stored value. */
   projectSettingsOverrides: Schema.optionalKey(
     Schema.Record(
@@ -2005,26 +1947,12 @@ export const ServerSettingsPatch = Schema.Struct({
   offeredSourceControlProviders: Schema.optionalKey(Schema.Record(Schema.String, Schema.Boolean)),
   // Replace whole maps to avoid half-merged driver configs.
   providerInstances: Schema.optionalKey(Schema.Record(ProviderInstanceId, ProviderInstanceConfig)),
-  // Merge per source to avoid racing other edits; null removes an entry.
-  usageLimitSources: Schema.optionalKey(
-    Schema.Record(UsageLimitSourceId, Schema.NullOr(UsageLimitSourceConfig)),
-  ),
-  // Merge per entry like usageLimitSources; null removes an entry.
+  // Merge per entry; null removes an entry.
   textGenerators: Schema.optionalKey(
     Schema.Record(ProviderInstanceId, Schema.NullOr(TextGeneratorConfig)),
   ),
   secretProviders: Schema.optionalKey(
     Schema.Record(SecretProviderId, Schema.NullOr(SecretProviderConfigWrite)),
-  ),
-
-  usageHistoryRetentionDays: Schema.optionalKey(UsageHistoryRetentionDays),
-
-  usagePriceOverrides: Schema.optionalKey(
-    Schema.Record(TrimmedNonEmptyString, Schema.NullOr(UsageModelPriceOverride)),
-  ),
-
-  usageModelAliases: Schema.optionalKey(
-    Schema.Record(TrimmedNonEmptyString, Schema.NullOr(TrimmedNonEmptyString)),
   ),
 });
 export type ServerSettingsPatch = typeof ServerSettingsPatch.Type;
@@ -2058,7 +1986,6 @@ export function requiredScopesForServerSettingsPatch(
     } else if (
       key === "providers" ||
       key === "providerInstances" ||
-      key === "usageLimitSources" ||
       key === "textGenerators" ||
       key === "secretProviders"
     ) {
@@ -2158,7 +2085,6 @@ export const ClientSettingsPatch = Schema.Struct({
   toolCallVisibility: Schema.optionalKey(ToolCallVisibility),
   screenReaderAnnouncements: Schema.optionalKey(ScreenReaderAnnouncements),
   screenReaderWindowTitle: Schema.optionalKey(Schema.Boolean),
-  threadDetailsUsageEnabled: Schema.optionalKey(Schema.Boolean),
   threadDetailsItems: Schema.optionalKey(Schema.Record(Schema.String, Schema.Boolean)),
   sidebarWorkingShelfEnabled: Schema.optionalKey(Schema.Boolean),
   sidebarProjectGroupingMode: Schema.optionalKey(SidebarProjectGroupingMode),

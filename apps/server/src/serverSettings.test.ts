@@ -15,8 +15,6 @@ import {
   SecretProviderId,
   ServerSettings,
   ServerSettingsPatch,
-  UsageLimitSourceConfig,
-  UsageLimitSourceId,
   type SimlockDeviceHostConfig,
 } from "@t3tools/contracts";
 import { createModelSelection } from "@t3tools/shared/model";
@@ -43,15 +41,6 @@ import * as ServerSettingsModule from "./serverSettings.ts";
 import { SECRET_REDACTED } from "./settingsSecrets.ts";
 import * as ManagedPolicy from "./policy/ManagedPolicy.ts";
 import { resolveProviderInstanceTerminalEnvironment } from "./terminal/Manager.ts";
-
-const encodeServerSettings = Schema.encodeSync(ServerSettings);
-// Clients from before HTTP sources decode only "cliproxy" and reject the whole settings payload.
-const decodePreHttpUsageLimitSources = Schema.decodeUnknownSync(
-  Schema.Record(
-    UsageLimitSourceId,
-    Schema.Struct({ ...UsageLimitSourceConfig.fields, kind: Schema.Literal("cliproxy") }),
-  ),
-);
 
 const decodeServerSettings = Schema.decodeUnknownEffect(ServerSettings);
 const decodeServerSettingsJson = Schema.decodeUnknownEffect(Schema.fromJsonString(ServerSettings));
@@ -626,52 +615,22 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
     ).pipe(Effect.provide(layerServerSettings())),
   );
 
-  it.effect("preserves saved usage settings during cleanup edits and removes custom prices", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const serverConfig = yield* ServerConfig.ServerConfig;
-        const fileSystem = yield* FileSystem.FileSystem;
-        const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
-        const prices = {
-          inputCostPerMillionTokens: 2,
-          outputCostPerMillionTokens: 8,
-          cacheReadCostPerMillionTokens: 0,
-        };
-        const readPersisted = fileSystem
-          .readFileString(serverConfig.settingsPath)
-          .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.fromJsonString(ServerSettings))));
+  it.effect("persists storageCleanup updates across settings writes", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const serverConfig = yield* ServerConfig.ServerConfig;
+      const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
+      const readPersisted = fileSystem
+        .readFileString(serverConfig.settingsPath)
+        .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.fromJsonString(ServerSettings))));
 
-        yield* serverSettings.updateSettings({ usagePriceOverrides: { "example-model": prices } });
-        const usageModelAliases = { "example-preview": "example-model" };
-        const sourceId = UsageLimitSourceId.make("hub");
-        const usageLimitSources = {
-          [sourceId]: {
-            kind: "cliproxy" as const,
-            url: "https://hub.example.test",
-            managementKey: "",
-            enabled: true,
-          },
-        };
-        const saved = yield* serverSettings.updateSettings({
-          usageModelAliases,
-          usageLimitSources,
-        });
-        const updated = yield* serverSettings.updateSettings({
-          storageCleanup: { worktreeSettledAfterDays: 0, worktreeKeepWhen: "any-local-files" },
-        });
-        assert.deepStrictEqual(updated.usageLimitSources, saved.usageLimitSources);
-        const persisted = yield* readPersisted;
-        assert.deepStrictEqual(persisted.usagePriceOverrides, { "example-model": prices });
-        assert.deepStrictEqual(persisted.usageModelAliases, usageModelAliases);
-        assert.deepStrictEqual(persisted.usageLimitSources, usageLimitSources);
-        assert.equal(persisted.storageCleanup.worktreeSettledAfterDays, 0);
-        assert.equal(persisted.storageCleanup.worktreeKeepWhen, "any-local-files");
-
-        yield* serverSettings.updateSettings({ usagePriceOverrides: { "example-model": null } });
-        const restored = yield* readPersisted;
-        assert.deepStrictEqual(restored.usagePriceOverrides, {});
-      }),
-    ).pipe(Effect.provide(layerServerSettings())),
+      yield* serverSettings.updateSettings({
+        storageCleanup: { worktreeSettledAfterDays: 0, worktreeKeepWhen: "any-local-files" },
+      });
+      const persisted = yield* readPersisted;
+      assert.equal(persisted.storageCleanup.worktreeSettledAfterDays, 0);
+      assert.equal(persisted.storageCleanup.worktreeKeepWhen, "any-local-files");
+    }).pipe(Effect.provide(layerServerSettings())),
   );
 
   it.effect("preserves model when switching providers via textGenerationModelSelection", () =>
@@ -1484,14 +1443,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
             bitbucket: { email: "me@example.test", accessToken: "bitbucket-secret" },
             gitcafe: { token: "gitcafe-secret" },
           },
-          usageLimitSources: {
-            [UsageLimitSourceId.make("hub")]: {
-              kind: "cliproxy",
-              url: "https://hub.example.test",
-              managementKey: "quota-secret",
-              enabled: true,
-            },
-          },
           easDeviceHosts: [
             {
               kind: "eas",
@@ -1510,7 +1461,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
           "github-secret",
           "bitbucket-secret",
           "gitcafe-secret",
-          "quota-secret",
           "expo-secret",
         ];
         const client = ServerSettingsModule.redactServerSettingsForClient(saved, {
@@ -1527,7 +1477,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
         const echoed = yield* service.updateSettings({
           providerInstances: client.providerInstances,
           sourceControlHosts: client.sourceControlHosts,
-          usageLimitSources: client.usageLimitSources,
           easDeviceHosts: client.easDeviceHosts,
         });
         for (const value of values) assert.include(JSON.stringify(echoed), value);
@@ -1579,7 +1528,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
             serverHost: null,
           }),
           sourceControlHostSecretName({ kind: "gitcafe", field: "token", serverHost: null }),
-          "usage-limit-source-aHVi",
         ];
         for (const name of secretNames) {
           assert.isTrue(Option.isSome(yield* store.get(name)), name);
@@ -1611,7 +1559,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
             bitbucket: { accessToken: "" },
             gitcafe: { token: "" },
           },
-          usageLimitSources: { [UsageLimitSourceId.make("hub")]: null },
         });
         for (const name of secretNames) {
           assert.isTrue(Option.isNone(yield* store.get(name)));
@@ -1789,8 +1736,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
         };
         const antigravity = ProviderInstanceId.make("antigravity");
         const openCode = ProviderInstanceId.make("opencode");
-        const hub = UsageLimitSourceId.make("hub");
-        const quota = UsageLimitSourceId.make("quota");
         const router = ProviderInstanceId.make("openrouter");
         const withUsage = yield* serverSettings.updateSettings({
           cloudSpeechCredentials: { openai: usageReference, xai: "literal-fixture" },
@@ -1799,20 +1744,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
               kind: "openaiCompatible",
               baseUrl: "https://openrouter.ai/api/v1",
               apiKey: usageReference,
-              enabled: true,
-            },
-          },
-          usageLimitSources: {
-            [hub]: {
-              kind: "cliproxy",
-              url: "https://hub.test",
-              managementKey: usageReference,
-              enabled: true,
-            },
-            [quota]: {
-              kind: "http",
-              url: "https://quota.test/v1",
-              managementKey: "",
               enabled: true,
             },
           },
@@ -1859,20 +1790,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
           openrouter: "",
         });
         assert.equal(legacy.sourceControlHosts.bitbucket?.accessToken, SECRET_REDACTED);
-        assert.equal(legacy.usageLimitSources[hub]?.managementKey, SECRET_REDACTED);
-        assert.deepEqual(
-          Object.keys(
-            decodePreHttpUsageLimitSources(encodeServerSettings(legacy).usageLimitSources),
-          ),
-          [hub],
-        );
-        assert.equal(
-          ServerSettingsModule.redactServerSettingsForClient(withUsage, {
-            secretReferences: false,
-            httpUsageLimitSources: true,
-          }).usageLimitSources[quota]?.kind,
-          "http",
-        );
         assert.equal(legacy.textGenerators[router]?.apiKey, SECRET_REDACTED);
         assert.equal(legacy.easDeviceHosts[0]?.accessToken, SECRET_REDACTED);
         assert.equal(legacy.simlockDeviceHosts[0]?.agentToken, SECRET_REDACTED);
@@ -1883,7 +1800,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
         const echoed = yield* serverSettings.updateSettings({
           cloudSpeechCredentials: legacy.cloudSpeechCredentials,
           sourceControlHosts: legacy.sourceControlHosts,
-          usageLimitSources: legacy.usageLimitSources,
           textGenerators: legacy.textGenerators,
           easDeviceHosts: legacy.easDeviceHosts,
           simlockDeviceHosts: legacy.simlockDeviceHosts,
@@ -1894,8 +1810,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
           "github.com": gitHubReference,
           "ghe.acme.test": "ghp_ghe",
         });
-        assert.deepEqual(echoed.usageLimitSources[hub]?.managementKey, usageReference);
-        assert.equal(echoed.usageLimitSources[quota]?.kind, "http");
         assert.deepEqual(echoed.textGenerators[router]?.apiKey, usageReference);
         assert.deepEqual(echoed.cloudSpeechCredentials, {
           openai: usageReference,
@@ -1937,7 +1851,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
       });
       const work = { provider: SecretProviderId.make("work"), reference: "op://Work/token" };
       const instanceId = ProviderInstanceId.make("antigravity_refs");
-      const hub = UsageLimitSourceId.make("hub");
       yield* decodeServerSettingsPatch({
         secretProviders: {
           personal: { kind: "one_password", label: "Personal", config: { account: "my" } },
@@ -1960,14 +1873,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
           github: { tokens: { "github.com": personal("GitHub/token"), "ghe.acme.test": work } },
         },
         cloudSpeechCredentials: { openai: personal("Voice/key"), xai: work },
-        usageLimitSources: {
-          [hub]: {
-            kind: "cliproxy",
-            url: "https://hub.test",
-            managementKey: personal("Hub/key"),
-            enabled: true,
-          },
-        },
         easDeviceHosts: [
           {
             kind: "eas",
@@ -1984,14 +1889,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
       // An older client's save echoes a reference it cannot decode as the redacted marker.
       const removed = yield* service.updateSettings({
         secretProviders: { [SecretProviderId.make("personal")]: null },
-        usageLimitSources: {
-          [hub]: {
-            kind: "cliproxy",
-            url: "https://hub.test",
-            managementKey: SECRET_REDACTED,
-            enabled: true,
-          },
-        },
       });
       assert.notInclude(JSON.stringify(removed), "op://Private");
       assert.deepEqual(removed.providerInstances[instanceId]?.environment, [
@@ -2003,7 +1900,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
         "github.com": "",
         "ghe.acme.test": work,
       });
-      assert.equal(removed.usageLimitSources[hub]?.managementKey, "");
       assert.deepEqual(removed.cloudSpeechCredentials, { openai: "", xai: work, openrouter: "" });
       assert.equal(removed.easDeviceHosts[0]?.accessToken, "");
       assert.deepEqual(Object.keys(removed.secretProviders), ["work"]);
@@ -2019,7 +1915,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
         "cloudSpeechCredentials.openrouter",
         "easDeviceHosts.[].accessToken",
         "simlockDeviceHosts.[].agentToken",
-        "usageLimitSources.*.managementKey",
         "textGenerators.*.apiKey",
       ]);
     }),
@@ -2431,16 +2326,16 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
     }).pipe(Effect.provide(layerServerSettings())),
   );
 
-  it.effect.each([
-    { label: "malformed JSON", broken: '{"defaultAutoPull": tru' },
-    { label: "invalid retention", broken: '{"usageHistoryRetentionDays": 0}' },
-  ])("leaves settings.json with $label untouched and disables destructive defaults", ({ broken }) =>
-    Effect.gen(function* () {
-      const serverConfig = yield* ServerConfig.ServerConfig;
-      const fileSystem = yield* FileSystem.FileSystem;
-      const sql = yield* SqlClient.SqlClient;
-      const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
-      yield* sql`
+  it.effect(
+    "leaves settings.json with malformed JSON untouched and disables destructive defaults",
+    () =>
+      Effect.gen(function* () {
+        const broken = '{"defaultAutoPull": tru';
+        const serverConfig = yield* ServerConfig.ServerConfig;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const sql = yield* SqlClient.SqlClient;
+        const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
+        yield* sql`
         INSERT INTO projection_projects (
           project_id, title, workspace_root, auto_pull, scripts_json, created_at, updated_at
         )
@@ -2449,20 +2344,19 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
           ${"2026-08-25T00:00:00.000Z"}, ${"2026-08-25T00:00:00.000Z"}
         )
       `;
-      yield* fileSystem.writeFileString(serverConfig.settingsPath, broken);
+        yield* fileSystem.writeFileString(serverConfig.settingsPath, broken);
 
-      const settings = yield* serverSettings.getSettings;
-      assert.isFalse(settings.projectSettingsFolded);
-      assert.isFalse(settings.continueThreadsAfterServerUpdate);
-      assert.equal(settings.usageHistoryRetentionDays, "unlimited");
-      assert.isTrue(settings.requireConnectDeviceApproval);
-      assert.isFalse(settings.enablePreviewTunnel);
-      assert.isFalse(settings.enableAgentBrowserAccess);
-      assert.equal(settings.defaultRuntimeMode, "approval-required");
-      assert.deepEqual(settings.projectSettingsOverrides, {});
+        const settings = yield* serverSettings.getSettings;
+        assert.isFalse(settings.projectSettingsFolded);
+        assert.isFalse(settings.continueThreadsAfterServerUpdate);
+        assert.isTrue(settings.requireConnectDeviceApproval);
+        assert.isFalse(settings.enablePreviewTunnel);
+        assert.isFalse(settings.enableAgentBrowserAccess);
+        assert.equal(settings.defaultRuntimeMode, "approval-required");
+        assert.deepEqual(settings.projectSettingsOverrides, {});
 
-      assert.equal(yield* fileSystem.readFileString(serverConfig.settingsPath), broken);
-    }).pipe(Effect.provide(layerServerSettings())),
+        assert.equal(yield* fileSystem.readFileString(serverConfig.settingsPath), broken);
+      }).pipe(Effect.provide(layerServerSettings())),
   );
 });
 

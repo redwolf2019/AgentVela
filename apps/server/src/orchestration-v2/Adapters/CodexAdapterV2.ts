@@ -15,7 +15,6 @@ import {
   completeCodexTurnTokenUsage,
   type CodexTurnTokenUsageState,
 } from "../../provider/CodexTurnTokenUsage.ts";
-import type { ManagedServerProvider } from "@t3tools/provider-core/server/snapshot";
 import type { CodexEffectiveRuntime } from "../../provider/CodexManagedRuntime.ts";
 import { classifyCodexManagedError } from "../../provider/CodexManagedErrors.ts";
 import {
@@ -24,7 +23,6 @@ import {
   codexDefaultReasoningEffortOverride,
 } from "../../provider/CodexProvider.ts";
 import {
-  codexRateLimitsToUpdate,
   mergeCodexRateLimits,
   codexMessageResetAt,
   codexTimeZone,
@@ -2032,10 +2030,7 @@ export type CodexAdapterV2DriverEnv =
 
 export const createCodexAdapterV2 = Effect.fn("CodexAdapterV2.createCodexAdapterV2")(function* (
   { instanceId, environment, enabled, config }: ProviderAdapterDriverCreateInput<CodexSettings>,
-  hooks: Pick<
-    CodexAdapterV2Options,
-    "onUsageLimits" | "resolveRuntime" | "compatibility" | "models"
-  > = {},
+  hooks: Pick<CodexAdapterV2Options, "resolveRuntime" | "compatibility" | "models"> = {},
 ) {
   const clientFactory = yield* CodexAppServerClientFactory;
   const continuationRequests = yield* ProviderContinuationRequests.ProviderContinuationRequests;
@@ -2087,7 +2082,6 @@ export interface CodexAdapterV2Options {
   readonly settings: CodexSettings;
   readonly environment: NodeJS.ProcessEnv;
   readonly clientFactory: CodexAppServerClientFactoryShape;
-  readonly onUsageLimits?: ManagedServerProvider["applyUsageLimits"];
   /** The provider's published models, read per turn for catalog defaults. */
   readonly models?: Effect.Effect<ReadonlyArray<ServerProviderModel>>;
   readonly resolveRuntime?: Effect.Effect<CodexEffectiveRuntime, ProviderSetupError, Scope.Scope>;
@@ -5330,10 +5324,9 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
 
         yield* client.handleServerNotification("account/rateLimits/updated", (payload) =>
           Effect.gen(function* () {
-            const previous = yield* Ref.getAndUpdate(rateLimitSnapshot, (previous) =>
+            const snapshot = yield* Ref.updateAndGet(rateLimitSnapshot, (previous) =>
               mergeCodexRateLimits(previous, payload.rateLimits),
             );
-            const snapshot = yield* Ref.get(rateLimitSnapshot);
             for (const item of (yield* Ref.get(limitedTurnItems)).values()) {
               const resetAt = failureResetAt(item.failure, snapshot);
               if (resetAt === null || item.failure.resetAt != null) continue;
@@ -5351,32 +5344,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 turnItem: updated,
               });
             }
-            const update = codexRateLimitsToUpdate(payload.rateLimits, previous);
-            if (update && adapterOptions.onUsageLimits) {
-              const checkedAt = DateTime.formatIso(yield* DateTime.now);
-              yield* adapterOptions.onUsageLimits({ ...update, checkedAt });
-            }
           }).pipe(Effect.orDie),
-        );
-
-        // A run's first request can 429 before Codex pushes a codex snapshot.
-        const readUsageLimitReset = Effect.gen(function* () {
-          const sent = yield* Ref.get(rateLimitSnapshot);
-          const response = yield* client
-            .request("account/rateLimits/read", null)
-            .pipe(Effect.timeout("10 seconds"));
-          const read = response.rateLimitsByLimitId?.codex ?? response.rateLimits;
-          // A notification that landed during the read is newer than it.
-          yield* Ref.update(rateLimitSnapshot, (current) =>
-            current === sent ? mergeCodexRateLimits(current, read) : current,
-          );
-        }).pipe(
-          // The terminal waits on this read, so no failure may skip it; interruption ends both.
-          Effect.catchCauseIf(
-            (cause) => !Cause.hasInterrupts(cause),
-            (cause) =>
-              Effect.logWarning("orchestration-v2.codex-usage-limit-reset-read-failed", { cause }),
-          ),
         );
 
         yield* client.handleServerNotification("thread/tokenUsage/updated", (payload) =>
@@ -6945,14 +6913,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           context: ActiveCodexTurnContext,
           event: CodexRootTerminalEvent,
         ) {
-          const awaitsReset =
-            event.status === "failed" &&
-            event.failure.class === "usage_limit" &&
-            event.failure.resetAt == null &&
-            // The account read only reports the ordinary allowance, never a sharing cap's reset.
-            !classifyCodexManagedError(event.failure.code)?.usageLimit &&
-            codexUsageLimitResetAt(yield* Ref.get(rateLimitSnapshot)) === null;
-          if (!awaitsReset) yield* publishRootTerminal(context, event);
+          yield* publishRootTerminal(context, event);
           const continued = continuedRuns.get(context.providerTurnId) ?? [context];
           if (event.status !== "completed") {
             yield* Ref.update(
@@ -6969,15 +6930,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             nativeThreadId == null ? undefined : rootProviderThreads.get(nativeThreadId);
           if (nativeThreadId != null && rootProviderThread !== undefined) {
             rootProviderThreads.set(nativeThreadId, { ...rootProviderThread, status: "idle" });
-          }
-          // Notification handlers block response routing, so the read and terminal get a fiber.
-          if (awaitsReset) {
-            yield* readUsageLimitReset.pipe(
-              Effect.andThen(
-                turnTerminalizationPermit.withPermits(1)(publishRootTerminal(context, event)),
-              ),
-              Effect.forkIn(scope, { startImmediately: true }),
-            );
           }
         });
 

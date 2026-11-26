@@ -23,29 +23,13 @@ import {
   shortcutKeyFromEvent,
 } from "../../keybindings";
 import { isMacPlatform } from "../../lib/utils";
-import { METRIC_OPTIONS, WINDOW_OPTIONS } from "../usage/usageShortcuts";
-
-// Rank every usage command; mixing rank and alphabetical comparisons makes order input-dependent.
-const usageCommandOrder = new Map<KeybindingCommand, number>(
-  [
-    "usage.open" as const,
-    ...[...METRIC_OPTIONS, ...WINDOW_OPTIONS].map((option) => option.command),
-  ].map((command, index) => [command, index]),
-);
-
-const firstUsageCommand = METRIC_OPTIONS[0].command;
 
 function compareCommands(
   left: KeybindingCommand,
   right: KeybindingCommand,
   key: (command: KeybindingCommand) => string,
 ): number {
-  const leftRank = usageCommandOrder.get(left);
-  const rightRank = usageCommandOrder.get(right);
-  if (leftRank !== undefined && rightRank !== undefined) return leftRank - rightRank;
-  return key(leftRank === undefined ? left : firstUsageCommand).localeCompare(
-    key(rightRank === undefined ? right : firstUsageCommand),
-  );
+  return key(left).localeCompare(key(right));
 }
 
 export type KeybindingSource = "Default" | "Custom" | "Project";
@@ -483,7 +467,6 @@ const COMMAND_LABELS: Partial<Record<KeybindingCommand, string>> = {
   "commandPalette.toggle": msg("Command Palette: Toggle"),
   "filePicker.toggle": msg("File Picker: Toggle"),
   "projectSearch.toggle": msg("Project Search: Toggle"),
-  "usage.open": msg("Usage: Toggle"),
   "theme.select": msg("Theme: Select"),
   "appearance.cycle": msg("Appearance: Cycle"),
   "themeEditor.toggle": msg("Theme Editor: Toggle"),
@@ -514,20 +497,6 @@ const COMMAND_LABELS: Partial<Record<KeybindingCommand, string>> = {
   "thread.undo": msg("Thread: Undo"),
 };
 
-// Whole labels: search titles keep the encoded message, which cannot nest another one.
-const USAGE_COMMAND_LABELS: Record<
-  (typeof METRIC_OPTIONS)[number]["command"] | (typeof WINDOW_OPTIONS)[number]["command"],
-  string
-> = {
-  "usage.cost": msg("Usage: Cost"),
-  "usage.tokens": msg("Usage: Tokens"),
-  "usage.limits": msg("Usage: Limits"),
-  "usage.period.day": msg("Usage: Period: Past 24h"),
-  "usage.period.week": msg("Usage: Period: 7 days"),
-  "usage.period.month": msg("Usage: Period: 30 days"),
-  "usage.period.quarter": msg("Usage: Period: 90 days"),
-};
-
 const LATE_COMMAND_LABELS: Partial<Record<KeybindingCommand, string>> = {
   "view.reopenClosed": msg("Reopen Closed Tab"),
   "preview.focusUrl": msg("Preview: Focus URL"),
@@ -537,8 +506,6 @@ const LATE_COMMAND_LABELS: Partial<Record<KeybindingCommand, string>> = {
 export function commandLabel(command: KeybindingCommand, resolve: MessageResolver = m): string {
   const label = COMMAND_LABELS[command];
   if (label) return resolve(label);
-  const usageLabel = USAGE_COMMAND_LABELS[command as keyof typeof USAGE_COMMAND_LABELS];
-  if (usageLabel) return resolve(usageLabel);
   const lateLabel = LATE_COMMAND_LABELS[command];
   if (lateLabel) return resolve(lateLabel);
   const raw = String(command);

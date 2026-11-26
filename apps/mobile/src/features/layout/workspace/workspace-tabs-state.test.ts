@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vite-plus/test";
-import { act, createElement, createContext, useState, type ReactNode } from "react";
+import { act, createElement, createContext, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { WorkspaceRootScreen } from "./WorkspaceRootScreen.android";
 import {
@@ -55,21 +55,15 @@ describe("Duo list clearance", () => {
 });
 
 describe("workspace root navigation", () => {
-  it("pairs Settings, chats and pull requests with a detail column, and keeps Usage one page", () => {
-    expect(workspaceUsesColumns("usage")).toBe(false);
+  it("pairs Settings, chats and pull requests with a detail column, and keeps Workflows one page", () => {
     expect(workspaceUsesColumns("workflows")).toBe(false);
-    expect(workspaceUsesColumns("usage", true)).toBe(true);
+    expect(workspaceUsesColumns("workflows", true)).toBe(true);
     expect(workspaceUsesColumns("threads")).toBe(true);
     expect(workspaceUsesColumns("pullRequests")).toBe(true);
   });
 
   it("keeps the registered defaults while customization is unavailable", () => {
-    expect(resolveWorkspaceTabOrder(undefined)).toEqual([
-      "threads",
-      "pullRequests",
-      "issues",
-      "usage",
-    ]);
+    expect(resolveWorkspaceTabOrder(undefined)).toEqual(["threads", "pullRequests", "issues"]);
     expect(resolveWorkspaceTabOrder(["home", "usage", "issues", "threads"])).toEqual(
       resolveWorkspaceTabOrder(undefined),
     );
@@ -179,13 +173,13 @@ describe("workspace root navigation", () => {
     expect(shouldRestoreNativeSearch(initialWorkspaceTabsState().tabs.threads, true)).toBe(false);
   });
 
-  it("returns from Usage without losing list state", () => {
+  it("returns from Workflows without losing list state", () => {
     let state = workspaceTabsReducer(initialWorkspaceTabsState(), {
       type: "query",
       query: "retained",
       tab: "threads",
     });
-    for (const tab of ["usage"] as const) {
+    for (const tab of ["workflows"] as const) {
       state = workspaceTabsReducer(state, { type: "select", tab });
       expect(state.selectedTab).toBe(tab);
       expect(workspaceTabsReducer(state, { type: "search" })).toBe(state);
@@ -194,10 +188,10 @@ describe("workspace root navigation", () => {
     expect(state.tabs.threads.query).toBe("retained");
   });
   it("opens Settings on native reselection instead of selecting its overflow section", () => {
-    const order = ["threads", "pullRequests", "usage"] as const;
+    const order = ["threads", "pullRequests", "issues"] as const;
     expect(workspaceTabForNativeSlot(order, "settings")).toBe("settings");
     expect(workspaceTabForNativeSlot(order, "first")).toBe("threads");
-    expect(workspaceTabForNativeSlot(order, "third")).toBe("usage");
+    expect(workspaceTabForNativeSlot(order, "third")).toBe("issues");
     expect(workspaceTabForNativeSlot(order, "removed")).toBeNull();
   });
 });
@@ -239,17 +233,14 @@ vi.mock("../adaptive-workspace-context", () => ({
   useAdaptiveWorkspaceLayout: () => ({ openWorkspaceTab: mocks.openWorkspaceTab }),
 }));
 vi.mock("./navigation-tabs", () => ({
-  useEnabledNavigationTabs: () => ["threads", "pullRequests", "usage"],
+  useEnabledNavigationTabs: () => ["threads", "pullRequests"],
 }));
 vi.mock("./WorkspaceTabsContext", () => ({
   WorkspaceTabsContext: createContext(null),
   useWorkspaceTabs: () => ({ state: mocks.state, dispatch: () => undefined }),
 }));
 vi.mock("./WorkspaceExtraTab", () => ({
-  WorkspaceExtraTab: function UsageProbe() {
-    const [tab, setTab] = useState("Limits");
-    return createElement("button", { onClick: () => setTab("Usage") }, tab);
-  },
+  WorkspaceExtraTab: () => null,
 }));
 vi.mock("../../../native/StackHeader", () => ({ NativeStackScreenOptions: () => null }));
 vi.mock("../../../components/ui/AppBar", () => ({ AppBar: () => null }));
@@ -279,7 +270,7 @@ vi.mock("../../../components/ui/WorkspaceAppBar.android", () => ({
   WorkspaceAppBarScope: ({ children }: { children: ReactNode }) => children,
 }));
 
-function setup(split: boolean, floating: boolean, state = selected("usage")) {
+function setup(split: boolean, floating: boolean, state = selected("pullRequests")) {
   mocks.split = split;
   mocks.floating = floating;
   mocks.state = state;
@@ -309,30 +300,3 @@ it("Back from the Pulls tab returns to Threads instead of leaving the app", asyn
   expect(pressBack()).toBe(true);
   expect(opened).toEqual(["threads"]);
 });
-
-it.each([
-  [false, false],
-  [true, false],
-  [false, true],
-  [true, true],
-])(
-  "keeps the Usage page mounted through layout transitions (split: %s, floating: %s)",
-  async (split, floating) => {
-    using _actEnvironment = setup(split, floating);
-    const container = document.createElement("div");
-    const root = createRoot(container);
-    using _root = { [Symbol.dispose]: () => act(() => root.unmount()) };
-    await act(async () => root.render(createElement(WorkspaceRootScreen)));
-
-    const button = container.querySelector("button")!;
-    await act(async () => button.click());
-    expect(button.textContent).toBe("Usage");
-
-    for (const nextSplit of [!split, split, !split, split]) {
-      mocks.split = nextSplit;
-      await act(async () => root.render(createElement(WorkspaceRootScreen)));
-      expect(container.querySelector("button")?.textContent).toBe("Usage");
-      expect(container.querySelector("button")).toBe(button);
-    }
-  },
-);

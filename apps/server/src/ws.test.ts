@@ -153,8 +153,6 @@ import * as DatabaseStorage from "./persistence/DatabaseStorage.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import * as ThreadLaunchService from "./orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadSearch from "./orchestration-v2/ThreadSearch.ts";
-import * as UsageLimitSources from "./usage/UsageLimitSources.ts";
-import * as UsageService from "./usage/UsageService.ts";
 import * as VcsProvisioningService from "./vcs/VcsProvisioningService.ts";
 import * as VcsStatusBroadcaster from "./vcs/VcsStatusBroadcaster.ts";
 import * as WorkspaceEntries from "./workspace/WorkspaceEntries.ts";
@@ -172,7 +170,6 @@ import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
 import * as SecretCheck from "./secrets/SecretCheck.ts";
 import * as ServerConfigModule from "./config.ts";
 import * as Keybindings from "./keybindings.ts";
-import { USAGE_LIMITS_COMMAND } from "@t3tools/shared/usageLimits";
 import * as FeatureFlags from "@t3tools/shared/FeatureFlags";
 import * as ServerSettings from "./serverSettings.ts";
 import * as ManagedPolicy from "./policy/ManagedPolicy.ts";
@@ -907,7 +904,6 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(ThreadLaunchService.ThreadLaunchService)({}),
   Layer.mock(ThreadManagement.ThreadManagementService)({}),
   Layer.mock(ThreadSearch.ThreadSearch)({}),
-  Layer.mock(UsageService.UsageService)({}),
   Layer.mock(VcsProvisioningService.VcsProvisioningService)({}),
   Layer.mock(VcsStatusBroadcaster.VcsStatusBroadcaster)({}),
   Layer.mock(WorkspaceEntries.WorkspaceEntries)({}),
@@ -971,7 +967,6 @@ it.live.each([
         }),
         Layer.mock(ScratchThreadPromotion.ScratchThreadPromotion)({}),
         Layer.mock(ProviderRegistry.ProviderRegistry)({}),
-        Layer.mock(UsageLimitSources.UsageLimitSources)({}),
         Layer.mock(ExternalLauncher.ExternalLauncher)({}),
         Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
         Layer.mock(DirectEndpoints.DirectEndpoints)({}),
@@ -1079,7 +1074,6 @@ it.effect.each([
           getProviders: Effect.succeed([]),
           streamChanges: Stream.never,
         }),
-        Layer.mock(UsageLimitSources.UsageLimitSources)({ streamChanges: Stream.make([]) }),
         Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({
           resolveTargets: () =>
             Deferred.succeed(remoteDiscoveryStarted, undefined).pipe(
@@ -1328,7 +1322,6 @@ it.effect("access changes made while the snapshot loads reach the client after i
               layerUnusedConfigRpcServices,
               Layer.mock(ExternalLauncher.ExternalLauncher)({}),
               Layer.mock(ProviderRegistry.ProviderRegistry)({}),
-              Layer.mock(UsageLimitSources.UsageLimitSources)({}),
               Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
               Layer.mock(DirectEndpoints.DirectEndpoints)({}),
               Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
@@ -1475,11 +1468,6 @@ it.effect("on-demand clients get provider config without workspace snapshots", (
                 : { instanceId }) as never,
           ),
       }),
-      Layer.mock(UsageLimitSources.UsageLimitSources)({
-        current: Effect.succeed([]),
-        streamChanges: Stream.make([]),
-        refresh: Effect.void,
-      }),
       Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({
         resolveTargets: () => Effect.succeed([]),
       }),
@@ -1563,12 +1551,12 @@ it.effect("on-demand clients get provider config without workspace snapshots", (
     ]);
     yield* Queue.take(pulled);
     yield* TestClock.adjust("1 second");
-    // Late /usage-limits discovery still reaches the client, so it refetches its cwd snapshot.
+    // Late slash-command discovery still reaches the client, so it refetches its cwd snapshot.
     yield* Queue.offer(providerChanges, [
       {
         ...provider,
         status: "warning",
-        slashCommands: [...provider.slashCommands, USAGE_LIMITS_COMMAND],
+        slashCommands: [...provider.slashCommands, { name: "late-command" }],
       },
     ]);
     yield* Queue.take(pulled);
@@ -1579,7 +1567,7 @@ it.effect("on-demand clients get provider config without workspace snapshots", (
     assert.isUndefined(update.payload.providers[0]?.workspaceSnapshots);
     assert.deepEqual(update.payload.providers[0]?.slashCommands, [
       { name: "machine-command" },
-      { name: USAGE_LIMITS_COMMAND.name },
+      { name: "late-command" },
     ]);
     yield* server.write(0, { _tag: "Ack", requestId: configRequest });
     // A replacement that cannot scan a cwd sends its full machine catalog.
@@ -1861,7 +1849,6 @@ it.effect("a missing thread worktree gets its project's skills in the cwd snapsh
           ),
         ),
       ),
-      Layer.mock(UsageLimitSources.UsageLimitSources)({ current: Effect.succeed([]) }),
       Layer.mock(ExternalLauncher.ExternalLauncher)({}),
       Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
       Layer.mock(DirectEndpoints.DirectEndpoints)({}),
@@ -1952,7 +1939,6 @@ it.effect(
           }),
           Layer.mock(ExternalLauncher.ExternalLauncher)({}),
           Layer.mock(ProviderRegistry.ProviderRegistry)({}),
-          Layer.mock(UsageLimitSources.UsageLimitSources)({}),
           Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
           Layer.mock(DirectEndpoints.DirectEndpoints)({}),
           Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({ namedProjectsRoot: "/unused" }),
@@ -2042,7 +2028,6 @@ it.effect(
           Layer.mock(VcsStatusBroadcaster.VcsStatusBroadcaster)({}),
           Layer.mock(ExternalLauncher.ExternalLauncher)({}),
           Layer.mock(ProviderRegistry.ProviderRegistry)({}),
-          Layer.mock(UsageLimitSources.UsageLimitSources)({}),
           Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
           Layer.mock(DirectEndpoints.DirectEndpoints)({}),
           Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({ namedProjectsRoot: "/unused" }),
@@ -2126,7 +2111,6 @@ it.effect("a git action that fails partway still refreshes the repository status
       }),
       Layer.mock(ExternalLauncher.ExternalLauncher)({}),
       Layer.mock(ProviderRegistry.ProviderRegistry)({}),
-      Layer.mock(UsageLimitSources.UsageLimitSources)({}),
       Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
       Layer.mock(DirectEndpoints.DirectEndpoints)({}),
       Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({ namedProjectsRoot: "/unused" }),
@@ -2205,7 +2189,6 @@ it.effect("a publish whose push fails still refreshes the new remote", () =>
       }),
       Layer.mock(ExternalLauncher.ExternalLauncher)({}),
       Layer.mock(ProviderRegistry.ProviderRegistry)({}),
-      Layer.mock(UsageLimitSources.UsageLimitSources)({}),
       Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
       Layer.mock(DirectEndpoints.DirectEndpoints)({}),
       Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({ namedProjectsRoot: "/unused" }),
@@ -2762,7 +2745,6 @@ it.effect("ACP session RPCs list a thread missing its history and repair it on i
       Layer.fresh(layerConfigSources),
       Layer.mock(ExternalLauncher.ExternalLauncher)({}),
       Layer.mock(ProviderRegistry.ProviderRegistry)({}),
-      Layer.mock(UsageLimitSources.UsageLimitSources)({}),
       Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
       Layer.mock(DirectEndpoints.DirectEndpoints)({}),
       Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({ namedProjectsRoot: "/unused" }),
@@ -2935,7 +2917,6 @@ const makeWorkflowClient = Effect.fn("test.makeWorkflowClient")(function* (
     layerUnusedConfigRpcServices,
     Layer.mock(ExternalLauncher.ExternalLauncher)({}),
     Layer.mock(ProviderRegistry.ProviderRegistry)({}),
-    Layer.mock(UsageLimitSources.UsageLimitSources)({}),
     Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
     Layer.mock(DirectEndpoints.DirectEndpoints)({}),
     Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({ namedProjectsRoot: "/unused" }),
@@ -2999,7 +2980,6 @@ const makeAcpRegistryClient = Effect.fn("test.makeAcpRegistryClient")(function* 
     layerUnusedConfigRpcServices,
     Layer.mock(ExternalLauncher.ExternalLauncher)({}),
     Layer.mock(ProviderRegistry.ProviderRegistry)({}),
-    Layer.mock(UsageLimitSources.UsageLimitSources)({}),
     Layer.mock(RemoteOpenTargets.RemoteOpenTargets)({}),
     Layer.mock(DirectEndpoints.DirectEndpoints)({}),
     Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({ namedProjectsRoot: "/unused" }),

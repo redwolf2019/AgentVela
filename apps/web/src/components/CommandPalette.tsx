@@ -62,7 +62,6 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
   BugIcon,
-  ChartNoAxesColumnIcon,
   CheckIcon,
   ChevronRightIcon,
   CornerLeftUpIcon,
@@ -1775,18 +1774,6 @@ function OpenCommandPaletteDialog(props: {
       },
     });
   }
-
-  actionItems.push({
-    kind: "action",
-    value: "action:usage",
-    searchTerms: ["usage", "use", "tokens", "cost", "spend", "limits", "stats", "analytics"],
-    title: gt("Open usage"),
-    icon: <ChartNoAxesColumnIcon className={ITEM_ICON_CLASS} />,
-    shortcutCommand: "usage.open",
-    run: async () => {
-      await navigate({ to: "/usage" });
-    },
-  });
 
   for (const direction of [1, -1] as const) {
     const title =

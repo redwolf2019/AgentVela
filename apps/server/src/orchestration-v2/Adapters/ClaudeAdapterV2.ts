@@ -217,11 +217,6 @@ import {
 } from "../../provider/EventNdjsonLogger.ts";
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import {
-  claudeRateLimitEventToUpdate,
-  type ClaudeScopedLimitNames,
-} from "../../provider/claudeUsageLimits.ts";
-import type { ManagedServerProvider } from "@t3tools/provider-core/server/snapshot";
-import {
   T3_CODE_DEVICE_TOOL_INSTRUCTIONS_WITH_TOOL_SEARCH,
   T3_CODE_ORCHESTRATION_INSTRUCTIONS,
 } from "@t3tools/provider-core/server/orchestrationInstructions";
@@ -5344,17 +5339,8 @@ const CLAUDE_USAGE_LIMIT_WINDOWS = {
 
 const CLAUDE_USAGE_LIMIT_MAX_WAIT_MS = 30 * 24 * 60 * 60 * 1000;
 
-function describeClaudeUsageLimit(
-  info: SDKRateLimitInfo,
-  nowMs: number,
-  names: ClaudeScopedLimitNames,
-): string {
-  const label =
-    info.rateLimitType === "seven_day_overage_included" && names.overageIncluded
-      ? `7-day ${names.overageIncluded}`
-      : info.rateLimitType
-        ? CLAUDE_USAGE_LIMIT_WINDOWS[info.rateLimitType]
-        : undefined;
+function describeClaudeUsageLimit(info: SDKRateLimitInfo, nowMs: number): string {
+  const label = info.rateLimitType ? CLAUDE_USAGE_LIMIT_WINDOWS[info.rateLimitType] : undefined;
   const resetsAtMs = info.resetsAt === undefined ? undefined : info.resetsAt * 1000;
   const waitMs =
     resetsAtMs === undefined || !Number.isFinite(nowMs) ? undefined : resetsAtMs - nowMs;
@@ -5972,8 +5958,6 @@ export interface ClaudeAdapterV2Options {
   readonly random: SecureRandom.SecureRandom["Service"];
   readonly idAllocator: IdAllocator.IdAllocatorV2["Service"];
   readonly queryRunner: ClaudeAgentSdkQueryRunnerShape;
-  readonly scopedLimitNames?: Ref.Ref<ClaudeScopedLimitNames>;
-  readonly onUsageLimits?: ManagedServerProvider["applyUsageLimits"];
   /**
    * Called with the requested cwd on a process's first init message, after its synchronous
    * SessionStart hooks have run, so cwd-keyed workspace scans can be refreshed.
@@ -11137,17 +11121,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           if (message.type === "rate_limit_event") {
             const rateLimitInfo = message.rate_limit_info;
             if (!rateLimitInfo) return;
-            const names = adapterOptions.scopedLimitNames
-              ? yield* Ref.get(adapterOptions.scopedLimitNames)
-              : { overageIncluded: undefined };
-            const update = claudeRateLimitEventToUpdate(rateLimitInfo, names);
             const now = yield* DateTime.now;
-            if (update && adapterOptions.onUsageLimits) {
-              yield* adapterOptions.onUsageLimits({
-                ...update,
-                checkedAt: DateTime.formatIso(now),
-              });
-            }
             const context = yield* Ref.get(activeTurn);
             if (context === null) {
               yield* bufferWakeMessage({
@@ -11182,11 +11156,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               if (!context.announcedUsageLimits.has(limitKey)) {
                 context.announcedUsageLimits.add(limitKey);
                 const nativeItemId = `usage-limit:${context.providerTurnId}:${limitKey}`;
-                const notice = describeClaudeUsageLimit(
-                  rateLimitInfo,
-                  DateTime.toEpochMillis(now),
-                  names,
-                );
+                const notice = describeClaudeUsageLimit(rateLimitInfo, DateTime.toEpochMillis(now));
                 yield* emitProviderEvent({
                   type: "turn_item.updated",
                   driver: CLAUDE_PROVIDER,
@@ -15562,7 +15532,7 @@ export const createClaudeAdapterV2 = Effect.fn("ClaudeAdapterV2Driver.create")(
     input: ProviderAdapterDriverCreateInput<ClaudeSettings>,
     hooks: Pick<
       ClaudeAdapterV2Options,
-      "scopedLimitNames" | "onUsageLimits" | "onSessionInit" | "modelCatalog" | "routeModelCatalog"
+      "onSessionInit" | "modelCatalog" | "routeModelCatalog"
     > = {},
   ) {
     const { instanceId, environment, enabled, config } = input;

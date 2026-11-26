@@ -129,7 +129,7 @@ Each variable extends that provider's readiness-probe deadlines; a phase whose d
 | OpenCode            | `T3CODE_OPENCODE_PROBE_TIMEOUT_MS`     |
 | ACP Registry agents | `T3CODE_ACP_REGISTRY_PROBE_TIMEOUT_MS` |
 
-Longer deadlines also take longer to report a stalled check. These overrides cover readiness and discovery, including OpenCode server startup. Usage and config enrichment retain their own shorter limits. Turn execution, package installation, update checks, and shutdown limits keep their existing behavior.
+Longer deadlines also take longer to report a stalled check. These overrides cover readiness and discovery, including OpenCode server startup. Config enrichment retains its own shorter limits. Turn execution, package installation, update checks, and shutdown limits keep their existing behavior.
 
 ## Next steps
 

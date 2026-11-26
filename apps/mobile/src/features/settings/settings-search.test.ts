@@ -3,7 +3,6 @@ import { describe, expect, it } from "vite-plus/test";
 import { filterSettingsSections } from "./settings-search";
 
 const SECTIONS = [
-  { rows: [{ id: "usage", label: "Usage" }] },
   {
     title: "Connections",
     rows: [
@@ -58,7 +57,6 @@ describe("filterSettingsSections", () => {
       query: "accounts",
       expected: [["Server settings", ["Provider accounts"]]],
     },
-    { query: "usage", expected: [[null, ["Usage"]]] },
     { query: "zzzz", expected: [] },
   ])("$query", ({ query, expected }) => {
     expect(visible(query)).toEqual(expected);

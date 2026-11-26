@@ -14,7 +14,6 @@ import * as Queue from "effect/Queue";
 import * as Path from "effect/Path";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import { SCAN_CACHE_FILE_NAME } from "./usage/usageScanCache.ts";
 import { TestClock } from "effect/testing";
 import * as SqlClient from "effect/sql/SqlClient";
 import * as Sqlite from "./persistence/Sqlite.ts";
@@ -4437,7 +4436,7 @@ describe("settled worktree rechecks", () => {
   );
 });
 
-it.effect("keeps saved usage data when removing a settled checkout", () =>
+it.effect("keeps saved data under stateDir when removing a settled checkout", () =>
   runCleanupTest(
     Effect.gen(function* () {
       yield* TestClock.setTime(NOW_MS);
@@ -4449,11 +4448,11 @@ it.effect("keeps saved usage data when removing a settled checkout", () =>
         shell({ branch: "feature", worktreePath: fixture.worktree, settledAt: at(0) }),
       ]);
       yield* fixture.fs.makeDirectory(fixture.config.stateDir, { recursive: true });
-      const cachePath = `${fixture.config.stateDir}/${SCAN_CACHE_FILE_NAME}`;
-      const savedUsage = JSON.stringify({ tokens: 12345, cost: 1.25 });
-      yield* fixture.fs.writeFileString(cachePath, savedUsage);
+      const dataPath = `${fixture.config.stateDir}/retained-state.json`;
+      const savedData = JSON.stringify({ retained: true });
+      yield* fixture.fs.writeFileString(dataPath, savedData);
       expect((yield* fixture.service.runNow).counts.removed).toBe(1);
-      expect(yield* fixture.fs.readFileString(cachePath)).toBe(savedUsage);
+      expect(yield* fixture.fs.readFileString(dataPath)).toBe(savedData);
     }),
   ),
 );

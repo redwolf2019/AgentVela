@@ -21,7 +21,6 @@ import {
   type ServerSelfUpdateProgressEvent,
   type ServerSelfUpdateResult,
   shouldRecommendDatabaseCompaction,
-  type UsageSummary,
   type WorkflowRunsSnapshot,
   WS_METHODS,
 } from "@t3tools/contracts";
@@ -485,8 +484,6 @@ const cachedConfigSnapshotEvent = (config: ServerConfig): ServerConfigStreamEven
 
 export interface ServerConfigSubscriptionOptions {
   readonly environmentThemes?: boolean;
-  readonly usageLimitSources?: boolean;
-  readonly usageLimitsCommand?: boolean;
   readonly providerCatalogsOnDemand?: boolean;
   readonly providerCatalogDigests?: boolean;
   readonly providerStatusDeltas?: boolean;
@@ -602,7 +599,6 @@ export const makeEnvironmentServerConfigState = Effect.fn("EnvironmentServerConf
       // serverTime changes every connect, which would rewrite the cache each time.
       const {
         environmentThemes: _themes,
-        usageLimitSources: _sources,
         lastEventLoopStall: _stall,
         serverTime: _serverTime,
         ...cacheable
@@ -657,8 +653,6 @@ export const makeEnvironmentServerConfigState = Effect.fn("EnvironmentServerConf
     let fetchedCatalogs: ReadonlyArray<FetchedMachineCatalog> = [];
     const configUpdates = subscribe(WS_METHODS.subscribeServerConfig, {
       ...(subscription.environmentThemes === true ? { environmentThemes: true } : {}),
-      ...(subscription.usageLimitSources === true ? { usageLimitSources: true } : {}),
-      ...(subscription.usageLimitsCommand === true ? { usageLimitsCommand: true } : {}),
       ...(subscription.providerCatalogsOnDemand === true ? { providerCatalogsOnDemand: true } : {}),
       ...(subscription.providerCatalogDigests === true ? { providerCatalogDigests: true } : {}),
       ...(subscription.providerStatusDeltas === true ? { providerStatusDeltas: true } : {}),
@@ -864,9 +858,9 @@ export function resolveServerConfigValue(
 }
 
 /**
- * The provider-wide fields a workspace snapshot builds on. A live session, a sign-out, a
- * /usage-limits change, or a server rescan that changed the skills shows up here, so a snapshot
- * fetched before it no longer applies.
+ * The provider-wide fields a workspace snapshot builds on. A live session, a sign-out, or
+ * a server rescan that changed the skills shows up here, so a snapshot fetched before it no
+ * longer applies.
  */
 const snapshotBasis = (provider: ServerProviderEntry | undefined) =>
   provider && {
@@ -964,8 +958,6 @@ export function createServerEnvironmentAtoms<R, E>(
       environmentId: EnvironmentId,
     ) => Atom.Atom<ServerConfig | null>;
     readonly environmentThemes?: boolean;
-    readonly usageLimitSources?: boolean;
-    readonly usageLimitsCommand?: boolean;
     readonly providerCatalogsOnDemand?: boolean;
     readonly providerCatalogDigests?: boolean;
     readonly providerStatusDeltas?: boolean;
@@ -992,8 +984,6 @@ export function createServerEnvironmentAtoms<R, E>(
           environmentId,
           {
             ...(options.environmentThemes === true ? { environmentThemes: true } : {}),
-            ...(options.usageLimitSources === true ? { usageLimitSources: true } : {}),
-            ...(options.usageLimitsCommand === true ? { usageLimitsCommand: true } : {}),
             ...(options.providerCatalogsOnDemand === true
               ? { providerCatalogsOnDemand: true }
               : {}),
@@ -1380,46 +1370,6 @@ export function createServerEnvironmentAtoms<R, E>(
       Atom.withLabel(`environment-data:server:hidden-thread-tags:${environmentId}`),
     ),
   );
-  const usagePricesAtom = Atom.family((environmentId: EnvironmentId) =>
-    Atom.make((get) => {
-      const overrides = get(settingsValueAtom(environmentId))?.usagePriceOverrides ?? {};
-      // Only changed prices should trigger another transcript scan. Settings
-      // snapshots can recreate the same mapping in a different property order.
-      return JSON.stringify(
-        Object.keys(overrides)
-          .sort()
-          .map((model) => {
-            const price = overrides[model]!;
-            return [
-              model,
-              price.inputCostPerMillionTokens,
-              price.outputCostPerMillionTokens,
-              price.cacheReadCostPerMillionTokens,
-              price.cacheWriteCostPerMillionTokens,
-            ];
-          }),
-      );
-    }).pipe(Atom.withLabel(`environment-data:server:usage-prices:${environmentId}`)),
-  );
-  const usageScanSettingsAtom = Atom.family((environmentId: EnvironmentId) =>
-    Atom.make((get) => {
-      const settings = get(settingsValueAtom(environmentId));
-      const aliases = settings?.usageModelAliases ?? {};
-      return JSON.stringify([
-        get(usagePricesAtom(environmentId)),
-        Object.keys(aliases)
-          .sort()
-          .map((model) => [model, aliases[model]]),
-      ]);
-    }).pipe(Atom.withLabel(`environment-data:server:usage-scan-settings:${environmentId}`)),
-  );
-  // Settings snapshots rebuild the filter object; only a changed filter should touch the Usage tab.
-  const usageModelFilterAtom = Atom.family((environmentId: EnvironmentId) =>
-    Atom.make((get) => get(settingsValueAtom(environmentId))?.usageModelFilter).pipe(
-      Atom.withEquality((a, b) => JSON.stringify(a) === JSON.stringify(b)),
-      Atom.withLabel(`environment-data:server:usage-model-filter:${environmentId}`),
-    ),
-  );
   const providersValueAtom = Atom.family((environmentId: EnvironmentId) =>
     Atom.make((get) => get(configValueAtom(environmentId))?.providers ?? null).pipe(
       Atom.withLabel(`environment-data:server:providers:${environmentId}`),
@@ -1548,7 +1498,6 @@ export function createServerEnvironmentAtoms<R, E>(
     updateStateAtom,
     settingsValueAtom,
     hiddenThreadTagsAtom,
-    usageModelFilterAtom,
     providersValueAtom,
     providerAuthState: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
       label: "environment-data:provider:auth-state",
@@ -1680,44 +1629,6 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:server:scheduled-tasks:live",
       tag: WS_METHODS.scheduledTasksSubscribe,
     }),
-    // A cold transcript scan is measured in seconds, so keep the result around
-    // long enough that switching windows or re-rendering does not rescan. With
-    // nothing to show yet, the server's last scan answers first, then a plain
-    // read, then a read that waits for slow sources.
-    usageSummary: createEnvironmentRpcQueryAtomFamily(runtime, {
-      label: "environment-data:server:usage-summary",
-      tag: WS_METHODS.serverGetUsageSummary,
-      staleTimeMs: 60_000,
-      refreshTrigger: ({ environmentId }) => usageScanSettingsAtom(environmentId),
-      execute: (input, emit, previous) => {
-        const settled = (summary: UsageSummary) =>
-          !summary.sources.some((source) => source.refreshing === true);
-        const read = request(WS_METHODS.serverGetUsageSummary, input).pipe(
-          Effect.filterOrElse(settled, (summary) =>
-            emit(summary).pipe(
-              Effect.andThen(
-                request(WS_METHODS.serverGetUsageSummary, { ...input, awaitRefresh: true }),
-              ),
-              Effect.catch((error) =>
-                Effect.logWarning("Could not refresh slow usage sources.").pipe(
-                  Effect.annotateLogs({ ...safeErrorLogAttributes(error) }),
-                  Effect.as(summary),
-                ),
-              ),
-            ),
-          ),
-        );
-        if (Option.isSome(previous)) return read;
-        return request(WS_METHODS.serverGetUsageSummary, { ...input, provisional: true }).pipe(
-          Effect.matchEffect({
-            // The saved answer only speeds things up; without it the plain read still answers.
-            onFailure: () => read,
-            onSuccess: (saved) =>
-              settled(saved) ? Effect.succeed(saved) : emit(saved).pipe(Effect.andThen(read)),
-          }),
-        );
-      },
-    }),
     resourceTelemetry: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
       label: "environment-data:server:resource-telemetry",
       tag: WS_METHODS.subscribeResourceTelemetry,
@@ -1763,15 +1674,6 @@ export function createServerEnvironmentAtoms<R, E>(
           ),
         ),
     }),
-    consumeResetCredit: createEnvironmentRpcCommand(runtime, {
-      label: "environment-data:server:consume-reset-credit",
-      tag: WS_METHODS.providerConsumeResetCredit,
-      concurrency: {
-        mode: "singleFlight",
-        // Both ids are free-form strings; a delimiter could collide.
-        key: ({ environmentId, input }) => JSON.stringify([environmentId, input]),
-      },
-    }),
     refreshProviders: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:refresh-providers",
       tag: WS_METHODS.serverRefreshProviders,
@@ -1791,7 +1693,6 @@ export function createServerEnvironmentAtoms<R, E>(
         return requestGuarded(WS_METHODS.serverRefreshProviders, {
           ...input,
           workspaceSnapshotsOnDemand: true,
-          ...(options.usageLimitsCommand === true ? { usageLimitsCommand: true } : {}),
           ...(options.providerCatalogsOnDemand === true ? { providerCatalogsOnDemand: true } : {}),
           ...(options.omitRefreshedProviders === true ? { omitProviders: true } : {}),
           // The held lists are stale or missing, so the cwd snapshot brings the current ones.
@@ -2032,14 +1933,6 @@ export function createServerEnvironmentAtoms<R, E>(
       },
     }),
 
-    refreshUsageRates: createEnvironmentRpcCommand(runtime, {
-      label: "environment-data:server:refresh-usage-rates",
-      tag: WS_METHODS.serverRefreshUsageRates,
-      concurrency: {
-        mode: "singleFlight",
-        key: ({ environmentId }) => environmentId,
-      },
-    }),
     checkOtlpEndpoint: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:check-otlp-endpoint",
       tag: WS_METHODS.serverCheckOtlpEndpoint,

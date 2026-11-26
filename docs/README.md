@@ -19,7 +19,6 @@
 - [Import browser sessions](./user/browser-import.md)
 - [Use AgentVela as your default browser](./user/default-browser.md)
 - [Devices](./user/devices.md)
-- [Usage and limits](./user/usage.md)
 - [Secrets](./user/secrets.md)
 - [Remote access](./user/remote-access.md)
 - [Guest links](./user/guest-links.md)
