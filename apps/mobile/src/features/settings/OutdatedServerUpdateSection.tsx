@@ -14,6 +14,7 @@ import {
   serverEnvironment,
   updateOutdatedServer,
 } from "../../state/server";
+import { mobilePreferencesAtom } from "../../state/preferences";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { ListActionRow as SettingsActionRow } from "../../components/ui/ListActionRow";
 import { SettingsSection } from "./components/SettingsSection";
@@ -35,6 +36,10 @@ export function OutdatedServerUpdateSection({
   const describe = useAtomCommand(describeOutdatedServer, { reportFailure: false });
   const update = useAtomCommand(updateOutdatedServer, { reportFailure: false });
   const state = useAtomValue(serverEnvironment.updateStateAtom(environmentId));
+  const preferencesResult = useAtomValue(mobilePreferencesAtom);
+  const mobileMirrorUrl = AsyncResult.isSuccess(preferencesResult)
+    ? (preferencesResult.value.updateMirrorUrl ?? null)
+    : null;
   const [checkResult, startCheck] = useAtom(environmentReleaseCheckAtom(environmentId));
   const release = releaseCheckValue(checkResult);
   const checking = checkResult.waiting;
@@ -49,7 +54,10 @@ export function OutdatedServerUpdateSection({
     startCheck(async () => {
       const description = await describe(environmentId);
       if (AsyncResult.isFailure(description)) throw squashAtomCommandFailure(description);
-      return description.value.serverVersion;
+      return {
+        version: description.value.serverVersion,
+        userMirrorUrl: mobileMirrorUrl,
+      };
     });
   }
 

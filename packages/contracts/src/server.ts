@@ -28,7 +28,6 @@ import { ModelCapabilities, ProviderOptionDescriptor } from "./model.ts";
 import { RuntimeMode } from "./providerPolicy.ts";
 import { ProviderDriverKind, ProviderInstanceId } from "./providerInstance.ts";
 import { ServerSettings } from "./settings.ts";
-import { DesktopUpdateChannelSchema } from "./ipc.ts";
 
 const KeybindingsMalformedConfigIssue = Schema.Struct({
   kind: Schema.Literal("keybindings.malformed-config"),
@@ -733,6 +732,28 @@ export const ServerFeatureFlags = Schema.Struct({
 });
 export type ServerFeatureFlags = typeof ServerFeatureFlags.Type;
 
+export const ServerUpdateCheckStatus = Schema.Literals([
+  "idle",
+  "checking",
+  "up-to-date",
+  "available",
+  "error",
+]);
+export type ServerUpdateCheckStatus = typeof ServerUpdateCheckStatus.Type;
+
+export const ServerUpdateState = Schema.Struct({
+  enabled: Schema.Boolean,
+  status: ServerUpdateCheckStatus,
+  currentVersion: TrimmedNonEmptyString,
+  latestVersion: Schema.NullOr(TrimmedNonEmptyString),
+  releaseNotes: Schema.optionalKey(Schema.String),
+  releaseUrl: Schema.optionalKey(TrimmedNonEmptyString),
+  checkedAt: Schema.NullOr(IsoDateTime),
+  errorMessage: Schema.optionalKey(TrimmedNonEmptyString),
+  canSelfUpdate: Schema.Boolean,
+});
+export type ServerUpdateState = typeof ServerUpdateState.Type;
+
 export const ServerConfig = Schema.Struct({
   environment: ExecutionEnvironmentDescriptor,
   auth: ServerAuthDescriptor,
@@ -791,6 +812,7 @@ export const ServerConfig = Schema.Struct({
    * subscription's first snapshot is fresh; later snapshots may repeat it.
    */
   serverTime: Schema.optionalKey(IsoDateTime),
+  updateState: Schema.optionalKey(ServerUpdateState),
   /**
    * Never sent in a config snapshot: the theme stream emits the current set
    * before any change, so a snapshot carrying it too would hand every
@@ -919,6 +941,20 @@ export const ServerConfigStreamEnvironmentThemesUpdatedEvent = Schema.Struct({
 export type ServerConfigStreamEnvironmentThemesUpdatedEvent =
   typeof ServerConfigStreamEnvironmentThemesUpdatedEvent.Type;
 
+export const ServerConfigUpdateStateUpdatedPayload = Schema.Struct({
+  updateState: ServerUpdateState,
+});
+export type ServerConfigUpdateStateUpdatedPayload =
+  typeof ServerConfigUpdateStateUpdatedPayload.Type;
+
+export const ServerConfigStreamUpdateStateUpdatedEvent = Schema.Struct({
+  version: Schema.Literal(1),
+  type: Schema.Literal("updateStateUpdated"),
+  payload: ServerConfigUpdateStateUpdatedPayload,
+});
+export type ServerConfigStreamUpdateStateUpdatedEvent =
+  typeof ServerConfigStreamUpdateStateUpdatedEvent.Type;
+
 export const ServerConfigStreamEvent = Schema.Union([
   ServerConfigStreamSnapshotEvent,
   ServerConfigStreamKeybindingsUpdatedEvent,
@@ -926,6 +962,7 @@ export const ServerConfigStreamEvent = Schema.Union([
   ServerConfigStreamProviderStatusDeltasEvent,
   ServerConfigStreamSettingsUpdatedEvent,
   ServerConfigStreamEnvironmentThemesUpdatedEvent,
+  ServerConfigStreamUpdateStateUpdatedEvent,
 ]);
 export type ServerConfigStreamEvent = typeof ServerConfigStreamEvent.Type;
 
@@ -1033,36 +1070,22 @@ export const ServerStartupStatus = Schema.Struct({
 });
 export type ServerStartupStatus = typeof ServerStartupStatus.Type;
 
-export const ServerNpmReleaseInput = Schema.Struct({
-  spec: Schema.String.check(
-    Schema.isMaxLength(64),
-    Schema.isPattern(/^(?:latest|nightly|\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/),
-  ),
+export const ServerCheckForUpdateInput = Schema.Struct({
+  force: Schema.optionalKey(Schema.Boolean),
 });
-export type ServerNpmReleaseInput = typeof ServerNpmReleaseInput.Type;
+export type ServerCheckForUpdateInput = typeof ServerCheckForUpdateInput.Type;
 
-export const ServerNpmRelease = Schema.Struct({
-  version: Schema.String,
-  databaseMigration: Schema.optionalKey(Schema.Int),
-});
-export type ServerNpmRelease = typeof ServerNpmRelease.Type;
-
-export class ServerNpmReleaseError extends Schema.TaggedError<ServerNpmReleaseError>()(
-  "ServerNpmReleaseError",
+export class ServerCheckForUpdateError extends Schema.TaggedError<ServerCheckForUpdateError>()(
+  "ServerCheckForUpdateError",
   { reason: Schema.String },
 ) {
   override get message(): string {
-    return `Could not check the configured npm registry: ${this.reason}`;
+    return `Could not check for server updates: ${this.reason}`;
   }
 }
 
 export const ServerSelfUpdateInput = Schema.Struct({
-  /** Exact npm version, never a dist-tag, so server and client agree on the request. */
   targetVersion: TrimmedNonEmptyString,
-  /** Desktop-managed hosts move their app to this update track first. Sent only for a track switch. */
-  channel: Schema.optionalKey(DesktopUpdateChannelSchema),
-  /** The target release's highest migration; the host refuses to leave Nightly without it. */
-  targetDatabaseMigration: Schema.optionalKey(Schema.Int),
   stageOnly: Schema.optionalKey(Schema.Boolean),
 });
 export type ServerSelfUpdateInput = typeof ServerSelfUpdateInput.Type;
@@ -1099,13 +1122,6 @@ export class ServerSelfUpdateError extends Schema.TaggedError<ServerSelfUpdateEr
   "ServerSelfUpdateError",
   {
     reason: TrimmedNonEmptyString,
-    /** Set when the host's desktop app refused only because its build and saved tracks differ. */
-    trackMismatch: Schema.optionalKey(
-      Schema.Struct({
-        buildChannel: DesktopUpdateChannelSchema,
-        savedChannel: DesktopUpdateChannelSchema,
-      }),
-    ),
     cause: Schema.optional(Schema.Defect()),
   },
 ) {

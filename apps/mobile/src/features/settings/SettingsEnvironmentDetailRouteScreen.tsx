@@ -29,6 +29,7 @@ import { appAtomRegistry } from "../../state/atom-registry";
 import { environmentPresentations } from "../../state/presentation";
 import { serverEnvironment } from "../../state/server";
 import { environmentSession, useEnvironmentScope, readEnvironmentScope } from "../../state/session";
+import { mobilePreferencesAtom } from "../../state/preferences";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useRemoteConnections } from "../../state/use-remote-environment-registry";
 import { ConnectionEnvironmentRow } from "../connection/ConnectionEnvironmentRow";
@@ -100,6 +101,11 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
   const busy = !connected || pending !== null || running || providerBusy;
   const disabled = !allowed || busy;
   const version = config?.environment.serverVersion;
+  const preferencesResult = useAtomValue(mobilePreferencesAtom);
+  const mobileMirrorUrl = AsyncResult.isSuccess(preferencesResult)
+    ? (preferencesResult.value.updateMirrorUrl ?? null)
+    : null;
+  const userMirrorUrl = config?.settings.updateMirrorUrl ?? mobileMirrorUrl;
   const checkedRelease = release?.fromVersion === version ? release : null;
   const capabilities = config?.environment.capabilities;
   const managedPolicy = config?.managedPolicy;
@@ -322,7 +328,10 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                         if (disabled) return;
                         const fromVersion = config.environment.serverVersion;
                         void run("check", async () => {
-                          const exit = await checkRelease(async () => fromVersion);
+                          const exit = await checkRelease(async () => ({
+                            version: fromVersion,
+                            userMirrorUrl,
+                          }));
                           // `run` owns the error message, so a failed lookup rethrows to it.
                           if (Exit.isFailure(exit)) throw Cause.squash(exit.cause);
                         });

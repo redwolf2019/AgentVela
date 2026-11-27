@@ -1,63 +1,61 @@
 # Release Runbook
 
-> AgentVela is transitioning release pipelines to `redwolf2019/AgentVela` and currently builds from source; the channels and credentials below document the repository's release workflow layout.
+AgentVela publishes unified stable releases from `redwolf2019/AgentVela` using `.github/workflows/release.yml` on standard GitHub Actions runners (`ubuntu-24.04`, `ubuntu-24.04-arm`, `macos-15`, `windows-2025`). Every release produces a single canonical version (`vX.Y.Z`) across Desktop, Server CLI, and Android (`arm64-v8a`), backed by a unified `release-manifest.json` (schema v1) and `SHA256SUMS`.
 
-Unified release workflow: `.github/workflows/release.yml`. Beta is a product label, not a release channel—channels remain `stable` and `nightly` (plus `preview` for maintainer test builds).
+## Triggers and version alignment
 
-## Channels and triggers
+- **Tag push (`vX.Y.Z`):** Pushing an annotated or lightweight canonical semver tag (`v[0-9]+.[0-9]+.[0-9]+`) builds that exact commit.
+- **Manual dispatch (`workflow_dispatch`):** Requires an explicit `version` input (`X.Y.Z`).
+- **Finalization:** After publishing the release, `finalize` runs isolated from workspace dependencies using `RELEASE_APP_ID` / `RELEASE_APP_PRIVATE_KEY` to align and push `apps/server/package.json`, `apps/desktop/package.json`, `apps/web/package.json`, `apps/mobile/package.json`, and `packages/contracts/package.json`.
 
-- **Stable (`channel=stable` on `main`, or pushing a `vX.Y.Z` tag):** Manual dispatch promotes the **latest published nightly commit** (not `main` HEAD) using its base version unless overridden. Pushing a `vX.Y.Z` tag ships that exact commit. Finalization commits version bumps to `main` using `RELEASE_APP_ID` / `RELEASE_APP_PRIVATE_KEY`.
-- **Nightly (scheduled every 30 min when new commits exist and >=6 h elapsed, or manual `channel=nightly` on `main`):** Publishes a GitHub prerelease, `nightly` desktop updater channel, `nightly` npm dist-tag, hosted `nightly` web alias, and marketing site. Does not bump versions on `main`.
-  - Pause/resume automatic nightlies: `gh variable set PAUSE_NIGHTLY -b true -R redwolf2019/AgentVela` / `gh variable delete PAUSE_NIGHTLY -R redwolf2019/AgentVela`.
-- **Preview (`channel=preview`, any branch—default dispatch channel):** Exercises build, signing, notarization, and smoke tests into a **draft** GitHub release and skips npm, web, AUR, and announcements. **Never publish a preview draft or push a test tag**—there is no dry-run tag path (any non-nightly `v*` tag publishes stable), and published preview tags hide nightlies from the update feed. Rebase onto `main` before dispatching `preview`.
-- **PR macOS previews:** Applying the `preview:mac` label triggers a two-workflow split (`desktop-macos-preview.yml` builds the untrusted JS bundle; `desktop-macos-preview-publish.yml` checks author trust against `main`'s `.github/VOUCHED.td`, packages/signs using `main`, and publishes to rolling `desktop-preview`). One-shot per commit; label is removed automatically.
+Nightly/preview tracks, the `update-feed` release pointer, npm launcher publishing (`t3`), AUR publishing, and EAS / Play Store mirroring are removed.
 
-## Critical release invariants
+## Release artifacts and manifest
 
-- **Server self-update ordering:** Connected servers update to the exact client version by downloading the GitHub Release CLI archive (or `npx t3@<version>`). Keep the release graph order strictly: `release` (CLI archives + `SHA256SUMS` + desktop installers) → `publish_cli` (`t3` npm launcher) → `deploy_web` (hosted channel alias). Never publish clients before the archives and npm launcher exist.
-- **Standalone CLI archives & Node pin:** `engines.node` in root `package.json` must stay exact (Node SEA builds reject mismatches). There is no macOS x64 CLI archive (SEA is unsupported there; x64 desktop uses Electron).
-- **Smoke fixture:** `scripts/fixtures/desktop-launch` is intentionally an old SQLite snapshot to verify forward migrations on packaged builds—never regenerate it on schema changes.
-- **Hosted web & marketing:** Vercel Git auto-deployments stay disabled (`apps/{web,marketing}/vercel.ts`). Hosted builds use `--skip-domain` and only alias configured domains after publication; self-hosted deployments can serve `@t3tools/web` directly from `agent-vela-relay`.
+Each `vX.Y.Z` GitHub Release attaches:
 
-## Update feed
+- **Desktop:** `AgentVela-${version}-arm64.dmg` (unsigned manual installer on macOS), `AgentVela-${version}-x64.AppImage`, `AgentVela-${version}-x64.deb`, `AgentVela-${version}-arm64.AppImage`, `AgentVela-${version}-arm64.deb`, and `AgentVela-${version}-x64.exe` (NSIS with embedded Linux x64 WSL runtime).
+- **Server CLI:** `t3-${version}-darwin-arm64.tar.gz`, `t3-${version}-linux-x64.tar.gz`, `t3-${version}-linux-arm64.tar.gz`, and `t3-${version}-win32-x64.zip`.
+- **Android APK:** `AgentVela-${version}-android-arm64-v8a.apk` with `versionCode = major * 1_000_000 + minor * 1_000 + patch`.
+- **Verification metadata:** `release-manifest.json` and `SHA256SUMS`, generated by `scripts/generate-release-manifest.ts --require-all` after all 11 platform assets land in `release-assets/`.
 
-Nightly installs check `releases.atom` (the 10 newest git tags), then the `update-feed` release's `nightly.json` pointer, then the GitHub API as fallback. **Never delete the `update-feed` release.**
+Clients read `<base>/latest/download/release-manifest.json` without using GitHub API quota and verify SHA-256 checksums before executing or opening installers.
 
-- If `Check the update feed` fails because stray/preview tags pushed the newest nightly out of `releases.atom`, delete the unneeded tags (`git push origin :refs/tags/<tag>`—converting a release to draft keeps its tag).
-- **To pull a bad nightly:** delete its release and tag, run `gh release delete-asset update-feed nightly.json` (so installs fall back until the next tick rewrites it), and move npm's `nightly` dist-tag back with `npm dist-tag add t3@<last-good> nightly`.
+## Platform build invariants
 
-## Self-hosted relay deployment
+- **Standalone CLI archives & Node pin:** `engines.node` in root `package.json` must stay exact because Node single-executable builds reject mismatches. Windows x64 bundles embed `t3-${version}-linux-x64.tar.gz` as the WSL runtime (`scripts/build-desktop-artifact.ts`).
+- **Smoke fixture:** `scripts/fixtures/desktop-launch` stays pinned to an older SQLite snapshot so packaged launch checks verify forward migrations.
+- **Standard runners only:** All workflow jobs run on GitHub-hosted standard runners; do not reintroduce `blacksmith-*` runner labels or `setup-apt-mirrors`.
+- **Self-hosted relay:** `agent-vela-relay` builds from [`apps/relay/`](../../apps/relay/) (see [Self-Hosted Relay Setup](./02_connect-setup.md)).
 
-`agent-vela-relay` ships as source under [`apps/relay/`](../../apps/relay/) with [`Dockerfile`](../../apps/relay/Dockerfile) and [`docker-compose.yml`](../../apps/relay/docker-compose.yml) (which builds `@t3tools/web` and serves it from `apps/web/dist`). Legacy Cloudflare Worker preview/deploy workflows and Clerk public identifiers have been removed. See [Self-Hosted Relay Setup](./02_connect-setup.md) for deployment configuration.
+## Release credentials
 
-## Mobile releases
+### Android APK signing
 
-- **iOS TestFlight / App Store:** Merges to `main` publish compatible OTAs and build TestFlight prereleases (`testflight` profile at `3.0.0`). To cut an App Store build, dispatch **Mobile EAS Production** (`mode=build`, `profile=production`, `platform=ios`, explicit version). Before shipping `3.0.0` to the App Store, advance `build.testflight.env.T3CODE_MOBILE_VERSION` in `apps/mobile/eas.json` to the next unreleased major.
-- **Android APK mirror:** `.github/workflows/mobile-android-apk.yml` polls Google Play Alpha hourly and mirrors new Play-signed universal APKs to `android-beta-<build-number>` prereleases (`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`). Nightlies attach the latest internal-testing APK when available.
+The `build_android_arm64` job (`permissions: contents: read`) decodes secrets only inside its signing step and verifies the APK with `apksigner verify`:
 
-## Windows payload topology and update validation
+- `ANDROID_KEYSTORE_BASE64`: Base64-encoded release keystore.
+- `ANDROID_KEYSTORE_PASSWORD`: Keystore password.
+- `ANDROID_KEY_ALIAS`: Signing key alias.
+- `ANDROID_KEY_PASSWORD`: Signing key password.
 
-Windows packages the bundled server and its unpacked native modules in `resources/server.asar` (+ `server.asar.unpacked`) and embeds the matching-architecture Linux CLI archive as `resources/wsl-runtime.tar.gz` + SHA-256 sidecar (passed via `--wsl-runtime`). Avoid whole-package smart unpacking (keeps unpacked file counts and NSIS differential blockmaps bounded). `scripts/build-desktop-artifact.ts` enforces all structural, native-load, and WSL archive checks at build time.
+### Apple signing and notarization (optional on macOS desktop/CLI)
 
-## One-time credentials setup
-
-### npm OIDC trusted publishing
-
-Configure `t3` on npm with GitHub Actions Trusted Publishing for `.github/workflows/release.yml` (the workflow publishes only the `t3` launcher tarball via `npm publish --provenance`). Set the publisher's environment to `production`, which `publish_cli` declares.
-
-### Apple signing and notarization (macOS)
-
-- **Secrets:** `CSC_LINK` (base64 `.p12`), `CSC_KEY_PASSWORD`, `APPLE_API_KEY` (raw `.p8`), `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `MACOS_PROVISIONING_PROFILE` (base64 profile for `com.t3tools.t3code` with Associated Domains).
+- **Secrets:** `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `MACOS_PROVISIONING_PROFILE`.
 - **Variables:** `APPLE_TEAM_ID`, optional `T3CODE_PASSKEY_RP_DOMAINS`.
-- The packager only enables passkey entitlements (`keychain-access-groups`, `com.apple.developer.web-browser.public-key-credential`) present in the provisioning profile; regenerate and re-upload `MACOS_PROVISIONING_PROFILE` after Apple approves managed capabilities.
+- When Apple credentials are absent on `redwolf2019/AgentVela`, macOS produces an unsigned `AgentVela-${version}-arm64.dmg` (delivered via in-app download + DMG launch without quitting active servers).
 
-### Azure Trusted Signing (Windows)
+### Azure Trusted Signing (optional on Windows)
 
-Set secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT_NAME`, `AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME`, and `AZURE_TRUSTED_SIGNING_PUBLISHER_NAME` with an Entra service principal granted Trusted Signing permissions.
+Set secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT_NAME`, `AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME`, and `AZURE_TRUSTED_SIGNING_PUBLISHER_NAME`.
 
-## Ongoing stable release checklist
+### Release finalization bot
 
-1. Verify the latest nightly (desktop launch, `npm view t3@<version> version`, remote server update + DB migration smoke test).
-2. Dispatch **Release** on `main` with `channel=stable` (leave `version` blank unless overriding the nightly's base version).
-3. Confirm `Resolve release commit` matches the verified nightly, then verify `release` → `publish_cli` → `deploy_web` all succeed.
-4. Smoke-test the published artifacts.
+Set `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` for `finalize` to commit version bumps back to `main`.
+
+## Release checklist
+
+1. Ensure `main` passes CI (`vp check`, `vp run typecheck`, tests).
+2. Push tag `vX.Y.Z` (or dispatch **Release** with canonical semver `X.Y.Z`).
+3. Confirm `preflight`, `quality`, `build_bundle`, all 4 desktop+CLI jobs, `build_android_arm64`, `release`, and `finalize` succeed.
+4. Spot-check `release-manifest.json` and `SHA256SUMS` on the published GitHub Release.

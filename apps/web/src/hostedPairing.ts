@@ -6,7 +6,7 @@ export interface HostedPairingRequest {
   readonly label: string;
 }
 
-export type HostedAppChannel = "latest" | "nightly";
+type HostedAppChannel = "latest" | "nightly";
 
 export function configuredHostedAppUrl(): string | null {
   return import.meta.env.VITE_HOSTED_APP_URL?.trim() || null;
@@ -94,17 +94,4 @@ export function buildHostedPairingUrl(input: {
   }
 
   return setPairingTokenOnUrl(url, input.token).toString();
-}
-
-export function buildHostedChannelSelectionUrl(input: {
-  readonly channel: HostedAppChannel;
-}): string | null {
-  const baseUrl =
-    configuredHostedAppUrl() ?? (typeof window !== "undefined" ? window.location.origin : null);
-  if (!baseUrl) {
-    return null;
-  }
-  const url = new URL("/__t3code/channel", baseUrl);
-  url.searchParams.set("channel", input.channel);
-  return url.toString();
 }

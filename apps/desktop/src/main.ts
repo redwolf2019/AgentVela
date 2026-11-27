@@ -31,7 +31,6 @@ import * as ElectronProtocol from "./electron/ElectronProtocol.ts";
 import * as ElectronSafeStorage from "./electron/ElectronSafeStorage.ts";
 import * as ElectronShell from "./electron/ElectronShell.ts";
 import * as ElectronTheme from "./electron/ElectronTheme.ts";
-import * as ElectronUpdater from "./electron/ElectronUpdater.ts";
 import * as ElectronWindow from "./electron/ElectronWindow.ts";
 import * as DesktopApp from "./app/DesktopApp.ts";
 import * as DesktopAppActivation from "./app/DesktopAppActivation.ts";
@@ -58,6 +57,8 @@ import * as DesktopClientSettings from "./settings/DesktopClientSettings.ts";
 import * as DesktopSavedEnvironments from "./settings/DesktopSavedEnvironments.ts";
 import * as DesktopSnapShot from "./snapShot/DesktopSnapShot.ts";
 import * as DesktopAppSettings from "./settings/DesktopAppSettings.ts";
+import * as DesktopReleaseClient from "./updates/DesktopReleaseClient.ts";
+import * as DesktopReleaseInstaller from "./updates/DesktopReleaseInstaller.ts";
 import * as DesktopPreReadyFileSystem from "./app/DesktopPreReadyFileSystem.ts";
 import * as DesktopPreReadyPlatform from "./app/DesktopPreReadyPlatform.ts";
 import * as DesktopShellEnvironment from "./shell/DesktopShellEnvironment.ts";
@@ -117,10 +118,16 @@ const layerDesktopSshEnvironment = Layer.unwrap(
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
     const env = yield* HostProcess.Environment;
     const updatePolicy = yield* DesktopUpdatePolicy.DesktopUpdatePolicy;
+    const appSettings = yield* DesktopAppSettings.DesktopAppSettings;
     return DesktopSshEnvironment.layer({
       // Per connect: the login shell's environment is installed after this layer is built.
-      resolveCliRunner: Effect.sync(() =>
-        DesktopSshEnvironment.resolveDesktopSshCliRunner(environment, env, { updatePolicy }),
+      resolveCliRunner: appSettings.get.pipe(
+        Effect.map((settings) =>
+          DesktopSshEnvironment.resolveDesktopSshCliRunner(environment, env, {
+            updatePolicy,
+            userMirrorUrl: settings.updateMirrorUrl,
+          }),
+        ),
       ),
       resolveLauncherId: yield* Effect.cached(
         DesktopSshEnvironment.readOrCreateLauncherId(
@@ -144,7 +151,6 @@ const layerElectron = Layer.mergeAll(
   ElectronSafeStorage.layer,
   ElectronShell.layer,
   ElectronTheme.layer,
-  ElectronUpdater.layer,
   ElectronWindow.layer,
   DesktopIpc.layer(Electron.ipcMain).pipe(Layer.provide(ElectronWindow.layer)),
 );
@@ -225,7 +231,13 @@ const layerDesktopApplication = Layer.mergeAll(
   DesktopCliCommand.layer,
 ).pipe(
   Layer.provideMerge(layerDesktopSnapShot),
-  Layer.provideMerge(DesktopUpdates.layer.pipe(Layer.provide(layerDesktopUpdatePolicy))),
+  Layer.provideMerge(
+    DesktopUpdates.layer.pipe(
+      Layer.provide(layerDesktopUpdatePolicy),
+      Layer.provide(DesktopReleaseClient.layer),
+      Layer.provide(DesktopReleaseInstaller.layer.pipe(Layer.provide(DesktopReleaseClient.layer))),
+    ),
+  ),
   // Updates closes the same tunnels the SSH IPC opens before quitAndInstall.
   Layer.provideMerge(layerDesktopSsh),
   Layer.provideMerge(layerDesktopWslBackend),

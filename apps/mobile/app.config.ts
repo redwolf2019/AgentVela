@@ -1,7 +1,9 @@
+import { computeAndroidVersionCode, isStableReleaseVersion } from "@t3tools/shared/releaseManifest";
 import type { ExpoConfig } from "expo/config";
 
 import { BRAND_ASSET_PATHS } from "../../scripts/lib/brand-assets.ts";
 import { loadRepoEnv } from "../../scripts/lib/public-config.ts";
+import mobilePackageJson from "./package.json" with { type: "json" };
 
 type AppVariant = "development" | "preview" | "production";
 
@@ -113,13 +115,10 @@ const hostedAppUrl = resolveHostedAppOrigin(
   repoEnv.EXPO_PUBLIC_HOSTED_APP_URL ?? repoEnv.T3CODE_HOSTED_APP_URL,
 );
 const hostedAppHost = hostedAppUrl ? new URL(hostedAppUrl).host : null;
-const easProjectId = repoEnv.T3CODE_MOBILE_EAS_PROJECT_ID?.trim() || undefined;
-const easOwner = repoEnv.T3CODE_MOBILE_EAS_OWNER?.trim() || undefined;
-const mobileUpdatesUrl =
-  repoEnv.T3CODE_MOBILE_UPDATES_URL?.trim() ||
-  (easProjectId ? `https://u.expo.dev/${easProjectId}` : undefined);
-const mobileUpdatesEnabled =
-  repoEnv.T3CODE_MOBILE_UPDATES_ENABLED === "1" && Boolean(mobileUpdatesUrl);
+const appVersion = repoEnv.T3CODE_MOBILE_VERSION?.trim() || mobilePackageJson.version;
+const androidVersionCode = isStableReleaseVersion(appVersion)
+  ? computeAndroidVersionCode(appVersion)
+  : 1;
 
 function resolveHostedAppOrigin(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -202,7 +201,7 @@ const config: ExpoConfig = {
   slug: "t3-code",
   platforms: ["ios", "android"],
   scheme: variant.scheme,
-  version: repoEnv.T3CODE_MOBILE_VERSION ?? "2.3.0",
+  version: appVersion,
   runtimeVersion: {
     // Skip costly fingerprinting on dev launches; preview and production OTAs require matching native projects.
     policy: runtimeVersionPolicy,
@@ -210,19 +209,11 @@ const config: ExpoConfig = {
   orientation: "portrait",
   icon: variant.assets.appIcon,
   userInterfaceStyle: "automatic",
-  updates:
-    mobileUpdatesEnabled && mobileUpdatesUrl
-      ? {
-          enabled: true,
-          url: mobileUpdatesUrl,
-          checkAutomatically: "ON_LOAD",
-          fallbackToCacheTimeout: 0,
-        }
-      : {
-          enabled: false,
-          checkAutomatically: "NEVER",
-          fallbackToCacheTimeout: 0,
-        },
+  updates: {
+    enabled: false,
+    checkAutomatically: "NEVER",
+    fallbackToCacheTimeout: 0,
+  },
   ios: {
     icon: variant.assets.iosIcon,
     supportsTablet: true,
@@ -267,6 +258,7 @@ const config: ExpoConfig = {
   android: {
     icon: variant.assets.appIcon,
     package: variant.androidPackage,
+    versionCode: androidVersionCode,
     ...(repoEnv.T3CODE_ANDROID_GOOGLE_SERVICES_FILE
       ? { googleServicesFile: repoEnv.T3CODE_ANDROID_GOOGLE_SERVICES_FILE }
       : {}),
@@ -429,6 +421,8 @@ const config: ExpoConfig = {
     // Mods run in reverse order; expo-widgets must create and wipe the target before assets are added.
     ...(!isIosPersonalTeamBuild ? ["./plugins/withWidgetLogoAsset.cjs", widgetsPlugin] : []),
     "./plugins/withAndroidNetworkSecurityConfig.cjs",
+    "./plugins/withAndroidInstallPackagesPermission.cjs",
+    "./plugins/withAndroidReleaseSigning.cjs",
     "./plugins/withAndroidGradleHeap.cjs",
     "./plugins/withAndroidInputBackground.cjs",
     "./plugins/withAndroidModernPopupMenu.cjs",
@@ -446,9 +440,7 @@ const config: ExpoConfig = {
     relay: {
       url: repoEnv.T3CODE_RELAY_URL ?? null,
     },
-    ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
   },
-  ...(easOwner ? { owner: easOwner } : {}),
   experiments: {
     // Metro only runs babel-plugin-react-compiler when this is set; see src/reactCompilerCoverage.test.ts.
     reactCompiler: true,

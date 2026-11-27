@@ -90,7 +90,8 @@ export type DesktopUpdateStatus =
 
 export type DesktopRuntimeArch = "arm64" | "x64" | "other";
 export type DesktopTheme = "light" | "dark" | "system";
-export type DesktopUpdateChannel = "latest" | "nightly";
+export type DesktopInstallMode = "appimage" | "deb" | "nsis" | "dmg";
+export type DesktopUpdateMechanism = "self-update" | "manual-installer";
 export type DesktopAppStageLabel = "Alpha" | "Beta" | "Dev" | "Nightly";
 
 export const DesktopUpdateStatusSchema = Schema.Literals([
@@ -105,7 +106,8 @@ export const DesktopUpdateStatusSchema = Schema.Literals([
 ]);
 export const DesktopRuntimeArchSchema = Schema.Literals(["arm64", "x64", "other"]);
 export const DesktopThemeSchema = Schema.Literals(["light", "dark", "system"]);
-export const DesktopUpdateChannelSchema = Schema.Literals(["latest", "nightly"]);
+export const DesktopInstallModeSchema = Schema.Literals(["appimage", "deb", "nsis", "dmg"]);
+export const DesktopUpdateMechanismSchema = Schema.Literals(["self-update", "manual-installer"]);
 export const DesktopAppStageLabelSchema = Schema.Literals(["Alpha", "Beta", "Dev", "Nightly"]);
 
 export interface DesktopAppBranding {
@@ -280,7 +282,6 @@ export interface DesktopRuntimeInfo {
 export interface DesktopUpdateState {
   enabled: boolean;
   status: DesktopUpdateStatus;
-  channel: DesktopUpdateChannel;
   currentVersion: string;
   hostArch: DesktopRuntimeArch;
   appArch: DesktopRuntimeArch;
@@ -295,17 +296,16 @@ export interface DesktopUpdateState {
   errorContext: "check" | "download" | "install" | null;
   canRetry: boolean;
   notAppliedVersion?: string;
-  /** Off only because a managed policy rules out this channel; switching channels turns it on. */
-  channelBlockedByPolicy?: true;
-  /** The check failed only because this build's track differs from the saved `channel`. */
-  trackMismatch?: { readonly buildChannel: DesktopUpdateChannel };
+  installMode?: DesktopInstallMode;
+  mechanism?: DesktopUpdateMechanism;
+  mirrorUrl?: string | null;
+  effectiveReleaseBaseUrl?: string | null;
 }
 
 export interface DesktopUpdateReleaseNote {
   version: string;
   items: ReadonlyArray<string>;
   totalItems: number;
-  /** ISO time from the update feed for the offered version, else `YYYY-MM-DD` from a prerelease version. */
   releasedAt?: string;
   /** Paragraph-style summaries from older releases keep their fixes in `items`. */
   intro?: string;
@@ -327,7 +327,6 @@ export const DesktopUpdateReleaseNoteSchema = Schema.Struct({
 export const DesktopUpdateStateSchema = Schema.Struct({
   enabled: Schema.Boolean,
   status: DesktopUpdateStatusSchema,
-  channel: DesktopUpdateChannelSchema,
   currentVersion: Schema.String,
   hostArch: DesktopRuntimeArchSchema,
   appArch: DesktopRuntimeArchSchema,
@@ -342,8 +341,10 @@ export const DesktopUpdateStateSchema = Schema.Struct({
   errorContext: Schema.NullOr(Schema.Literals(["check", "download", "install"])),
   canRetry: Schema.Boolean,
   notAppliedVersion: Schema.optionalKey(Schema.String),
-  channelBlockedByPolicy: Schema.optionalKey(Schema.Literal(true)),
-  trackMismatch: Schema.optionalKey(Schema.Struct({ buildChannel: DesktopUpdateChannelSchema })),
+  installMode: Schema.optionalKey(DesktopInstallModeSchema),
+  mechanism: Schema.optionalKey(DesktopUpdateMechanismSchema),
+  mirrorUrl: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  effectiveReleaseBaseUrl: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 
 export const DesktopCliCommandStateSchema = Schema.Struct({
@@ -1219,11 +1220,7 @@ export interface DesktopBridge {
   onWindowFullscreenStateChange: (listener: (fullscreen: boolean) => void) => () => void;
   getWindowZoomFactor: () => number;
   getUpdateState: () => Promise<DesktopUpdateState>;
-  /** `minimumVersion` is a track switch's checked release; nothing older is offered after. */
-  setUpdateChannel: (
-    channel: DesktopUpdateChannel,
-    minimumVersion?: string,
-  ) => Promise<DesktopUpdateState>;
+  setUpdateMirrorUrl: (mirrorUrl: string | null) => Promise<DesktopUpdateState>;
   checkForUpdate: () => Promise<DesktopUpdateCheckResult>;
   downloadUpdate: () => Promise<DesktopUpdateActionResult>;
   /** With a version, installs only that downloaded build. */

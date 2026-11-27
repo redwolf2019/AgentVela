@@ -1031,3 +1031,25 @@ describe("resolveSpeechPostProcessingModelSelection", () => {
     ).toBeNull();
   });
 });
+
+describe("updateMirrorUrl settings", () => {
+  it("defaults to null, accepts validated mirror URLs, and resets to null", () => {
+    expect(DEFAULT_SERVER_SETTINGS.updateMirrorUrl).toBeNull();
+    const updated = applyServerSettingsPatch(
+      DEFAULT_SERVER_SETTINGS,
+      decodeServerSettingsPatch({ updateMirrorUrl: "https://mirror.example.com/releases" }),
+    );
+    expect(updated.updateMirrorUrl).toBe("https://mirror.example.com/releases");
+    const reset = applyServerSettingsPatch(
+      updated,
+      decodeServerSettingsPatch({ updateMirrorUrl: null }),
+    );
+    expect(reset.updateMirrorUrl).toBeNull();
+    expect(() =>
+      decodeServerSettingsPatch({ updateMirrorUrl: "http://insecure.example.com/releases" }),
+    ).toThrow();
+    expect(() =>
+      decodeServerSettings({ updateMirrorUrl: "http://127.0.0.1:8787/releases" }),
+    ).not.toThrow();
+  });
+});

@@ -171,7 +171,6 @@ function summarizeLimits(
       : {
           updates: {
             mode: updates.mode,
-            ...(updates.allowNightly === undefined ? {} : { allowNightly: updates.allowNightly }),
           },
         }),
   };

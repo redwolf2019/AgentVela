@@ -9,7 +9,6 @@ import { managedUpdatesDenial } from "@t3tools/client-runtime/contract-labels";
 import type { AsyncResult } from "effect/reactivity";
 import { environmentSession } from "~/state/session";
 import type {
-  DesktopUpdateChannel,
   EnvironmentId,
   ServerInstallation,
   ServerSelfUpdateCapability,
@@ -32,14 +31,13 @@ import { m, type MessageResolver } from "../i18n/messages";
 import { requestConfirmDialog } from "~/confirmDialog";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { serverEnvironment, updateOutdatedServer } from "~/state/server";
+import { environmentPresentations } from "~/state/presentation";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useServerConfigs } from "~/state/entities";
 import { useManagedPolicy } from "~/state/managedPolicy";
-import { environmentPresentations } from "~/state/presentation";
 import { ManagedControl } from "./ManagedPolicy";
 import { manualServerUpdateCommand } from "~/versionSkew";
-import { crossesReleaseTrack } from "@t3tools/shared/cliRelease";
 import { Button } from "./ui/button";
 import { toastManager } from "./ui/toast";
 import { SharedTooltipTrigger } from "./ui/shared-tooltip";
@@ -67,31 +65,6 @@ function readUpdatesDenial(environmentId: EnvironmentId): string | undefined {
   );
 }
 
-/** Hosts refuse a Stable/Nightly crossing outside a track switch, which checks the database first. */
-function refusedCrossing(
-  target: {
-    readonly selfUpdate: ServerSelfUpdateCapability | null;
-    readonly targetVersion: string;
-    readonly channel?: DesktopUpdateChannel | undefined;
-  },
-  serverVersion: string | undefined,
-): boolean {
-  return (
-    target.channel === undefined &&
-    target.selfUpdate !== null &&
-    serverVersion !== undefined &&
-    crossesReleaseTrack(serverVersion, target.targetVersion)
-  );
-}
-
-function CrossTrackNote() {
-  return (
-    <span className="text-muted-foreground text-xs">
-      <T>Switch tracks in About → Update track</T>
-    </span>
-  );
-}
-
 function updateFailureMessage(error: unknown): string {
   return thrownErrorMessage(error, m) ?? m(msg("Server update failed."));
 }
@@ -103,12 +76,6 @@ export interface ServerUpdateTarget {
   readonly installation?: ServerInstallation | undefined;
   readonly desktopAppUpdate?: boolean;
   readonly targetVersion: string;
-  /** Set only by a track switch; the host's desktop app moves to this track. */
-  readonly channel?: DesktopUpdateChannel;
-  /** A track switch's checked release migration; the host re-checks its own database. */
-  readonly targetDatabaseMigration?: number;
-  /** The host already runs its track's newest build and only saves the track. */
-  readonly trackOnly?: boolean;
 }
 
 type UpdateButtonProps = Pick<ComponentProps<typeof Button>, "variant" | "size" | "className"> & {
@@ -149,10 +116,6 @@ export function useServerUpdate() {
       environmentId,
       input: {
         targetVersion,
-        ...(target.channel === undefined ? {} : { channel: target.channel }),
-        ...(target.targetDatabaseMigration === undefined
-          ? {}
-          : { targetDatabaseMigration: target.targetDatabaseMigration }),
       },
     });
     pendingUpdateEnvironmentIds.delete(environmentId);
@@ -206,8 +169,7 @@ export function ServerUpdatesAction({
       target.selfUpdate !== null &&
       (target.selfUpdate !== "desktop-managed" || target.desktopAppUpdate) &&
       managedUpdatesDenial(serverConfigs.get(target.environmentId)?.managedPolicy, messages) ===
-        undefined &&
-      !refusedCrossing(target, serverConfigs.get(target.environmentId)?.environment.serverVersion),
+        undefined,
   );
   const handleUpdate = async () => {
     if (pending.current) return;
@@ -289,7 +251,6 @@ export function ServerUpdateAction({
   installation,
   desktopAppUpdate = false,
   targetVersion,
-  channel,
   label,
   variant = "outline",
   size = "xs",
@@ -299,7 +260,6 @@ export function ServerUpdateAction({
   const gt = useGT();
   const messages = useMessages();
   const isDesktopAppUpdate = selfUpdate === "desktop-managed";
-  const serverVersion = useServerConfigs().get(environmentId)?.environment.serverVersion;
   const sessionStateAtom = environmentSession.sessionStateAtom(environmentId);
   const canUpdate = useAtomValue(sessionStateAtom, canUpdateServer);
   const updatesDenial = managedUpdatesDenial(useManagedPolicy(environmentId), messages);
@@ -392,10 +352,6 @@ export function ServerUpdateAction({
     );
   }
 
-  if (refusedCrossing({ selfUpdate, targetVersion, channel }, serverVersion)) {
-    return <CrossTrackNote />;
-  }
-
   const manualCommand =
     selfUpdate === null ? manualServerUpdateCommand(targetVersion, installation) : null;
   const actionLabel =
@@ -482,9 +438,6 @@ export function OutdatedServerUpdateAction({
       description: m(msg("Reconnected on t3@{version}.", { version: result.value.targetVersion })),
     });
   };
-  if (fromVersion !== undefined && crossesReleaseTrack(fromVersion, targetVersion)) {
-    return <CrossTrackNote />;
-  }
   return (
     <Button size="xs" variant="outline" onClick={() => void handleUpdate()}>
       {label ?? gt("Update", { $context: "verb, updates the server" })}

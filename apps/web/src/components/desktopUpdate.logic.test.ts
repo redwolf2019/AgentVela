@@ -14,7 +14,6 @@ import {
 const baseState: DesktopUpdateState = {
   enabled: true,
   status: "idle",
-  channel: "latest",
   currentVersion: "1.0.0",
   hostArch: "x64",
   appArch: "x64",
@@ -114,18 +113,24 @@ describe("desktop update button state", () => {
     expect(listeners.size).toBe(0);
   });
 
-  it("never calls a build on the other track up to date", () => {
-    // A Stable build whose switch to Nightly did not finish; the updater discards every release.
+  it("uses manual-installer copy for DMG downloads", () => {
     const state: DesktopUpdateState = {
       ...baseState,
-      status: "up-to-date",
-      channel: "nightly",
-      currentVersion: "0.1.5",
-      checkedAt: "2026-11-18T00:00:00.000Z",
+      status: "downloaded",
+      mechanism: "manual-installer",
+      installMode: "dmg",
+      availableVersion: "1.1.0",
+      downloadedVersion: "1.1.0",
     };
-    expect(getDesktopUpdateButtonTooltip(state)).not.toBe("Up to date");
+    expect(getDesktopUpdateButtonTooltip(state)).toBe(
+      "Update 1.1.0 downloaded. Click to open installer.",
+    );
     expect(
-      getDesktopUpdateButtonTooltip({ ...state, currentVersion: "0.1.6-nightly.20261118.1" }),
+      getDesktopUpdateButtonTooltip({
+        ...baseState,
+        status: "up-to-date",
+        checkedAt: "2026-11-18T00:00:00.000Z",
+      }),
     ).toBe("Up to date");
   });
 

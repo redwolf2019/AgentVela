@@ -85,6 +85,7 @@ export const resolveDesktopSshCliRunner = (
   env: NodeJS.ProcessEnv,
   options?: {
     readonly updatePolicy?: Pick<DesktopUpdatePolicy.UpdatePolicy, "mode" | "feedUrl" | "message">;
+    readonly userMirrorUrl?: string | null;
   },
 ): SshTunnel.RemoteT3RunnerOptions => {
   const devRemoteEntryPath = Option.getOrUndefined(environment.devRemoteT3ServerEntryPath);
@@ -104,7 +105,10 @@ export const resolveDesktopSshCliRunner = (
     };
   }
   const releaseBaseUrl =
-    options?.updatePolicy?.feedUrl?.trim() || env[CLI_RELEASE_BASE_URL_ENV]?.trim() || undefined;
+    options?.updatePolicy?.feedUrl?.trim() ||
+    env[CLI_RELEASE_BASE_URL_ENV]?.trim() ||
+    options?.userMirrorUrl?.trim() ||
+    undefined;
   return {
     archiveVersion: environment.appVersion,
     ...(releaseBaseUrl === undefined ? {} : { releaseBaseUrl }),

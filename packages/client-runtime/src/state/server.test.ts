@@ -65,14 +65,12 @@ import {
   resolveServerUpdateProgressResult,
   serverUpdateStateForProgressEvent,
   serverUpdateStateAtom,
-  serverUpdateFailureText,
   serverUpdateStateForServerVersion,
   validateServerUpdateReadyEvent,
   waitForNextEnvironmentReconnect,
   waitForDesktopUpdateTarget,
   runDesktopCommitWithReconnectObserver,
 } from "./server.ts";
-import { errorDisplayMessage, errorI18nMessage } from "../errors/translatable.ts";
 import { runAtomCommand } from "./runtime.ts";
 import { applyServerConfigProjection } from "./serverConfigProjection.ts";
 
@@ -240,8 +238,6 @@ describe("accepted server update recovery", () => {
     { loss: "interrupt", resumes: true },
     { loss: "socket", resumes: true },
     { loss: "server_error", resumes: false },
-    { loss: "track_mismatch", method: "desktop-managed", resumes: false },
-    { loss: "track_mismatch", method: "desktop-managed", unary: true, resumes: false },
     { loss: "no_progress", resumes: false },
     { loss: "cancel", resumes: false },
     { loss: "socket", method: "respawn", resumes: true },
@@ -250,11 +246,6 @@ describe("accepted server update recovery", () => {
     Effect.gen(function* () {
       const { loss, resumes } = scenario;
       const method = "method" in scenario ? scenario.method : "boot-service";
-      const trackMismatch = new ServerSelfUpdateError({
-        reason:
-          "This Stable build can't update from the Nightly track on its own. Switch the update track back to Stable, or use Review beside Update track to retry the switch to Nightly.",
-        trackMismatch: { buildChannel: "latest", savedChannel: "nightly" },
-      });
       const observing = yield* Deferred.make<void>();
       const cancelFiber = yield* Deferred.make<Fiber.Fiber<unknown, unknown>>();
       const oldReadyObserved = yield* Deferred.make<void>();
@@ -294,7 +285,8 @@ describe("accepted server update recovery", () => {
                 ),
               )
             : Stream.make(ready("0.0.30")).pipe(Stream.concat(Stream.never)),
-        [WS_METHODS.serverUpdateServer]: () => Effect.fail(trackMismatch),
+        [WS_METHODS.serverUpdateServer]: () =>
+          Effect.fail(new ServerSelfUpdateError({ reason: "Server update failed." })),
         [WS_METHODS.serverUpdateServerWithProgress]: () =>
           Stream.unwrap(
             Effect.sync(() => {
@@ -318,11 +310,9 @@ describe("accepted server update recovery", () => {
                           ? new ServerSelfUpdateError({
                               reason: "Archive verification failed.",
                             })
-                          : loss === "track_mismatch"
-                            ? trackMismatch
-                            : new RpcClientError.RpcClientError({
-                                reason: new Socket.SocketCloseError({ code: 1006 }),
-                              }),
+                          : new RpcClientError.RpcClientError({
+                              reason: new Socket.SocketCloseError({ code: 1006 }),
+                            }),
                       ),
               ),
             ),
@@ -395,18 +385,6 @@ describe("accepted server update recovery", () => {
         expect(AsyncResult.isFailure(failure)).toBe(true);
         const failed = registry.get(serverUpdateStateAtom(TARGET.environmentId));
         expect(failed).toMatchObject({ status: "failed" });
-        if (
-          loss === "track_mismatch" &&
-          AsyncResult.isFailure(failure) &&
-          failed.status === "failed"
-        ) {
-          const cause = Cause.squash(failure.cause);
-          const marked = errorI18nMessage(cause);
-          expect(marked).toHaveLength(2);
-          expect(failed.i18nMessage).toEqual(marked);
-          expect(errorDisplayMessage(cause)).toBe(trackMismatch.message);
-          expect(serverUpdateFailureText(failed)).toBe(trackMismatch.message);
-        }
         return;
       }
       expect(first).toBe("observing");

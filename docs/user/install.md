@@ -6,7 +6,18 @@ AgentVela runs coding agents on your computer and lets you control them from its
 
 You need an installed, authenticated provider CLI before starting a thread, or you can launch AgentVela first and configure providers afterwards.
 
-Prebuilt installers and binary packages are not published yet; build and run AgentVela from source using [Vite+](https://viteplus.dev/guide/) (`vp`), which manages the pinned Node.js version from `package.json`.
+Prebuilt releases are published on [`redwolf2019/AgentVela` GitHub Releases](https://github.com/redwolf2019/AgentVela/releases/latest) for Desktop (macOS arm64 DMG, Linux x64/arm64 AppImage & `.deb`, Windows x64 NSIS), Server CLI archives, and Android (`arm64-v8a` APK).
+
+## Install prebuilt binaries
+
+### CLI & background service (`t3`)
+
+```bash
+curl -fsSL https://github.com/redwolf2019/AgentVela/releases/latest/download/install.sh | sh
+# Windows PowerShell: irm https://github.com/redwolf2019/AgentVela/releases/latest/download/install.ps1 | iex
+```
+
+Both installers verify `SHA256SUMS` against `release-manifest.json` before installing `t3`, and honor `T3CODE_RELEASE_BASE_URL` for custom mirrors.
 
 ## Build from source
 
@@ -69,7 +80,7 @@ Drag one or more folders from Finder, Explorer, or your file manager onto the si
 
 The React Native mobile client connects to an AgentVela server over LAN, Tailscale, or a [self-hosted relay](./remote-access.md).
 
-Because prebuilt store releases are not published yet, build and launch the mobile app from source using Expo Dev Client—see [apps/mobile/README.md](../../apps/mobile/README.md) for iOS and Android build steps.
+Install the signed Android APK (`AgentVela-<version>-android-arm64-v8a.apk`) from [`redwolf2019/AgentVela` GitHub Releases](https://github.com/redwolf2019/AgentVela/releases/latest) and update in-app via **Settings → About → Updates** (or build iOS/Android from source using [apps/mobile/README.md](../../apps/mobile/README.md)).
 
 If the app crashes during launch, open **Settings → Diagnostics** on the next launch that succeeds. It lists startup crashes from the last 7 days with the error and component stack. Copy the report and paste it into a GitHub issue after redacting any local paths or secrets.
 

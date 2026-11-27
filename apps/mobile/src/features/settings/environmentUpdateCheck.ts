@@ -31,18 +31,27 @@ const asError = (cause: unknown) =>
     cause,
   });
 
+export type EnvironmentReleaseCheckInput =
+  | string
+  | {
+      readonly version: string;
+      readonly userMirrorUrl?: string | null;
+    };
+
 /**
- * Looks up the newest T3 Code release for one environment. The atom is not
+ * Looks up the newest AgentVela release for one environment. The atom is not
  * kept alive, so leaving the screen interrupts the lookup and aborts its fetch.
- * The argument reads the server version, which an outdated server only
- * reports through a separate description request.
+ * The argument reads the server version (and optional mirror override), which an
+ * outdated server only reports through a separate description request.
  */
 export const environmentReleaseCheckAtom = Atom.family((environmentId: EnvironmentId) =>
-  Atom.fn((readServerVersion: () => Promise<string>) =>
+  Atom.fn((readServerVersion: () => Promise<EnvironmentReleaseCheckInput>) =>
     Effect.gen(function* () {
-      const fromVersion = yield* Effect.tryPromise({ try: readServerVersion, catch: asError });
+      const resolved = yield* Effect.tryPromise({ try: readServerVersion, catch: asError });
+      const fromVersion = typeof resolved === "string" ? resolved : resolved.version;
+      const userMirrorUrl = typeof resolved === "string" ? undefined : resolved.userMirrorUrl;
       const targetVersion = yield* Effect.tryPromise({
-        try: (signal) => findEnvironmentUpdate(fromVersion, signal),
+        try: (signal) => findEnvironmentUpdate(fromVersion, signal, { userMirrorUrl }),
         catch: asError,
       }).pipe(
         Effect.timeoutOrElse({

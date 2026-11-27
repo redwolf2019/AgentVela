@@ -1,14 +1,11 @@
-import { desktopTrackMismatchText } from "@t3tools/client-runtime/state/server";
 import type {
   DesktopBridge,
   DesktopUpdateActionResult,
   DesktopUpdateState,
 } from "@t3tools/contracts";
-import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
 import { msg } from "gt-react";
 
 import { m, type MessageResolver } from "../i18n/messages";
-import { channelSwitchLabel } from "./sidebar/updateEverything.logic";
 
 export type DesktopUpdateButtonAction = "download" | "install" | "none";
 
@@ -29,6 +26,12 @@ function desktopReleaseRepositoryUrl(repository: string | undefined): string {
       ? configuredRepository
       : DEFAULT_DESKTOP_RELEASE_REPOSITORY;
   return `https://github.com/${releaseRepository}/releases`;
+}
+
+export function isDesktopManualInstaller(
+  state: Pick<DesktopUpdateState, "mechanism"> | null | undefined,
+): boolean {
+  return state?.mechanism === "manual-installer";
 }
 
 /** The download RPC can beat the updater's downloadedVersion event; fall back to the requested version. */
@@ -98,11 +101,17 @@ export function getArm64IntelBuildWarningDescription(
     );
   }
   if (action === "install") {
-    return resolve(
-      msg(
-        "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. Restart to install the downloaded Apple Silicon build.",
-      ),
-    );
+    return isDesktopManualInstaller(state)
+      ? resolve(
+          msg(
+            "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. Open the downloaded Apple Silicon installer to replace it.",
+          ),
+        )
+      : resolve(
+          msg(
+            "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. Restart to install the downloaded Apple Silicon build.",
+          ),
+        );
   }
   return resolve(
     msg(
@@ -115,6 +124,7 @@ export function getDesktopUpdateButtonTooltip(
   state: DesktopUpdateState,
   resolve: MessageResolver = m,
 ): string {
+  const manualInstaller = isDesktopManualInstaller(state);
   if (
     state.notAppliedVersion !== undefined &&
     (state.status === "available" || state.status === "downloaded") &&
@@ -152,6 +162,11 @@ export function getDesktopUpdateButtonTooltip(
       );
     }
     const version = state.downloadedVersion ?? state.availableVersion;
+    if (manualInstaller) {
+      return version === null
+        ? resolve(msg("Update downloaded. Click to open installer."))
+        : resolve(msg("Update {version} downloaded. Click to open installer.", { version }));
+    }
     return version === null
       ? resolve(msg("Update ready downloaded. Click to restart and install."))
       : resolve(msg("Update {version} downloaded. Click to restart and install.", { version }));
@@ -163,43 +178,42 @@ export function getDesktopUpdateButtonTooltip(
       );
     }
     if (state.downloadedVersion) {
-      return resolve(
-        msg("Update {version} downloaded. Click to restart and install.", {
-          version: state.downloadedVersion,
-        }),
-      );
-    }
-    if (state.trackMismatch !== undefined) {
-      return resolve(
-        desktopTrackMismatchText({
-          buildChannel: state.trackMismatch.buildChannel,
-          savedChannel: state.channel,
-        }),
-      );
+      return manualInstaller
+        ? resolve(
+            msg("Update {version} downloaded. Click to open installer.", {
+              version: state.downloadedVersion,
+            }),
+          )
+        : resolve(
+            msg("Update {version} downloaded. Click to restart and install.", {
+              version: state.downloadedVersion,
+            }),
+          );
     }
     return state.message ?? resolve(msg("Update failed"));
-  }
-  // The updater discards every release of the other track, so "up to date" would be false here.
-  const buildChannel = desktopUpdateChannelOf(state.currentVersion);
-  if (state.status === "up-to-date" && buildChannel !== state.channel) {
-    return resolve(
-      msg(
-        "This {build} build ignores {track} releases. Review the update track in Settings to finish the switch.",
-        {
-          build: channelSwitchLabel(buildChannel, resolve),
-          track: channelSwitchLabel(state.channel, resolve),
-        },
-      ),
-    );
   }
   return resolve(msg("Up to date"));
 }
 
 export function getDesktopUpdateInstallConfirmationMessage(
-  state: Pick<DesktopUpdateState, "availableVersion" | "downloadedVersion">,
+  state: Pick<DesktopUpdateState, "availableVersion" | "downloadedVersion" | "mechanism">,
   resolve: MessageResolver = m,
 ): string {
   const version = state.downloadedVersion ?? state.availableVersion;
+  if (isDesktopManualInstaller(state)) {
+    return version
+      ? resolve(
+          msg(
+            "Open the downloaded installer for {version}?\n\nDrag AgentVela into Applications to complete the update.",
+            { version },
+          ),
+        )
+      : resolve(
+          msg(
+            "Open the downloaded installer?\n\nDrag AgentVela into Applications to complete the update.",
+          ),
+        );
+  }
   return version
     ? resolve(
         msg(
@@ -223,7 +237,8 @@ export function getDesktopUpdateActionError(result: DesktopUpdateActionResult): 
 
 /**
  * macOS can refuse the restart after installUpdate resolves; the desktop then reports it as a
- * later state with errorContext "install". Success quits the app, so this never resolves then.
+ * later state with errorContext "install". Self-update quits the app on success; manual DMG
+ * installers resolve immediately with completed: true.
  */
 export async function installDesktopUpdate(
   bridge: Pick<DesktopBridge, "installUpdate" | "onUpdateState">,

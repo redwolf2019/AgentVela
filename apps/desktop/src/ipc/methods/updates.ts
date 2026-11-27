@@ -1,6 +1,5 @@
 import {
   DesktopUpdateActionResultSchema,
-  DesktopUpdateChannelSchema,
   DesktopUpdateCheckResultSchema,
   DesktopUpdateStateSchema,
 } from "@t3tools/contracts";
@@ -21,16 +20,13 @@ export const getUpdateState = DesktopIpc.makeIpcMethod({
   }),
 });
 
-export const setUpdateChannel = DesktopIpc.makeIpcMethod({
-  channel: IpcChannels.UPDATE_SET_CHANNEL_CHANNEL,
-  payload: Schema.Struct({
-    channel: DesktopUpdateChannelSchema,
-    minimumVersion: Schema.optional(Schema.String),
-  }),
+export const setUpdateMirrorUrl = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.UPDATE_SET_MIRROR_URL_CHANNEL,
+  payload: Schema.NullOr(Schema.String),
   result: DesktopUpdateStateSchema,
-  handler: Effect.fn("desktop.ipc.updates.setChannel")(function* ({ channel, minimumVersion }) {
+  handler: Effect.fn("desktop.ipc.updates.setMirrorUrl")(function* (mirrorUrl) {
     const updates = yield* DesktopUpdates.DesktopUpdates;
-    return yield* updates.setChannel(channel, { minimumVersion });
+    return yield* updates.setMirrorUrl(mirrorUrl);
   }),
 });
 

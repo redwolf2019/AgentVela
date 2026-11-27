@@ -95,4 +95,21 @@ describe("resolveDesktopSshCliRunner", () => {
       });
     }),
   );
+
+  it.effect("falls back to saved user mirror URL when policy and env are absent", () =>
+    Effect.gen(function* () {
+      const environment = yield* packagedEnvironment;
+
+      const runner = resolveDesktopSshCliRunner(
+        environment,
+        {},
+        { userMirrorUrl: "https://user-mirror.example.com/releases" },
+      );
+
+      assert.deepStrictEqual(runner, {
+        archiveVersion: "0.0.22",
+        releaseBaseUrl: "https://user-mirror.example.com/releases",
+      });
+    }),
+  );
 });

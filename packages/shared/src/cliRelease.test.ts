@@ -2,10 +2,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   CLI_RELEASES_PAGE_URL,
+  cliArchivePlatformKey,
   cliArchiveTarCommand,
+  cliReleaseAssetUrl,
   cliReleaseDownloadBaseUrl,
-  cliReleaseIndexPageUrl,
-  newestCliReleaseVersion,
   parseChecksums,
 } from "./cliRelease.ts";
 
@@ -32,28 +32,25 @@ describe("cliRelease", () => {
     expect(cliArchiveTarCommand("win32", {})).toBe("C:\\Windows\\System32\\tar.exe");
   });
 
-  it("picks the newest non-draft release on the requested channel", () => {
-    const releases = [
-      { tag_name: "v1.2.4-preview.20260912.9", draft: true },
-      { tag_name: "v1.2.4-preview.20260912.8" },
-      { tag_name: "v1.2.4-nightly.20260912.7" },
-      { tag_name: "desktop-preview" },
-      { tag_name: "v1.2.3" },
-      { tag_name: "v1.2.3-nightly.20260911.2" },
-    ];
-    expect(newestCliReleaseVersion(releases, "preview")).toBe("1.2.4-preview.20260912.8");
-    expect(newestCliReleaseVersion(releases, "nightly")).toBe("1.2.4-nightly.20260912.7");
-    expect(newestCliReleaseVersion(releases, "stable")).toBe("1.2.3");
-    expect(newestCliReleaseVersion([{ tag_name: "v1.2.3" }], "preview")).toBeUndefined();
+  it("maps supported archive platform keys", () => {
+    expect(cliArchivePlatformKey("darwin", "arm64")).toBe("darwin-arm64");
+    expect(cliArchivePlatformKey("linux", "x64")).toBe("linux-x64");
+    expect(cliArchivePlatformKey("linux", "arm64")).toBe("linux-arm64");
+    expect(cliArchivePlatformKey("win32", "x64")).toBe("win32-x64");
+    expect(cliArchivePlatformKey("win32", "arm64")).toBeUndefined();
+    expect(cliArchivePlatformKey("darwin", "x64")).toBeUndefined();
   });
 
-  it("defaults release URLs to redwolf2019/AgentVela", () => {
+  it("defaults release URLs to redwolf2019/AgentVela and normalizes /releases bases", () => {
     expect(CLI_RELEASES_PAGE_URL).toBe("https://github.com/redwolf2019/AgentVela/releases");
     expect(cliReleaseDownloadBaseUrl("1.2.3")).toBe(
       "https://github.com/redwolf2019/AgentVela/releases/download/v1.2.3",
     );
-    expect(cliReleaseIndexPageUrl(2)).toBe(
-      "https://api.github.com/repos/redwolf2019/AgentVela/releases?per_page=100&page=2",
+    expect(cliReleaseDownloadBaseUrl("1.2.3", "https://mirror.example.com/releases")).toBe(
+      "https://mirror.example.com/releases/download/v1.2.3",
     );
+    expect(
+      cliReleaseAssetUrl("1.2.3", "SHA256SUMS", "https://updates.example.com/t3code/?token=abc"),
+    ).toBe("https://updates.example.com/t3code/v1.2.3/SHA256SUMS?token=abc");
   });
 });

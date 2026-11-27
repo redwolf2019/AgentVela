@@ -23,6 +23,7 @@ import {
   getDesktopUpdateIdleTooltip,
   getDesktopUpdateInstallConfirmationMessage,
   installDesktopUpdate,
+  isDesktopManualInstaller,
   isDesktopUpdateButtonDisabled,
   resolveDesktopUpdateButtonAction,
   shouldShowArm64IntelBuildWarning,
@@ -171,7 +172,7 @@ export async function downloadLocalUpdate(
   }
 }
 
-export async function installLocalUpdate(
+async function installLocalUpdate(
   bridge: DesktopBridge,
   reportError: ReportLocalUpdateError = toastUpdateError,
   expectedVersion?: string,
@@ -237,9 +238,10 @@ function SidebarUpdateControl() {
 
   const action = state ? resolveDesktopUpdateButtonAction(state) : "none";
   const isDownloading = state?.status === "downloading";
+  const manualInstaller = isDesktopManualInstaller(state);
   const localUpdateVersion =
     state && action !== "none" ? getDesktopUpdateDownloadedVersion(state) : null;
-  const everything = useUpdateEverything(localUpdateVersion);
+  const everything = useUpdateEverything(localUpdateVersion, { manualInstaller });
   const checkProviderUpdates = useCheckProviderUpdates();
   const runsEverything = everything.hasUpdates && !isDownloading;
   const run = useUpdateEverythingRun();
@@ -334,7 +336,19 @@ function SidebarUpdateControl() {
         setIsActionPending(false);
         return;
       }
-      void installLocalUpdate(bridge).finally(() => setIsActionPending(false));
+      void installLocalUpdate(bridge)
+        .then((opened) => {
+          if (opened && manualInstaller) {
+            toastManager.add(
+              stackedThreadToast({
+                type: "success",
+                title: gt("Installer opened"),
+                description: gt("Drag AgentVela into Applications to complete the update."),
+              }),
+            );
+          }
+        })
+        .finally(() => setIsActionPending(false));
       return;
     }
 

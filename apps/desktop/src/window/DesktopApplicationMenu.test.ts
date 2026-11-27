@@ -85,7 +85,7 @@ const layerDesktopUpdates = ({ checkResult }: MenuServices) =>
     emitState: Effect.void,
     disabledReason: Effect.succeedNone,
     configure: Effect.void,
-    setChannel: () => Effect.die("unexpected setChannel"),
+    setMirrorUrl: () => Effect.die("unexpected setMirrorUrl"),
     check: () => (checkResult ? Effect.succeed(checkResult) : Effect.die("unexpected check")),
     download: Effect.die("unexpected download"),
     install: Effect.die("unexpected install"),
@@ -172,11 +172,11 @@ const checkForUpdatesFromMacMenu = (state: Partial<DesktopUpdateState>) =>
         checkResult: {
           checked: true,
           state: {
-            ...createInitialDesktopUpdateState(
-              "0.1.5",
-              { hostArch: "arm64", appArch: "arm64", runningUnderArm64Translation: false },
-              "latest",
-            ),
+            ...createInitialDesktopUpdateState("0.1.5", {
+              hostArch: "arm64",
+              appArch: "arm64",
+              runningUnderArm64Translation: false,
+            }),
             enabled: true,
             ...state,
           },

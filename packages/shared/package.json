@@ -87,6 +87,10 @@
       "types": "./src/releaseResource.ts",
       "import": "./src/releaseResource.ts"
     },
+    "./releaseManifest": {
+      "types": "./src/releaseManifest.ts",
+      "import": "./src/releaseManifest.ts"
+    },
     "./observability": {
       "types": "./src/observability.ts",
       "import": "./src/observability.ts"

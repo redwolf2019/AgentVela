@@ -5,6 +5,7 @@ import { ArrowRightIcon } from "lucide-react";
 import {
   getDesktopUpdateDownloadedVersion,
   getDesktopUpdateReleaseUrl,
+  isDesktopManualInstaller,
 } from "./desktopUpdate.logic";
 import { m } from "../i18n/messages";
 import { toastManager } from "./ui/toast";
@@ -56,7 +57,11 @@ export function showDesktopUpdateDownloadedToast(
     title: m(msg("Update downloaded")),
     description: (
       <>
-        <T>Restart the app from the update button to install it.</T>
+        {isDesktopManualInstaller(state) ? (
+          <T>Open the installer from the update button and drag AgentVela to Applications.</T>
+        ) : (
+          <T>Restart the app from the update button to install it.</T>
+        )}
         {releaseUrl ? <ReleaseNotesLink releaseUrl={releaseUrl} shell={shell} /> : null}
       </>
     ),

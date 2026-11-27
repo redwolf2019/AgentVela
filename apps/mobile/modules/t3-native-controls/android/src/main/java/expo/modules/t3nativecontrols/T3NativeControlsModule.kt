@@ -25,6 +25,8 @@ class T3NativeControlsModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("T3NativeControls")
 
+    Events("onApkDownloadProgress")
+
     // React Native sets this once, at launch, from the system theme rather than the app's.
     AsyncFunction("setNavigationBarStyle") { light: Boolean ->
       // Below Android 10, React Native paints the navigation bar color itself.
@@ -117,6 +119,31 @@ class T3NativeControlsModule : Module() {
         ?.resolve("t3-showcase-ready")
         ?.writeText(scene)
     }
+
+    Function("canRequestPackageInstalls") {
+      val context = appContext.reactContext ?: error("The app is not active.")
+      T3ApkUpdater.canRequestPackageInstalls(context)
+    }
+
+    AsyncFunction("openInstallUnknownAppsSettings") {
+      val context = appContext.reactContext ?: error("The app is not active.")
+      T3ApkUpdater.openInstallUnknownAppsSettings(context)
+    }.runOnQueue(Queues.MAIN)
+
+    AsyncFunction("downloadAndVerifyApk") { url: String, fileName: String, expectedSha256: String ->
+      val context = appContext.reactContext ?: error("The app is not active.")
+      T3ApkUpdater.downloadAndVerifyApk(context, url, fileName, expectedSha256) { downloaded, total ->
+        sendEvent(
+          "onApkDownloadProgress",
+          mapOf("downloadedBytes" to downloaded, "totalBytes" to total),
+        )
+      }
+    }
+
+    AsyncFunction("installApk") { filePath: String ->
+      val context = appContext.reactContext ?: error("The app is not active.")
+      T3ApkUpdater.installApk(context, filePath)
+    }.runOnQueue(Queues.MAIN)
   }
 }
 

@@ -1368,6 +1368,27 @@ export const CloudSpeechCredentials = Schema.Struct({
   openrouter: CloudSpeechCredential,
 });
 
+export const ServerUpdateMirrorUrl = TrimmedNonEmptyString.check(
+  Schema.makeFilter(
+    (value) => {
+      try {
+        const parsed = new URL(value);
+        return (
+          parsed.protocol === "https:" ||
+          (parsed.protocol === "http:" &&
+            (parsed.hostname === "localhost" ||
+              parsed.hostname === "127.0.0.1" ||
+              parsed.hostname === "::1" ||
+              parsed.hostname === "[::1]"))
+        );
+      } catch {
+        return false;
+      }
+    },
+    { expected: "an https:// URL (or http://localhost)" },
+  ),
+);
+
 export const ServerSettings = Schema.Struct({
   // Null means unmigrated; empty is authoritative and must not resurrect cleared preferences.
   favorites: Schema.NullOr(ModelFavorites).pipe(Schema.withDecodingDefault(Effect.succeed(null))),
@@ -1394,6 +1415,9 @@ export const ServerSettings = Schema.Struct({
   ),
   continueThreadsAfterServerUpdate: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(true)),
+  ),
+  updateMirrorUrl: Schema.NullOr(ServerUpdateMirrorUrl).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null)),
   ),
   /** Holds an OS sleep inhibitor while any run is active; closing a laptop lid still sleeps it. */
   keepAwakeWhileAgentsWork: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
@@ -1848,6 +1872,7 @@ export const ServerSettingsPatch = Schema.Struct({
   responseStreamingMode: Schema.optionalKey(ResponseStreamingMode),
   enableProviderUpdateChecks: Schema.optionalKey(Schema.Boolean),
   continueThreadsAfterServerUpdate: Schema.optionalKey(Schema.Boolean),
+  updateMirrorUrl: Schema.optionalKey(Schema.NullOr(ServerUpdateMirrorUrl)),
   keepAwakeWhileAgentsWork: Schema.optionalKey(Schema.Boolean),
   requireConnectDeviceApproval: Schema.optionalKey(Schema.Boolean),
   enableAgentBrowserAccess: Schema.optionalKey(Schema.Boolean),

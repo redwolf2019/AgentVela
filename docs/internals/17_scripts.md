@@ -18,8 +18,8 @@ Repository and package scripts are written in TypeScript with Effect and `effect
   }
   ```
 
-- **References:** [`scripts/build-npm-launcher.ts`](../../scripts/build-npm-launcher.ts) and [`scripts/resolve-nightly-release.ts`](../../scripts/resolve-nightly-release.ts).
+- **References:** [`scripts/generate-release-manifest.ts`](../../scripts/generate-release-manifest.ts) and [`scripts/update-release-package-versions.ts`](../../scripts/update-release-package-versions.ts).
 
 ## Exceptions
 
-Thin bootstrap shims that run before dependencies exist (such as `scripts/install.sh` / `scripts/install.ps1` and the zero-dependency `scripts/npm-launcher/t3.mjs`) and e2e test files under `scripts/scenarios/` (which run under the `e2e` runner) do not use `effect/cli`.
+Thin bootstrap shims that run before dependencies exist (such as `scripts/install.sh` / `scripts/install.ps1`) and e2e test files under `scripts/scenarios/` (which run under the `e2e` runner) do not use `effect/cli`.

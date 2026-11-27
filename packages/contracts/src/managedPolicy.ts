@@ -55,10 +55,8 @@ const HttpsUrl = TrimmedNonEmptyString.check(
 
 export const ManagedUpdatesPolicy = Schema.Struct({
   mode: ManagedUpdatesMode,
-  /** A generic electron-updater feed the desktop app updates from instead of GitHub. */
+  /** Custom HTTPS release base URL for self-hosted/air-gapped mirrors instead of GitHub Releases. */
   feedUrl: Schema.optionalKey(HttpsUrl),
-  /** `false` makes the nightly channel unavailable. */
-  allowNightly: Schema.optionalKey(Schema.Boolean),
 });
 export type ManagedUpdatesPolicy = typeof ManagedUpdatesPolicy.Type;
 
@@ -150,11 +148,6 @@ export type ManagedPolicySummary = typeof ManagedPolicySummary.Type;
 /** The message every surface shows when the policy stops an update. */
 export function managedUpdatesMessage(organization: string): string {
   return `${organization} manages T3 Code updates.`;
-}
-
-/** The message when the policy allows only stable releases. */
-export function managedNightlyDeniedMessage(organization: string): string {
-  return `${managedUpdatesMessage(organization)} Only stable releases can be installed.`;
 }
 
 /** Whether `path` is locked itself, sits inside a locked setting, or contains one. */

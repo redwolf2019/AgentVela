@@ -36,6 +36,7 @@ const layerDesktopClerk = (
   }),
   shell: ElectronShell.ElectronShell["Service"] = {
     openExternal: () => Effect.succeed(true),
+    openPath: () => Effect.succeed(""),
     openSystemSettings: () => Effect.succeed(false),
     copyText: () => Effect.void,
   },
@@ -342,6 +343,7 @@ it.effect.each(["startup", "open-url", "early-second-instance"] as const)(
             return true;
           }),
         openSystemSettings: () => Effect.succeed(false),
+        openPath: () => Effect.succeed(""),
         copyText: () => Effect.void,
       });
       const listeners = new Map<string, (...args: unknown[]) => void>();

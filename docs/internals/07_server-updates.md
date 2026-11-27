@@ -1,5 +1,16 @@
 # Server updates
 
+## Release monitoring & mirror resolution
+
+[`ServerReleaseMonitor`](../../apps/server/src/cloud/serverReleaseMonitor.ts) checks `<base>/latest/download/release-manifest.json` 15 seconds after server startup and every 4 hours thereafter (skipping dev builds, `T3CODE_DISABLE_AUTO_UPDATE=1`, or `ManagedPolicy.limits.updates.mode === "off"`). Manual checks via `server.checkForUpdate` share the same single-flight lock and respect the same fail-closed mirror precedence:
+
+1. `ManagedPolicy.limits.updates.feedUrl`
+2. `T3CODE_RELEASE_BASE_URL`
+3. User setting `updateMirrorUrl` (`ServerSettings`)
+4. Default `https://github.com/redwolf2019/AgentVela/releases`
+
+Server, CLI (`t3 update`), installer scripts, Desktop, and Android all consume the unified `stable` track (`release-manifest.json` schema v1, canonical semver `X.Y.Z`) and verify SHA-256 checksums against `release-manifest.json` / `SHA256SUMS` before installing.
+
 ## Launcher ownership and compatibility
 
 A [stable launcher](../../apps/server/src/serviceLauncher.ts) owns the runtime selected by systemd,
@@ -12,7 +23,7 @@ lags behind after a launcher-protocol bump. Keep new server runtimes compatible 
 launcher protocol unless impossible, and validate protocol compatibility during preflight.
 
 Installations use exact versions and stage/preflight before publishing an immutable runtime so
-restarts never depend on npm cache eviction or a moving tag.
+restarts never depend on a moving tag.
 
 ## Commit boundary and database rollback
 

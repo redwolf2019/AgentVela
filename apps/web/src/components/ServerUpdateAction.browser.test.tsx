@@ -224,17 +224,4 @@ describe("ServerUpdatesAction", () => {
     );
     expect(button(screen, "Update all")!.disabled).toBe(false);
   });
-
-  it("skips a machine whose update would cross Stable and Nightly", async () => {
-    using _state = setup();
-    testState.serverVersions.set("batch-a", "0.0.30-nightly.20261001.1");
-    testState.updateServer.mockResolvedValue(success());
-    await using screen = await mount();
-    await click(screen, "Update all");
-
-    expect(testState.updateServer).toHaveBeenCalledTimes(1);
-    expect(testState.toast).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "success", title: "Office updated" }),
-    );
-  });
 });

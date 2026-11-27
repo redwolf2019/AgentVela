@@ -185,6 +185,7 @@ export interface Preferences {
   readonly workspaceSelections?: WorkspaceSelections;
   readonly pullRequestSavedViews?: ReadonlyArray<PullRequestSavedView>;
   readonly issueSavedViews?: ReadonlyArray<IssueSavedView>;
+  readonly updateMirrorUrl?: string | null;
 }
 
 export class MobilePreferencesLoadError extends Schema.TaggedError<MobilePreferencesLoadError>()(
@@ -273,6 +274,7 @@ function sanitizePreferences(parsed: Preferences): Preferences {
     workspaceSelections?: WorkspaceSelections;
     pullRequestSavedViews?: ReadonlyArray<PullRequestSavedView>;
     issueSavedViews?: ReadonlyArray<IssueSavedView>;
+    updateMirrorUrl?: string | null;
   } = {};
 
   if (Array.isArray(parsed.hiddenNavigationTabs)) {
@@ -447,6 +449,9 @@ function sanitizePreferences(parsed: Preferences): Preferences {
   }
   if (Array.isArray(parsed.issueSavedViews)) {
     preferences.issueSavedViews = parsed.issueSavedViews.filter(isIssueSavedView);
+  }
+  if (typeof parsed.updateMirrorUrl === "string" || parsed.updateMirrorUrl === null) {
+    preferences.updateMirrorUrl = parsed.updateMirrorUrl;
   }
   return preferences;
 }

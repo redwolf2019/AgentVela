@@ -78,6 +78,28 @@ describe("applyServerConfigProjection settingsUpdated", () => {
     } as ServerConfigStreamEvent);
     expect(Option.getOrThrow(next).config).toBe(Option.getOrThrow(current).config);
   });
+
+  it("updates config.updateState when updateStateUpdated arrives", () => {
+    const current = Option.some({
+      config: { settings: DEFAULT_SERVER_SETTINGS } as unknown as ServerConfig,
+      latestEvent: {} as ServerConfigStreamEvent,
+      source: "live" as const,
+    });
+    const updateState = {
+      enabled: true,
+      status: "available" as const,
+      currentVersion: "0.1.11",
+      latestVersion: "0.1.12",
+      checkedAt: "2026-11-27T00:00:00.000Z",
+      canSelfUpdate: true,
+    };
+    const next = applyServerConfigProjection(current, {
+      version: 1,
+      type: "updateStateUpdated",
+      payload: { updateState },
+    });
+    expect(Option.getOrThrow(next).config.updateState).toEqual(updateState);
+  });
 });
 
 describe("applyServerConfigProjection provider catalogs", () => {

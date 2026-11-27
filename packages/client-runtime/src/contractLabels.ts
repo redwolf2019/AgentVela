@@ -75,18 +75,6 @@ export function managedUpdatesMessage(
 }
 
 /** @public */
-export function managedNightlyDeniedMessage(
-  organization: string,
-  resolve: MFunctionType = mFallback,
-): string {
-  return resolve(
-    msg("{organization} manages T3 Code updates. Only stable releases can be installed.", {
-      organization,
-    }),
-  );
-}
-
-/** @public */
 export function managedUpdatesDenial(
   summary: ManagedPolicySummary | undefined,
   resolve: MFunctionType = mFallback,

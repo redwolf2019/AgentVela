@@ -2,23 +2,41 @@
 # Installs the T3 Code CLI from a GitHub Release archive. Needs only sh, tar,
 # sha256sum or shasum, and curl or wget; no Node, npm, or compiler.
 #
-#   curl -fsSL https://t3.codes/install.sh | sh
+#   curl -fsSL https://github.com/redwolf2019/AgentVela/releases/latest/download/install.sh | sh
 #
 # Environment:
-#   T3CODE_CHANNEL           release train to follow: stable, nightly, or preview
-#                            (default: stable; preview is a maintainers' test train)
-#   T3CODE_VERSION           exact version to install (overrides T3CODE_CHANNEL)
+#   T3CODE_VERSION           exact stable X.Y.Z version to install (default: latest release)
 #   T3CODE_HOME              T3 home directory (default: ~/.t3)
 #   T3CODE_INSTALL_BIN_DIR   where the `t3` command goes (default: ~/.local/bin)
-#   T3CODE_RELEASE_BASE_URL  mirror for releases/download (default: GitHub)
+#   T3CODE_RELEASE_BASE_URL  mirror for releases or downloads (default: GitHub)
 #
 # The archive is unpacked into $T3CODE_HOME/runtime/versions/<version>, the
 # same layout `t3 service install` uses, so the service reuses this download
 # instead of fetching the release again.
 set -eu
 
-repo="pingdotgg/t3code"
-base_url="${T3CODE_RELEASE_BASE_URL:-https://github.com/${repo}/releases/download}"
+repo="redwolf2019/AgentVela"
+raw_base="${T3CODE_RELEASE_BASE_URL:-https://github.com/${repo}/releases}"
+while [ "${raw_base%/}" != "$raw_base" ] && [ "$raw_base" != / ]; do raw_base="${raw_base%/}"; done
+case "$raw_base" in
+  off | OFF | false | FALSE)
+    printf '\nt3 install: downloads are disabled by T3CODE_RELEASE_BASE_URL=%s\n' "$raw_base" >&2
+    exit 1
+    ;;
+  */releases/download)
+    releases_base="${raw_base%/download}"
+    download_base="$raw_base"
+    ;;
+  */releases)
+    releases_base="$raw_base"
+    download_base="${raw_base}/download"
+    ;;
+  *)
+    releases_base="$raw_base"
+    download_base="$raw_base"
+    ;;
+esac
+
 t3_home="${T3CODE_HOME:-$HOME/.t3}"
 case "$t3_home" in
   /*) ;;
@@ -163,7 +181,7 @@ download() {
 case "$(uname -s)" in
   Darwin) platform="darwin" ;;
   Linux) platform="linux" ;;
-  *) fail "unsupported operating system $(uname -s); use the desktop app or npm" ;;
+  *) fail "unsupported operating system $(uname -s); use the desktop app or source build" ;;
 esac
 case "$(uname -m)" in
   arm64 | aarch64) arch="arm64" ;;
@@ -171,7 +189,7 @@ case "$(uname -m)" in
   *) fail "unsupported architecture $(uname -m)" ;;
 esac
 if [ "${platform}-${arch}" = darwin-x64 ]; then
-  fail "there is no t3 CLI for Intel Macs. Install the desktop app from https://t3.codes/download, or run a server from source: https://github.com/${repo}/blob/main/docs/user/install.md#intel-macs"
+  fail "there is no t3 CLI for Intel Macs. Install the desktop app, or run a server from source: https://github.com/${repo}/blob/main/docs/user/install.md#intel-macs"
 fi
 command -v tar >/dev/null 2>&1 || fail "tar is required"
 if command -v sha256sum >/dev/null 2>&1; then
@@ -182,44 +200,39 @@ else
   fail "sha256sum or shasum is required"
 fi
 
-channel="${T3CODE_CHANNEL:-stable}"
-version="${T3CODE_VERSION:-}"
-if [ -z "$version" ]; then
-  case "$channel" in
-    stable) tag_pattern='v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)' ;;
-    nightly | preview) tag_pattern="v\([0-9][^\"]*-${channel}\.[0-9]*\.[0-9]*\)" ;;
-    *) fail "T3CODE_CHANNEL must be stable, nightly, or preview" ;;
+is_stable_semver() {
+  case "$1" in
+    '' | *[!0-9.]*) return 1 ;;
   esac
-  tmp_index="$(mktemp)"
-  if [ "$channel" = stable ]; then
-    # release.yml marks only plain stable releases latest. This is a github.com
-    # page, so it is not cut off by a page of newer nightlies or the API quota.
-    fetch "https://github.com/${repo}/releases/latest" "$tmp_index" application/json
-    version="$(sed -n "s/.*\"tag_name\": *\"${tag_pattern}\".*/\1/p" "$tmp_index" | head -n 1)"
-  else
-    page=1
-    while [ -z "$version" ] && [ "$page" -le 10 ]; do
-      fetch "https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}" "$tmp_index"
-      version="$(sed -n "s/.*\"tag_name\": *\"${tag_pattern}\".*/\1/p" "$tmp_index" | head -n 1)"
-      grep -q '"tag_name"' "$tmp_index" || break
-      page=$((page + 1))
-    done
+  old_ifs="$IFS"
+  IFS='.'
+  set -- $1
+  IFS="$old_ifs"
+  [ $# -eq 3 ] && [ -n "$1" ] && [ -n "$2" ] && [ -n "$3" ]
+}
+
+extract_manifest_version() {
+  tr '\r\n' '  ' < "$1" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -n 1
+}
+
+version="${T3CODE_VERSION:-}"
+if [ -n "$version" ]; then
+  is_stable_semver "$version" || fail "T3CODE_VERSION must be a stable X.Y.Z version"
+else
+  tmp_manifest="$(mktemp)"
+  manifest_url="${releases_base}/latest/download/release-manifest.json"
+  manifest_status=0
+  fetch "$manifest_url" "$tmp_manifest" application/json || manifest_status=$?
+  if [ "$manifest_status" -ne 0 ] && [ "$releases_base" = "$download_base" ]; then
+    manifest_status=0
+    fetch "${raw_base}/release-manifest.json" "$tmp_manifest" application/json || manifest_status=$?
   fi
-  rm -f "$tmp_index"
-  [ -n "$version" ] || fail "could not find a ${channel} release; set T3CODE_VERSION"
+  if [ "$manifest_status" -eq 0 ]; then
+    version="$(extract_manifest_version "$tmp_manifest")"
+  fi
+  rm -f "$tmp_manifest"
+  [ -n "$version" ] && is_stable_semver "$version" || fail "could not resolve a valid release-manifest.json; set T3CODE_VERSION"
 fi
-case "$version" in
-  *-preview.*)
-    printf '%s\n' \
-      "t3 ${version} is a preview build." \
-      "  Preview builds are cut by maintainers from unreleased branches to exercise the release" \
-      "  pipeline. They can be broken, receive no fixes, and are never offered as updates." \
-      "  Set T3CODE_CHANNEL=stable (the default) for a supported build." >&2
-    if [ "$channel" != "preview" ] && [ -z "${T3CODE_VERSION:-}" ]; then
-      fail "refusing a preview build that was not explicitly requested"
-    fi
-    ;;
-esac
 
 stem="t3-${version}-${platform}-${arch}"
 archive="${stem}.tar.gz"
@@ -240,15 +253,15 @@ else
   printf '  %sInstalling%s T3 Code %s%s%s\n\n' "$muted" "$reset" "$bold" "$version" "$reset" >&2
   step "Downloading..."
   fetch_status=0
-  fetch "${base_url}/v${version}/SHA256SUMS" "${staging}/SHA256SUMS" || fetch_status=$?
+  fetch "${download_base}/v${version}/SHA256SUMS" "${staging}/SHA256SUMS" || fetch_status=$?
   if [ "$fetch_status" -eq 44 ]; then
-    fail "t3 ${version} has no release archive for ${platform}-${arch}; releases before the self-contained CLI can only be installed with \`npm install -g t3@${version}\`"
+    fail "t3 ${version} has no release checksums (HTTP 404)"
   elif [ "$fetch_status" -ne 0 ]; then
     fail "could not download the release checksums"
   fi
   expected="$(grep " \*\{0,1\}${archive}\$" "${staging}/SHA256SUMS" | cut -d' ' -f1)"
   [ -n "$expected" ] || fail "t3 ${version} has no release archive for ${platform}-${arch}"
-  download "${base_url}/v${version}/${archive}" "${staging}/${archive}" || fail "could not download ${archive}"
+  download "${download_base}/v${version}/${archive}" "${staging}/${archive}" || fail "could not download ${archive}"
 
   step "Verifying the download..."
   actual="$(checksum "${staging}/${archive}")"

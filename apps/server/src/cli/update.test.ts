@@ -28,12 +28,7 @@ import {
 } from "../cloud/pinnedRuntime.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as ProcessRunner from "../processRunner.ts";
-import {
-  repointLauncher,
-  resolveMirrorVersion,
-  resolveNewestVersion,
-  runUpdate,
-} from "./update.ts";
+import { repointLauncher, resolveLatestReleaseVersion, runUpdate } from "./update.ts";
 
 // lsof listing one process, so prune sees a process list in which no runtime is running.
 const unrelatedLsof = ProcessRunner.ProcessRunner.of({
@@ -52,81 +47,68 @@ const unrelatedLsof = ProcessRunner.ProcessRunner.of({
 
 afterEach(() => vi.restoreAllMocks());
 
-it.effect("authenticates each release page until the requested channel is found", () =>
-  Effect.gen(function* () {
-    const pages: string[] = [];
-    const httpClient = HttpClient.make((request) => {
-      const url = new URL(request.url);
-      assert.equal(url.origin, "https://api.github.com");
-      assert.equal(url.pathname, "/repos/pingdotgg/t3code/releases");
-      assert.equal(request.headers.accept, "application/vnd.github+json");
-      assert.equal(request.headers.authorization, "Bearer gh-token");
-      const page = url.searchParams.get("page") ?? "";
-      pages.push(page);
-      const tag_name = page === "1" ? "v1.2.4-preview.20260101.1" : "v1.2.3";
-      return Effect.succeed(HttpClientResponse.fromWeb(request, Response.json([{ tag_name }])));
-    });
-    const version = yield* resolveNewestVersion("stable").pipe(
-      Effect.provideService(HostProcess.Environment, { GH_TOKEN: "gh-token" }),
-      Effect.provideService(HttpClient.HttpClient, httpClient),
-    );
-    assert.equal(version, "1.2.3");
-    assert.deepStrictEqual(pages, ["1", "2"]);
-  }),
-);
+const sampleManifest = (version: string) => ({
+  schemaVersion: 1,
+  version,
+  tag: `v${version}`,
+  publishedAt: "2026-11-27T00:00:00.000Z",
+  androidVersionCode: 1_000_000,
+  desktop: {},
+  cli: {},
+  android: {},
+});
 
-it.effect("reads the newest version from the update feed file a mirror publishes", () =>
+it.effect("resolves the latest stable version from release-manifest.json and mirror fallback", () =>
   Effect.gen(function* () {
     const requested: string[] = [];
-    const mirror = {
-      organization: "Example Corp",
-      feedUrl: "https://updates.example.com/t3code/?token=abc",
-    };
-    const resolve = (
-      channel: "stable" | "nightly" | "preview",
-      platform: NodeJS.Platform,
-      arch: string,
-      feed: string,
+    const resolveFrom = (
+      baseUrl: string,
+      organization: string | undefined,
+      respond: (url: string) => Response,
     ) =>
-      resolveMirrorVersion(mirror, channel).pipe(
-        Effect.map((version): string => version),
+      resolveLatestReleaseVersion(baseUrl, organization).pipe(
         Effect.catchTags({ CliUpdateError: (error) => Effect.succeed(`error: ${error.reason}`) }),
-        Effect.provideService(HostProcess.Platform, platform),
-        Effect.provideService(HostProcess.Architecture, arch),
         Effect.provideService(
           HttpClient.HttpClient,
           HttpClient.make((request) => {
             requested.push(request.url);
-            return Effect.succeed(HttpClientResponse.fromWeb(request, new Response(feed)));
+            return Effect.succeed(HttpClientResponse.fromWeb(request, respond(request.url)));
           }),
         ),
       );
 
     assert.equal(
-      yield* resolve("stable", "darwin", "arm64", "version: 1.4.0\nfiles: []\n"),
+      yield* resolveFrom("https://github.com/redwolf2019/AgentVela/releases", undefined, () =>
+        Response.json(sampleManifest("1.4.0")),
+      ),
       "1.4.0",
     );
     assert.equal(
-      yield* resolve("nightly", "linux", "arm64", "version: '1.5.0-nightly.20261101.2'\n"),
-      "1.5.0-nightly.20261101.2",
+      yield* resolveFrom("https://updates.example.com/t3code/?token=abc", "Example Corp", (url) =>
+        url.includes("/latest/download/release-manifest.json")
+          ? new Response("", { status: 404 })
+          : Response.json(sampleManifest("1.5.0")),
+      ),
+      "1.5.0",
     );
     assert.deepStrictEqual(requested, [
-      "https://updates.example.com/t3code/latest-mac.yml?token=abc",
-      "https://updates.example.com/t3code/nightly-linux-arm64.yml?token=abc",
+      "https://github.com/redwolf2019/AgentVela/releases/latest/download/release-manifest.json",
+      "https://updates.example.com/t3code/latest/download/release-manifest.json?token=abc",
+      "https://updates.example.com/t3code/release-manifest.json?token=abc",
     ]);
-    // A feed for the wrong track is not trusted to mean the requested one.
     assert.include(
-      yield* resolve("stable", "win32", "x64", "version: 1.5.0-nightly.20261101.2\n"),
-      "Could not read latest.yml from Example Corp's update mirror.",
+      yield* resolveFrom("https://updates.example.com/t3code/", "Example Corp", () =>
+        Response.json({ version: "1.5.0-nightly.20261101.2" }),
+      ),
+      "Could not read release-manifest.json from Example Corp's update mirror.",
     );
-    assert.include(yield* resolve("preview", "win32", "x64", ""), "has no preview builds");
   }),
 );
 
 it.layer(NodeServices.layer)("t3 update under a managed policy", (it) => {
   const runWithPolicy = (
     updates: ManagedUpdatesPolicy,
-    input: { readonly channel?: "stable" | "nightly"; readonly requestedVersion?: string } = {},
+    input: { readonly requestedVersion?: string } = {},
     httpClient = HttpClient.make(() => Effect.die("unexpected release lookup")),
   ) =>
     runUpdate({
@@ -134,7 +116,6 @@ it.layer(NodeServices.layer)("t3 update under a managed policy", (it) => {
       logsDir: "/unused",
       databasePath: "/unused",
       serverRuntimeStatePath: "/unused",
-      channel: input.channel,
       requestedVersion: input.requestedVersion,
       allowDowngrade: false,
       assumeYes: true,
@@ -162,22 +143,13 @@ it.layer(NodeServices.layer)("t3 update under a managed policy", (it) => {
     }),
   );
 
-  it.effect("refuses nightly releases when the policy disallows them", () =>
+  it.effect("refuses non-stable prerelease versions", () =>
     Effect.gen(function* () {
-      const byChannel = yield* runWithPolicy(
-        { mode: "auto", allowNightly: false },
-        { channel: "nightly" },
+      const error = yield* runWithPolicy(
+        { mode: "auto" },
+        { requestedVersion: "1.2.0-nightly.20261028.1" },
       );
-      const byVersion = yield* runWithPolicy(
-        { mode: "auto", allowNightly: false },
-        { channel: "stable", requestedVersion: "1.2.0-nightly.20261028.1" },
-      );
-      for (const error of [byChannel, byVersion]) {
-        assert.equal(
-          error.message,
-          "Example Corp manages T3 Code updates. Only stable releases can be installed.",
-        );
-      }
+      assert.include(error.message, "Only stable X.Y.Z t3 releases are supported");
     }),
   );
 
@@ -186,7 +158,7 @@ it.layer(NodeServices.layer)("t3 update under a managed policy", (it) => {
       const requested: string[] = [];
       const error = yield* runWithPolicy(
         { mode: "auto", feedUrl: "https://updates.example.com/t3code" },
-        { channel: "stable" },
+        {},
         HttpClient.make((request) => {
           requested.push(new URL(request.url).origin);
           return Effect.succeed(
@@ -195,7 +167,10 @@ it.layer(NodeServices.layer)("t3 update under a managed policy", (it) => {
         }),
       );
       assert.include(error.message, "from Example Corp's update mirror");
-      assert.deepStrictEqual(requested, ["https://updates.example.com"]);
+      assert.deepStrictEqual(requested, [
+        "https://updates.example.com",
+        "https://updates.example.com",
+      ]);
     }),
   );
 });
@@ -612,7 +587,6 @@ it.layer(NodeServices.layer)("t3 update with a background service", (it) => {
         logsDir: baseDir,
         databasePath: path.join(baseDir, "statev2.sqlite"),
         serverRuntimeStatePath: path.join(baseDir, "server-runtime.json"),
-        channel: undefined,
         requestedVersion: version,
         allowDowngrade: false,
         assumeYes: false,
@@ -736,7 +710,6 @@ it.layer(NodeServices.layer)("t3 update checks the database before switching", (
         logsDir: baseDir,
         databasePath,
         serverRuntimeStatePath: path.join(baseDir, "server-runtime.json"),
-        channel: undefined,
         requestedVersion: targetVersion,
         allowDowngrade: true,
         assumeYes: true,

@@ -18,7 +18,6 @@ function makeState(overrides: Partial<DesktopUpdateState> = {}): DesktopUpdateSt
   return {
     enabled: true,
     status: "idle",
-    channel: "latest",
     currentVersion: "1.2.3",
     hostArch: "arm64",
     appArch: "arm64",
@@ -159,24 +158,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("desktop app upda
     }),
   );
 
-  it.effect("succeeds without an install when a track switch finds the host current", () =>
-    Effect.gen(function* () {
-      const { service } = yield* makeHarness({
-        reports: (requestId) => [
-          report(requestId, makeState({ status: "up-to-date", currentVersion: "1.2.3" }), {
-            outcome: "up-to-date",
-          }),
-        ],
-      });
-      const trackSwitch = { channel: "latest" as const, targetVersion: "1.2.3" };
-
-      expect(yield* service.run(() => Effect.void, trackSwitch)).toEqual({
-        targetVersion: "1.2.3",
-        method: "desktop-app",
-      });
-    }),
-  );
-
   it.effect("replays a retained commit failure for the preparation token", () =>
     Effect.gen(function* () {
       const { service } = yield* makeHarness({
@@ -204,33 +185,25 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("desktop app upda
     }),
   );
 
-  it.effect.each([true, false])(
-    "carries the track mismatch only for its own failure (%s)",
-    (matchingReason) =>
-      Effect.gen(function* () {
-        const mismatch = "This Stable build can't update from the Nightly track on its own.";
-        const reason = matchingReason ? mismatch : "The desktop update was cancelled.";
-        const { service } = yield* makeHarness({
-          reports: (requestId) => [
-            report(
-              requestId,
-              makeState({
-                status: "error",
-                channel: "nightly",
-                message: mismatch,
-                errorContext: "check",
-                trackMismatch: { buildChannel: "latest" },
-              }),
-              { outcome: "failed", reason },
-            ),
-          ],
-        });
-        const error = yield* service.run(() => Effect.void).pipe(Effect.flip);
-        expect(error.reason).toBe(reason);
-        expect(error.trackMismatch).toEqual(
-          matchingReason ? { buildChannel: "latest", savedChannel: "nightly" } : undefined,
-        );
-      }),
+  it.effect("reports desktop app update failures without track metadata", () =>
+    Effect.gen(function* () {
+      const reason = "The desktop update was cancelled.";
+      const { service } = yield* makeHarness({
+        reports: (requestId) => [
+          report(
+            requestId,
+            makeState({
+              status: "error",
+              message: reason,
+              errorContext: "check",
+            }),
+            { outcome: "failed", reason },
+          ),
+        ],
+      });
+      const error = yield* service.run(() => Effect.void).pipe(Effect.flip);
+      expect(error.reason).toBe(reason);
+    }),
   );
 
   it.effect("fails when the desktop stops reporting before a terminal outcome", () =>

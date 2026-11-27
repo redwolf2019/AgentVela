@@ -19,7 +19,6 @@ import * as Sink from "effect/Sink";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { fromYaml } from "@t3tools/shared/schemaYaml";
 
 import {
   buildDesktopBundles,
@@ -505,54 +504,44 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }),
   );
 
-  it.effect("omits update feeds for pull request preview builds", () =>
-    Effect.gen(function* () {
-      const preview = yield* createBuildConfig(
-        "mac",
-        "dmg",
-        "0.0.33-pr.8182.1",
-        false,
-        false,
-        undefined,
-        undefined,
-      );
-      const release = yield* createBuildConfig(
-        "mac",
-        "dmg",
-        "0.0.33",
-        false,
-        false,
-        undefined,
-        undefined,
-      );
+  it.effect(
+    "uses AgentVela versioned artifact names, null publish config, and no differential blockmaps",
+    () =>
+      Effect.gen(function* () {
+        const mac = yield* createBuildConfig(
+          "mac",
+          "dmg",
+          "0.1.11",
+          false,
+          false,
+          undefined,
+          undefined,
+        );
+        const linux = yield* createBuildConfig(
+          "linux",
+          "AppImage",
+          "0.1.11",
+          false,
+          false,
+          undefined,
+          undefined,
+        );
+        const win = yield* createBuildConfig(
+          "win",
+          "nsis",
+          "0.1.11",
+          false,
+          false,
+          undefined,
+          undefined,
+        );
 
-      const previewChannel = yield* createBuildConfig(
-        "mac",
-        "dmg",
-        "0.0.41-preview.20260912.1589",
-        false,
-        false,
-        undefined,
-        undefined,
-      );
-
-      assert.isNull(preview.publish);
-      assert.isNull(previewChannel.publish);
-      assert.deepStrictEqual(release.publish, [
-        {
-          provider: "github",
-          owner: "pingdotgg",
-          repo: "t3code",
-          releaseType: "release",
-        },
-      ]);
-    }).pipe(
-      Effect.provide(
-        ConfigProvider.layer(
-          ConfigProvider.fromEnv({ env: { GITHUB_REPOSITORY: "pingdotgg/t3code" } }),
-        ),
-      ),
-    ),
+        assert.equal(mac.artifactName, "AgentVela-${version}-${arch}.${ext}");
+        assert.isNull(mac.publish);
+        assert.deepStrictEqual((mac.mac as { target: ReadonlyArray<string> }).target, ["dmg"]);
+        assert.isUndefined(linux.appImage);
+        assert.isFalse((win.nsis as { differentialPackage: boolean }).differentialPackage);
+      }),
   );
 
   it.effect("names the Electron window class in the Linux desktop entry", () =>
@@ -597,28 +586,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         resetAdHocDarwinSignature: false,
       });
     }),
-  );
-
-  it.effect("names updatable AppImages without a version and apart per channel", () =>
-    Effect.gen(function* () {
-      const appImageName = (version: string) =>
-        createBuildConfig("linux", "AppImage", version, false, false, undefined, undefined).pipe(
-          Effect.map((config) => (config.appImage as { artifactName: string }).artifactName),
-        );
-
-      const stable = yield* appImageName("0.0.37");
-      const nightly = yield* appImageName("0.0.38-nightly.20261026.3740");
-
-      assert.notInclude(stable, "${version}");
-      assert.notInclude(nightly, "${version}");
-      assert.notEqual(stable, nightly);
-    }).pipe(
-      Effect.provide(
-        ConfigProvider.layer(
-          ConfigProvider.fromEnv({ env: { GITHUB_REPOSITORY: "pingdotgg/t3code" } }),
-        ),
-      ),
-    ),
   );
 
   it.effect("declares Calendar and Apple Events access for hosted commands in macOS builds", () =>
@@ -1480,36 +1447,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         ),
       ),
     ),
-  );
-
-  it.effect("packages the macOS preview's PR bundle as untrusted", () =>
-    Effect.gen(function* () {
-      const fs = yield* FileSystem.FileSystem;
-      const path = yield* Path.Path;
-      const workflow = yield* fs.readFileString(
-        yield* path.fromFileUrl(
-          new URL("../.github/workflows/desktop-macos-preview-publish.yml", import.meta.url),
-        ),
-      );
-      const { jobs } = yield* Schema.decodeEffect(
-        fromYaml(
-          Schema.Struct({
-            jobs: Schema.Record(
-              Schema.String,
-              Schema.Struct({
-                uses: Schema.optional(Schema.String),
-                with: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
-              }),
-            ),
-          }),
-        ),
-      )(workflow);
-      const packaging = Object.values(jobs).filter(
-        (job) => job.uses === "./.github/workflows/release-desktop.yml",
-      );
-      assert.isNotEmpty(packaging);
-      for (const job of packaging) assert.strictEqual(job.with?.untrusted_bundle, true);
-    }),
   );
 
   it.effect("rejects a macOS stage without a packaged app", () =>

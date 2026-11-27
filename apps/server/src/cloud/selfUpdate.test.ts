@@ -19,6 +19,7 @@ import * as ServerConfig from "../config.ts";
 import * as DesktopAppUpdate from "../desktopUpdate/DesktopAppUpdate.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as ProcessRunner from "../processRunner.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import * as ServiceLauncherClient from "./serviceLauncherClient.ts";
 import { SERVICE_LAUNCHER_PROTOCOL } from "./serviceProtocol.ts";
 import * as ServerSelfUpdate from "./selfUpdate.ts";
@@ -35,6 +36,7 @@ interface HarnessOptions {
   readonly requestUpdate?: ServiceLauncherClient.ServiceLauncherClient["Service"]["requestUpdate"];
   readonly desktopAppUpdate?: DesktopAppUpdate.DesktopAppUpdate["Service"];
   readonly policy?: ManagedPolicyDocument;
+  readonly userMirrorUrl?: string | null;
 }
 
 const archiveBytes = new TextEncoder().encode("not really a tarball");
@@ -167,9 +169,12 @@ const makeHarness = Effect.fn("test.make_self_update_harness")(function* (
     Effect.provideService(HostProcess.Platform, "linux"),
     Effect.provideService(HostProcess.Architecture, "x64"),
     Effect.provide(
-      Layer.merge(
+      Layer.mergeAll(
         ServerConfig.layer({ ...config, mode: options.mode ?? "web" }),
         ManagedPolicy.layerTest(options.policy),
+        ServerSettings.layerTest(
+          options.userMirrorUrl === undefined ? {} : { updateMirrorUrl: options.userMirrorUrl },
+        ),
       ),
     ),
   );
@@ -281,16 +286,16 @@ it.layer(NodeServices.layer)("server self update", (it) => {
     }),
   );
 
-  it.effect("lets a user start an update, but only to stable without nightly", () =>
+  it.effect("uses the policy mirror over user settings and rejects prerelease targets", () =>
     Effect.gen(function* () {
       const { selfUpdate, order, urls } = yield* makeHarness({
+        userMirrorUrl: "https://user.example.com/releases",
         policy: {
           schemaVersion: 1,
           organization: "Example Corp",
           limits: {
             updates: {
               mode: "auto",
-              allowNightly: false,
               feedUrl: "https://updates.example.com/t3code/",
             },
           },
@@ -299,17 +304,29 @@ it.layer(NodeServices.layer)("server self update", (it) => {
       expect(
         (yield* selfUpdate.update({ targetVersion: "1.2.0-nightly.20261028.1" }).pipe(Effect.flip))
           .reason,
-      ).toBe("Example Corp manages T3 Code updates. Only stable releases can be installed.");
+      ).toContain("Only stable X.Y.Z t3 releases are supported");
       expect(order).toEqual([]);
       // The mirror lists only 1.1.0's archive.
       expect((yield* selfUpdate.update({ targetVersion: "1.2.0" }).pipe(Effect.flip)).reason).toBe(
         "Example Corp's update mirror has no t3@1.2.0 for this machine.",
       );
       expect((yield* selfUpdate.update({ targetVersion: "1.1.0" })).updateId).toBe("launcher-id");
-      // The release comes from the policy's mirror, not GitHub.
+      // The release comes from the policy's mirror, not user settings or GitHub.
       expect(urls.length).toBeGreaterThan(0);
       for (const url of urls)
         expect(url).toMatch(/^https:\/\/updates\.example\.com\/t3code\/v1\.[12]\.0\//);
+    }),
+  );
+
+  it.effect("falls back to user updateMirrorUrl when policy and env do not set a feed", () =>
+    Effect.gen(function* () {
+      const { selfUpdate, urls } = yield* makeHarness({
+        userMirrorUrl: "https://user.example.com/releases",
+      });
+      expect((yield* selfUpdate.update({ targetVersion: "1.1.0" })).updateId).toBe("launcher-id");
+      expect(urls.length).toBeGreaterThan(0);
+      for (const url of urls)
+        expect(url).toMatch(/^https:\/\/user\.example\.com\/releases\/download\/v1\.1\.0\//);
     }),
   );
 
@@ -549,37 +566,4 @@ it.layer(NodeServices.layer)("pruning runtimes on start", (it) => {
       expect(remaining).toEqual([staleVersion, packageJson.version].toSorted());
     }),
   );
-});
-
-it("a host crosses tracks only to a release that knows its whole database", () => {
-  const cross = (
-    serverVersion: string,
-    targetVersion: string,
-    targetDatabaseMigration: number | undefined,
-    databaseMigration = 72,
-  ) =>
-    ServerSelfUpdate.trackSwitchBlockReason({
-      serverVersion,
-      targetVersion,
-      targetDatabaseMigration,
-      databaseMigration: () => databaseMigration,
-    });
-  const nightly = "0.1.4-nightly.20261027.3796";
-
-  expect(cross(nightly, "0.1.4", 72)).toBeNull();
-  // Another client moved this host to a newer Nightly after the switch was planned.
-  expect(cross(nightly, "0.1.4", 72, 73)).toContain("does not support yet");
-  expect(cross(nightly, "0.1.4", undefined)).toContain("Cannot confirm");
-  // A Stable tag can carry a migration the latest Nightly lacks.
-  expect(cross("0.1.4", nightly, 72, 73)).toContain("does not support yet");
-  expect(cross("0.1.3", "0.1.4", undefined)).toBeNull();
-  // A database that exists but cannot be read proves nothing.
-  expect(
-    ServerSelfUpdate.trackSwitchBlockReason({
-      serverVersion: nightly,
-      targetVersion: "0.1.4",
-      targetDatabaseMigration: 72,
-      databaseMigration: () => undefined,
-    }),
-  ).toContain("Cannot confirm");
 });

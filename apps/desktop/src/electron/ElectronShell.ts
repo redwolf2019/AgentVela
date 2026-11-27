@@ -77,6 +77,7 @@ export class ElectronShell extends Context.Service<
   ElectronShell,
   {
     readonly openExternal: (rawUrl: unknown) => Effect.Effect<boolean>;
+    readonly openPath: (targetPath: string) => Effect.Effect<string>;
     readonly openSystemSettings: (pane: SystemSettingsPane) => Effect.Effect<boolean>;
     readonly copyText: (text: string) => Effect.Effect<void>;
   }
@@ -95,6 +96,9 @@ export const make = ElectronShell.of({
           ),
         ),
     });
+  }),
+  openPath: Effect.fn("ElectronShell.openPath")(function (targetPath) {
+    return Effect.promise(() => Electron.shell.openPath(targetPath));
   }),
   openSystemSettings: Effect.fn("ElectronShell.openSystemSettings")(function (pane) {
     return Effect.promise(() =>
