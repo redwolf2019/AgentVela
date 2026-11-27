@@ -517,7 +517,22 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - id: app_credentials
+        name: Check release app credentials
+        shell: bash
+        env:
+          RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -n "${RELEASE_APP_ID:-}" && -n "${RELEASE_APP_PRIVATE_KEY:-}" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "RELEASE_APP_ID / RELEASE_APP_PRIVATE_KEY not configured; skipping finalize version bump."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - id: app_token
+        if: steps.app_credentials.outputs.enabled == 'true'
         name: Mint release app token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
@@ -526,6 +541,7 @@ jobs:
           permission-contents: write
 
       - name: Checkout
+        if: steps.app_credentials.outputs.enabled == 'true'
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: main
@@ -538,6 +554,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - id: app_bot
+        if: steps.app_credentials.outputs.enabled == 'true'
         name: Resolve GitHub App bot identity
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
@@ -548,11 +565,13 @@ jobs:
           echo "email=${user_id}+${APP_SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
 
       - name: Update version strings
+        if: steps.app_credentials.outputs.enabled == 'true'
         env:
           RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
         run: node .github/scripts/set-release-version.cjs "$RELEASE_VERSION"
 
       - name: Commit and push version bump
+        if: steps.app_credentials.outputs.enabled == 'true'
         shell: bash
         env:
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}

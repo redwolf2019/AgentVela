@@ -49,9 +49,9 @@ The `build_android_arm64` job (`permissions: contents: read`) decodes secrets on
 
 Set secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT_NAME`, `AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME`, and `AZURE_TRUSTED_SIGNING_PUBLISHER_NAME`.
 
-### Release finalization bot
+### Release finalization bot (optional)
 
-Set `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` for `finalize` to commit version bumps back to `main`.
+Set `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` for `finalize` to commit version bumps back to `main`. When absent, `finalize` skips cleanly and release package manifests should be aligned to `X.Y.Z` before tagging `vX.Y.Z`.
 
 ## Release checklist
 
