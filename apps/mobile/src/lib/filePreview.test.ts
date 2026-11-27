@@ -300,7 +300,12 @@ vi.mock("../features/layout/workspace-content-width", () => ({
   useWorkspaceSettledContentWidth: () => null,
 }));
 vi.mock("../features/settings/appearance/AppearancePreferencesProvider", () => ({
-  useAppearancePreferences: () => ({ appearance: { baseFontSize: 14 }, themeAppearance: "dark" }),
+  useAppearancePreferences: () => ({
+    appearance: { baseFontSize: 14 },
+    themeAppearance: "dark",
+    fontFamilies: { regular: "System", medium: "System", bold: "System" },
+    monoFontFamily: "ui-monospace",
+  }),
 }));
 vi.mock("./useUniwindTheme", () => ({
   useUniwindTheme: () => new Proxy({}, { get: () => "#000000" }),
@@ -333,6 +338,7 @@ vi.mock("../features/threads/ZoomableImagePressable", async () => {
   return { ZoomableImagePressable: Pressable };
 });
 vi.mock("../features/review/ReviewCommentCard", () => ({ useReviewCommentColors: () => ({}) }));
+vi.mock("../features/cloud/publicConfig", () => ({ resolveHostedAppUrl: () => null }));
 vi.mock("../features/prompt-links/prompt-link-actions", () => ({}));
 vi.mock("@react-navigation/elements", async () => {
   const { createContext } = await import("react");

@@ -25,6 +25,16 @@ import { UnresolvedChip } from "../contextChipParts";
 import { ThreadContextChip } from "../ThreadContextChip";
 import { SharedTooltipTrigger } from "../ui/shared-tooltip";
 
+function formatThreadCopyMarkdown(
+  ref: ScopedThreadRef,
+  label: string,
+  hostedAppUrl: string | null,
+): string {
+  return hostedAppUrl
+    ? formatHostedThreadLink(ref, label, hostedAppUrl)
+    : formatThreadLink(ref, label);
+}
+
 /** `label` is the link's written text; an autolink has none. */
 export function MarkdownThreadLink(props: {
   readonly environmentId: EnvironmentId;
@@ -37,6 +47,7 @@ export function MarkdownThreadLink(props: {
   const messages = useMessages();
   const navigate = useNavigate();
   const trigger = useSideThreadTrigger();
+  const hostedAppUrl = configuredHostedAppUrl();
   const panelRef = props.threadRef ?? null;
   const candidates = threadLinkCandidates(props.link, props.environmentId);
   const writtenRef = candidates[0]!;
@@ -116,6 +127,7 @@ export function MarkdownThreadLink(props: {
               />
             }
             aria-label={gt("Thread, {title}", { title })}
+            data-markdown-copy={formatThreadCopyMarkdown(writtenRef, title, hostedAppUrl)}
           >
             <MessagesSquareIcon />
             <ContextChipLabel>{title}</ContextChipLabel>
@@ -131,16 +143,11 @@ export function MarkdownThreadLink(props: {
   }
   const ref = resolved?.ref ?? writtenRef;
   const title = resolved?.metadata.title.trim() || props.label || gt("Thread");
-  const hostedAppUrl = configuredHostedAppUrl();
   return (
     <ThreadContextChip
       record={{ ...ref, title }}
       projectId={resolved?.metadata.projectId ?? null}
-      copyMarkdown={
-        hostedAppUrl
-          ? formatHostedThreadLink(ref, title, hostedAppUrl)
-          : formatThreadLink(ref, title)
-      }
+      copyMarkdown={formatThreadCopyMarkdown(ref, title, hostedAppUrl)}
     />
   );
 }

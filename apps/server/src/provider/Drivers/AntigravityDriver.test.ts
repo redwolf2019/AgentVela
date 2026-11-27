@@ -314,6 +314,25 @@ const layerTest = ProviderHostLive.layer.pipe(
 
 it.layer(layerTest)("AntigravityDriver", (it) => {
   it.effect.skipIf(windowsHost)(
+    "reports an incompatible managed runtime during a health check",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness();
+        yield* h.refresh();
+        const installed = yield* h.makeExecutable("1.5.0", { agentVersion: "1.5.0" });
+        h.controls.selected = installed;
+        const rejected = yield* h.refresh().pipe(Effect.flip);
+        expect(rejected.detail).toContain("Update it in Antigravity setup");
+
+        expect(yield* h.instance.snapshot.refresh).toMatchObject({
+          status: "error",
+          version: "1.5.0",
+          message: rejected.detail,
+        });
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
     "refreshes the selected executable and limits form capabilities to chat",
     () =>
       Effect.gen(function* () {
@@ -536,8 +555,11 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
       }),
   );
 
-  // 1.5.0 is the last release that offered Claude and GPT only to allowlisted editors.
-  for (const agentVersion of ["1.4.5", "1.5.0"]) {
+  for (const [agentVersion, expected] of [
+    ["1.4.5", "does not work with this T3 Code release"],
+    // 1.5.0 offers Claude and GPT only to allowlisted editors such as Zed.
+    ["1.5.0", "only serves allowlisted editors, not T3 Code"],
+  ] as const) {
     it.effect.skipIf(windowsHost)(
       `refuses to open a session on a PATH executable at ${agentVersion}`,
       () =>
@@ -568,7 +590,8 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
               yield* session.ensureThread({ threadId, modelSelection, runtimePolicy });
             }),
           ).pipe(Effect.flip);
-          const message = `Antigravity ${agentVersion} does not work with this T3 Code release. Update the Antigravity executable at ${old.executablePath} to >=1.5.12 <2, then retry.`;
+          const target = agentVersion === "1.4.5" ? ">=1.5.12 <2" : "1.5.1 or newer";
+          const message = `Antigravity ${agentVersion} ${expected}. Update the Antigravity executable at ${old.executablePath} to ${target}, then retry.`;
           expect(knownProviderFailureMessage(error)).toBe(message);
           expect((yield* h.refresh().pipe(Effect.flip)).detail).toBe(message);
           const methods = (yield* h.readRequests).map((request) => request.method);
