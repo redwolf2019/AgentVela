@@ -22,6 +22,8 @@ const RUNS_EVERYTHING = [
 const EXTRA_OWNERS = [
   // Vite configs and tsconfigs of these apps import scripts/lib directly.
   [/^scripts\/lib\//, ["@t3tools/desktop", "@t3tools/mobile", "@t3tools/web", "t3"]],
+  // Web third-party-licenses plugin reads deviceToolVersions.json during Vite build.
+  [/^apps\/server\/src\/device\/deviceToolVersions\.json$/, ["@t3tools/web"]],
   // scripts/build-desktop-artifact.ts reads the GNOME extension manifest.
   [/^apps\/desktop\/gnome-extension\//, ["@t3tools/scripts"]],
   [/^native\/browser-secret\//, ["@t3tools/desktop"]],
@@ -184,6 +186,7 @@ function decide(files, packages, full) {
       rust: everything || rust,
       release_smoke: scriptsChanged,
       mobile_native: files === null || files.some((file) => MOBILE_NATIVE.test(file)),
+      relay_docker: has("agent-vela-relay") || has("@t3tools/web"),
     },
   };
 }

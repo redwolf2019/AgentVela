@@ -71,6 +71,11 @@ function stringFlag(flags: Map<string, string | boolean>, key: string): string |
   return typeof val === "string" ? val : undefined;
 }
 
+function nonEmpty(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
 function printHelp(): void {
   NodeProcess.stdout.write(
     [
@@ -134,8 +139,14 @@ async function readSecretPrompt(promptText: string): Promise<string> {
   });
 }
 
+function stripBootstrapAdminConfig(config: ResolvedRelayConfig): ResolvedRelayConfig {
+  const { bootstrapAdminUsername: _u, bootstrapAdminPassword: _p, ...authRest } = config.auth;
+  return { ...config, auth: authRest };
+}
+
 function makeAdminLayer(config: ResolvedRelayConfig) {
-  const cfgLayer = layerRelayConfigFromValues(config);
+  // Admin CLI subcommands manage users explicitly and must not auto-bootstrap default "admin".
+  const cfgLayer = layerRelayConfigFromValues(stripBootstrapAdminConfig(config));
   const dbLayer = layerRelaySqliteLive.pipe(Layer.provideMerge(cfgLayer));
   return layerRelayAuth.pipe(
     Layer.provideMerge(dbLayer),
@@ -166,8 +177,8 @@ async function runAdminTunnelCommand(
   config: ResolvedRelayConfig,
   env: NodeJS.ProcessEnv,
 ): Promise<void> {
-  const baseUrl = (stringFlag(flags, "url") ?? config.publicUrl).replace(/\/$/, "");
-  const token = stringFlag(flags, "token") ?? env.AGENT_VELA_RELAY_ADMIN_TOKEN;
+  const baseUrl = (nonEmpty(stringFlag(flags, "url")) ?? config.publicUrl).replace(/\/$/, "");
+  const token = nonEmpty(stringFlag(flags, "token")) ?? nonEmpty(env.AGENT_VELA_RELAY_ADMIN_TOKEN);
   if (!token) {
     throw new Error("Missing --token or AGENT_VELA_RELAY_ADMIN_TOKEN for live tunnel admin query");
   }
@@ -330,10 +341,15 @@ async function runAdminInitCommand(
   config: ResolvedRelayConfig,
   env: NodeJS.ProcessEnv,
 ): Promise<void> {
-  const username = stringFlag(flags, "username") ?? env.AGENT_VELA_RELAY_ADMIN_USERNAME ?? "admin";
+  const username =
+    nonEmpty(stringFlag(flags, "username")) ??
+    nonEmpty(env.AGENT_VELA_RELAY_ADMIN_USERNAME) ??
+    nonEmpty(config.auth.bootstrapAdminUsername) ??
+    "admin";
   const password =
-    stringFlag(flags, "password") ??
-    env.AGENT_VELA_RELAY_ADMIN_PASSWORD ??
+    nonEmpty(stringFlag(flags, "password")) ??
+    nonEmpty(env.AGENT_VELA_RELAY_ADMIN_PASSWORD) ??
+    nonEmpty(config.auth.bootstrapAdminPassword) ??
     (await readSecretPrompt(`Admin password for '${username}': `));
   const user = await Effect.runPromise(
     Effect.gen(function* () {

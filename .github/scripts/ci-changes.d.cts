@@ -24,5 +24,6 @@ export function decide(
     rust: boolean;
     release_smoke: boolean;
     mobile_native: boolean;
+    relay_docker: boolean;
   };
 };

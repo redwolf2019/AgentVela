@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare": "vp config --no-agent",
+    "prepare": "node -e \"const fs=require('node:fs'),cp=require('node:child_process'),sh=process.platform==='win32';if(fs.existsSync('.git')===false)process.exit(0);for(const c of ['git','vp']){const r=cp.spawnSync(c,['--version'],{stdio:'ignore',shell:sh});if(r.error||r.status!==0)process.exit(0)}const p=cp.spawnSync('vp',['config','--no-agent'],{stdio:'inherit',shell:sh});process.exit(p.error?1:(p.status??1))\"",
     "dev": "node scripts/dev-runner.ts dev",
     "profile:startup": "node scripts/profile-startup.mjs",
     "dev:share": "node scripts/dev-runner.ts dev --share",

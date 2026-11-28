@@ -42,6 +42,35 @@ describe("check:changed", () => {
     assert.deepStrictEqual(decide(["docs/user/install.md"], packages, false).affected, []);
   });
 
+  it("gates relay_docker on relay, web, and Docker build inputs", () => {
+    const packages = readWorkspace();
+    assert.strictEqual(
+      decide(["apps/relay/Dockerfile"], packages, false).outputs.relay_docker,
+      true,
+    );
+    assert.strictEqual(
+      decide(["apps/web/src/main.tsx"], packages, false).outputs.relay_docker,
+      true,
+    );
+    assert.strictEqual(
+      decide(["scripts/lib/public-config.ts"], packages, false).outputs.relay_docker,
+      true,
+    );
+    assert.strictEqual(
+      decide(["apps/server/src/device/deviceToolVersions.json"], packages, false).outputs
+        .relay_docker,
+      true,
+    );
+    assert.strictEqual(
+      decide(["apps/mobile/App.tsx"], packages, false).outputs.relay_docker,
+      false,
+    );
+    assert.strictEqual(
+      decide(["docs/user/install.md"], packages, false).outputs.relay_docker,
+      false,
+    );
+  });
+
   it.effect(
     "keeps weighted steps within the budget, in order, and serial steps one at a time",
     () =>
