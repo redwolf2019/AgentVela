@@ -25,6 +25,19 @@ interface ProviderSnapshotState {
   readonly checked: boolean;
 }
 
+// A probe cannot know the latest version, so until enrichment looks it up again, keep the last
+// answer for the same installed version. Otherwise known updates blink out on every recheck.
+function keepKnownLatestVersion(previous: ServerProvider, probed: ServerProvider): ServerProvider {
+  const known = previous.versionAdvisory;
+  const currentVersion =
+    probed.installedVersion !== undefined ? probed.installedVersion : probed.version;
+  return probed.enabled &&
+    known?.latestVersion &&
+    !probed.versionAdvisory?.latestVersion &&
+    known.currentVersion === currentVersion
+    ? { ...probed, versionAdvisory: known }
+    : probed;
+}
 const FAILED_CHECK_RECHECK_DELAY = "30 seconds";
 
 /**
@@ -174,9 +187,12 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
         const generation = input.enrichSnapshot
           ? state.enrichmentGeneration + 1
           : state.enrichmentGeneration;
+        const snapshot = input.enrichSnapshot
+          ? keepKnownLatestVersion(state.snapshot, probedSnapshot)
+          : probedSnapshot;
         return [
-          { snapshot: probedSnapshot, generation },
-          { snapshot: probedSnapshot, enrichmentGeneration: generation, checked: true },
+          { snapshot, generation },
+          { snapshot, enrichmentGeneration: generation, checked: true },
         ] as const;
       },
     );

@@ -14,6 +14,8 @@ import {
   connectionErrorText,
   connectionStatusText,
   environmentMcpUrl,
+  localEnvironmentMcpUrl,
+  type ConnectionCatalogEntry,
 } from "@t3tools/client-runtime/connection";
 import * as Option from "effect/Option";
 import { msg, T, useGT, useMessages } from "gt-react";
@@ -43,7 +45,11 @@ import {
   supportsDesktopAppUpdate,
 } from "~/versionSkew";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
+import { useHostRelayStatus } from "~/cloud/hostRelayState";
 import { environmentCatalog } from "~/connection/catalog";
+import { isLoopbackHostname } from "~/environments/primary/target";
+import { SettingsRow } from "./settingsLayout";
+import { useSearchableSetting } from "./settingsSearch";
 import { type EnvironmentPresentation, useRelayEnvironmentDiscovery } from "~/state/environments";
 import { APP_VERSION } from "~/branding";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -108,6 +114,35 @@ export function savedBackendStatus(
   }
 }
 
+function useCopyMcpUrl() {
+  const gt = useGT();
+  return useCopyToClipboard<{ url: string }>({
+    target: {
+      target: "MCP URL",
+      unavailableMessage: msg("Clipboard API is unavailable while copying MCP URL."),
+      failureMessage: msg("Failed to copy MCP URL to the clipboard."),
+    },
+    onCopy: ({ url }) => {
+      toastManager.add({
+        type: "success",
+        title: gt("MCP URL copied"),
+        description: gt("Add it to an agent, e.g. claude mcp add --transport http t3 {url}", {
+          url,
+        }),
+      });
+    },
+    onError: (error) => {
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: gt("Could not copy MCP URL"),
+          description: error.message,
+        }),
+      );
+    },
+  });
+}
+
 export function SavedBackendListRow({
   environment,
   removingEnvironmentId,
@@ -147,31 +182,7 @@ export function SavedBackendListRow({
   const copyTraceId = (traceId: string) => {
     copyTraceIdToClipboard(traceId, { traceId });
   };
-  const { copyToClipboard: copyMcpUrl } = useCopyToClipboard<{ url: string }>({
-    target: {
-      target: "MCP URL",
-      unavailableMessage: msg("Clipboard API is unavailable while copying MCP URL."),
-      failureMessage: msg("Failed to copy MCP URL to the clipboard."),
-    },
-    onCopy: ({ url }) => {
-      toastManager.add({
-        type: "success",
-        title: gt("MCP URL copied"),
-        description: gt("Add it to an agent, e.g. claude mcp add --transport http t3 {url}", {
-          url,
-        }),
-      });
-    },
-    onError: (error) => {
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: gt("Could not copy MCP URL"),
-          description: error.message,
-        }),
-      );
-    },
-  });
+  const { copyToClipboard: copyMcpUrl } = useCopyMcpUrl();
   const versionMismatch = resolveServerConfigVersionMismatch(environment.serverConfig, messages);
   const serverUpdateState = useAtomValue(serverEnvironment.updateStateAtom(environmentId));
   const resumingServerUpdate =
@@ -459,6 +470,49 @@ export function SavedBackendListRow({
 }
 
 export type ConnectDeviceApprovalControl = HostDeviceApprovalControl;
+
+/** Copying the host's own MCP address, for hosted agents or agents on this machine. */
+export function LocalEnvironmentMcpUrlRow({ entry }: { readonly entry: ConnectionCatalogEntry }) {
+  const hostRelay = useHostRelayStatus(entry.target.environmentId);
+  const setting = useSearchableSetting();
+  const gt = useGT();
+  const { copyToClipboard: copyMcpUrl } = useCopyMcpUrl();
+  const relayHttpBaseUrl =
+    hostRelay.data?.linked === true ? hostRelay.data.endpoint?.httpBaseUrl : undefined;
+  const tunnelMcpUrl = relayHttpBaseUrl ? environmentMcpUrl({ entry, relayHttpBaseUrl }) : null;
+  const mcpUrl = tunnelMcpUrl ?? localEnvironmentMcpUrl({ entry });
+  if (mcpUrl === null) return null;
+  const tunnelState = tunnelMcpUrl !== null ? hostRelay.data?.tunnel.state : undefined;
+  const loopback = isLoopbackHostname(new URL(mcpUrl).hostname);
+  return (
+    <SettingsRow
+      {...setting("mcp-url")}
+      description={
+        tunnelState === "online"
+          ? gt("Tunnel connected. Give this URL to a hosted agent, such as ChatGPT: {url}", {
+              url: mcpUrl,
+            })
+          : tunnelMcpUrl !== null && tunnelState !== undefined
+            ? gt(
+                "Relay tunnel is unreachable right now, so a hosted agent can use this URL after the tunnel recovers: {url}",
+                { url: mcpUrl },
+              )
+            : tunnelMcpUrl !== null
+              ? gt("Give this URL to a hosted agent, such as ChatGPT: {url}", { url: mcpUrl })
+              : loopback
+                ? gt("Give this URL to an agent running on this machine: {url}", { url: mcpUrl })
+                : gt("Give this URL to an agent that can reach this environment: {url}", {
+                    url: mcpUrl,
+                  })
+      }
+      control={
+        <Button size="sm" variant="outline" onClick={() => copyMcpUrl(mcpUrl, { url: mcpUrl })}>
+          <T>Copy</T>
+        </Button>
+      }
+    />
+  );
+}
 
 export function CloudLinkRow({
   environmentId,

@@ -8,7 +8,7 @@ Open the command palette (`Cmd/Ctrl+K`) and run **Use AgentVela in another app (
 
 - Cloud assistants (like ChatGPT or Claude) must reach the environment from the internet: use your HTTPS self-hosted relay address. A Tailscale address only works from your own tailnet.
 - To also reach other machines through the same connection, enable **Settings → Labs → Linked environments** and [link them](./remote-access.md#link-another-environment).
-- To copy the raw MCP endpoint (`https://<environment-address>/mcp`; through a self-hosted relay it is the relay endpoint `/e/:endpointKey/mcp`), open an environment's menu in **Settings → Environments → Copy MCP URL**. OAuth requires `https://` or `localhost` (plain `http://` LAN/Tailscale addresses cannot complete OAuth).
+- To copy the raw MCP endpoint (`https://<environment-address>/mcp`; through a self-hosted relay it is the relay endpoint `/e/:endpointKey/mcp`) of the machine you are on, use **MCP URL** in **Settings → Sharing & access**: it uses the self-hosted relay address when linked, otherwise a `localhost` or `https://` address. For a saved remote environment, open its menu in **Settings → Environments → Copy MCP URL**. OAuth requires `https://` or `localhost` (plain `http://` LAN/Tailscale addresses cannot complete OAuth).
 
 ### CLI clients and ChatGPT
 

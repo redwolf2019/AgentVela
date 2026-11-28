@@ -5,6 +5,9 @@ import { useAppearancePreferences } from "../settings/appearance/AppearancePrefe
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
+import { isSkillReloadCommand } from "@t3tools/client-runtime/providerSkills";
+import { serverEnvironment } from "../../state/server";
+import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomValue } from "@effect/atom-react";
 import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/attachments";
 import { pastedTextDisposition, replaceTextSelection } from "@t3tools/client-runtime/text-paste";
@@ -361,6 +364,9 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
     });
   };
   const { onSendMessage } = props;
+  const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
+    reportFailure: false,
+  });
   const draftRunsLocally = composerRunsDraftLocally({
     text: draftMessage,
     holdsOnlyText: draftAttachments.length === 0,
@@ -545,6 +551,16 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
       return;
     }
     if (sent.value === null) return;
+    if (isSkillReloadCommand(draftAtSend.text) && props.projectCwd) {
+      void refreshProviders({
+        environmentId: props.environmentId,
+        input: {
+          instanceId: currentModelSelection.instanceId,
+          cwd: props.projectCwd,
+          fresh: true,
+        },
+      });
+    }
     // Arm after send so preference reads and native Activity startup do not delay tap-frame feedback.
     armAgentAwarenessLiveActivityForLocalWork({
       environmentId: props.environmentId,
