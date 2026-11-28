@@ -10,8 +10,9 @@ import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
+import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/http";
 
+import { resolveMirrorUrlOverride } from "@t3tools/shared/url";
 import {
   type ReleaseManifest,
   type ReleaseManifestAsset,
@@ -20,6 +21,7 @@ import {
   resolveReleaseManifestUrls,
 } from "@t3tools/shared/releaseManifest";
 
+const MAX_REDIRECTS = 10;
 const MANIFEST_FETCH_TIMEOUT = Duration.seconds(15);
 const DOWNLOAD_STALL_TIMEOUT = Duration.seconds(30);
 const CONTENT_RANGE_PATTERN = /^bytes\s+(\d+)-(\d+)\/(\d+|\*)$/i;
@@ -234,8 +236,48 @@ function validatePartialResponse(
   return null;
 }
 
+function withSafeRedirects(client: HttpClient.HttpClient): HttpClient.HttpClient {
+  // Validate every hop in postprocess because followRedirects bypasses preprocess on 3xx hops.
+  const guarded = HttpClient.makeWith(
+    (requestEffect: Effect.Effect<HttpClientRequest.HttpClientRequest>) =>
+      Effect.flatMap(requestEffect, (request) =>
+        resolveMirrorUrlOverride(request.url)._tag === "url"
+          ? client.execute(request)
+          : Effect.fail(
+              new HttpClientError.HttpClientError({
+                reason: new HttpClientError.InvalidUrlError({
+                  request,
+                  description: "Refusing disallowed release redirect URL",
+                }),
+              }),
+            ),
+      ),
+    Effect.succeed,
+  );
+  return HttpClient.followRedirects(guarded, MAX_REDIRECTS);
+}
+
+function manifestHostLabel(manifestUrl: string): string {
+  try {
+    return new URL(manifestUrl).host || "the release server";
+  } catch {
+    return "the release server";
+  }
+}
+
+function formatManifestFetchError(manifestUrl: string, cause: unknown): string {
+  const host = manifestHostLabel(manifestUrl);
+  if (cause instanceof Cause.TimeoutError) {
+    return `Timed out fetching release manifest from ${host}.`;
+  }
+  if (HttpClientError.isHttpClientError(cause) && cause.reason._tag === "StatusCodeError") {
+    return `Failed to fetch release manifest from ${host} (HTTP ${cause.reason.response.status}).`;
+  }
+  return `Failed to fetch release manifest from ${host}.`;
+}
+
 const make = Effect.gen(function* () {
-  const httpClient = yield* HttpClient.HttpClient;
+  const httpClient = withSafeRedirects(yield* HttpClient.HttpClient);
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
 
@@ -257,7 +299,7 @@ const make = Effect.gen(function* () {
         (cause) =>
           new DesktopReleaseClientError({
             phase: "manifest",
-            reason: `Failed to fetch release manifest from ${manifestUrl}.`,
+            reason: formatManifestFetchError(manifestUrl, cause),
             cause,
           }),
       ),
@@ -266,7 +308,7 @@ const make = Effect.gen(function* () {
     if (!parsed.ok) {
       return yield* new DesktopReleaseClientError({
         phase: "manifest",
-        reason: `Invalid release manifest at ${manifestUrl}: ${parsed.error}`,
+        reason: `Invalid release manifest from ${manifestHostLabel(manifestUrl)}: ${parsed.error}`,
       });
     }
     return { manifest: parsed.manifest, matchedManifestUrl: manifestUrl };
