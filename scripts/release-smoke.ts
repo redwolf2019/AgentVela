@@ -23,6 +23,8 @@ const workspaceFiles = [
   "apps/mobile/modules/t3-terminal/package.json",
   "apps/marketing/package.json",
   "apps/relay/package.json",
+  "evals/package.json",
+  "infra/task-cache/package.json",
   "oxlint-plugin-t3code/package.json",
   "packages/client-runtime/package.json",
   "packages/contracts/package.json",
@@ -139,8 +141,11 @@ try {
   NodeFS.mkdirSync(manifestDir, { recursive: true });
   for (const fileName of [
     "AgentVela-9.9.9-arm64.dmg",
+    "AgentVela-9.9.9-x86_64.AppImage",
+    "AgentVela-9.9.9-amd64.deb",
     "AgentVela-9.9.9-x64.exe",
     "AgentVela-9.9.9-darwin-arm64.tar.gz",
+    "AgentVela-9.9.9-linux-x64.tar.gz",
     "AgentVela-9.9.9-win32-x64.zip",
     "AgentVela-9.9.9-android-arm64-v8a.apk",
   ]) {
@@ -170,10 +175,17 @@ try {
   assertContains(manifestJson, "AgentVela-9.9.9-arm64.dmg", "Manifest missing macOS DMG.");
   assertContains(
     manifestJson,
+    "AgentVela-9.9.9-x86_64.AppImage",
+    "Manifest missing Linux AppImage.",
+  );
+  assertContains(manifestJson, "AgentVela-9.9.9-amd64.deb", "Manifest missing Linux deb.");
+  assertContains(
+    manifestJson,
     "AgentVela-9.9.9-android-arm64-v8a.apk",
     "Manifest missing Android APK.",
   );
   const checksums = NodeFS.readFileSync(NodePath.join(manifestDir, "SHA256SUMS"), "utf8");
+  assertContains(checksums, "AgentVela-9.9.9-linux-x64.tar.gz", "SHA256SUMS missing Linux CLI.");
   assertContains(checksums, "AgentVela-9.9.9-win32-x64.zip", "SHA256SUMS missing Windows CLI.");
   assertContains(checksums, "AgentVela-9.9.9-darwin-arm64.tar.gz", "SHA256SUMS missing macOS CLI.");
 

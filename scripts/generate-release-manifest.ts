@@ -58,11 +58,14 @@ const encodeReleaseManifestJson = Schema.encodeEffect(fromJsonStringPretty(Relea
 
 const REQUIRED_DESKTOP_ASSET_KEYS: ReadonlySet<DesktopReleaseAssetKey> = new Set([
   "darwin-arm64-dmg",
+  "linux-x64-appimage",
+  "linux-x64-deb",
   "win32-x64-nsis",
 ]);
 
 const REQUIRED_CLI_ASSET_KEYS: ReadonlySet<CliReleaseAssetKey> = new Set([
   "darwin-arm64",
+  "linux-x64",
   "win32-x64",
 ]);
 
@@ -71,8 +74,11 @@ const REQUIRED_ANDROID_ASSET_KEYS: ReadonlySet<AndroidReleaseAssetKey> = new Set
 function desktopCandidates(version: string): Record<DesktopReleaseAssetKey, ReadonlyArray<string>> {
   return {
     "darwin-arm64-dmg": [`AgentVela-${version}-arm64.dmg`],
-    "linux-x64-appimage": [`AgentVela-${version}-x64.AppImage`],
-    "linux-x64-deb": [`AgentVela-${version}-x64.deb`, `AgentVela-${version}-amd64.deb`],
+    "linux-x64-appimage": [
+      `AgentVela-${version}-x86_64.AppImage`,
+      `AgentVela-${version}-x64.AppImage`,
+    ],
+    "linux-x64-deb": [`AgentVela-${version}-amd64.deb`, `AgentVela-${version}-x64.deb`],
     "linux-arm64-appimage": [`AgentVela-${version}-arm64.AppImage`],
     "linux-arm64-deb": [`AgentVela-${version}-arm64.deb`],
     "win32-x64-nsis": [`AgentVela-${version}-x64.exe`],

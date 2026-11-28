@@ -142,13 +142,19 @@ test("release workflows use standard GitHub runners, target redwolf2019/AgentVel
   assert.equal(androidSecretSteps.length, 1);
   assert.match(releaseJobs.release, /scripts\/generate-release-manifest\.ts[\s\S]*--require-all/);
   assert.match(releaseJobs.desktop_mac_arm64, /^\s+runner:\s*macos-26$/m);
-  assert.equal(releaseJobs.desktop_linux_x64, undefined);
+  assert.match(releaseJobs.desktop_linux_x64, /^\s+runner:\s*ubuntu-24\.04$/m);
+  assert.match(releaseJobs.desktop_linux_x64, /^\s+platform:\s*linux$/m);
+  assert.match(releaseJobs.desktop_linux_x64, /^\s+arch:\s*x64$/m);
+  assert.match(releaseJobs.desktop_linux_x64, /^\s+cli_archive:\s*true$/m);
+  assert.match(releaseJobs.desktop_linux_x64, /^\s+launch_check:\s*true$/m);
   assert.equal(releaseJobs.desktop_linux_arm64, undefined);
   assert.match(
     releaseJobs.build_android_arm64,
     /gradle\/actions\/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c/,
   );
-  assert.doesNotMatch(releaseJobs.release, /release-assets\/\*\.AppImage|release-assets\/\*\.deb/);
+  assert.match(releaseJobs.release, /desktop_linux_x64/);
+  assert.match(releaseJobs.release, /release-assets\/\*\.AppImage/);
+  assert.match(releaseJobs.release, /release-assets\/\*\.deb/);
   const desktopWorkflow = read("workflows/release-desktop.yml");
   assert.doesNotMatch(desktopWorkflow, /Wait for Linux CLI archive/);
   assert.match(desktopWorkflow, /Build Linux CLI archive for WSL/);
