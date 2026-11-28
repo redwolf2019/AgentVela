@@ -141,6 +141,17 @@ test("release workflows use standard GitHub runners, target redwolf2019/AgentVel
   );
   assert.equal(androidSecretSteps.length, 1);
   assert.match(releaseJobs.release, /scripts\/generate-release-manifest\.ts[\s\S]*--require-all/);
+  assert.match(releaseJobs.desktop_mac_arm64, /^\s+runner:\s*macos-26$/m);
+  assert.equal(releaseJobs.desktop_linux_x64, undefined);
+  assert.equal(releaseJobs.desktop_linux_arm64, undefined);
+  assert.match(
+    releaseJobs.build_android_arm64,
+    /gradle\/actions\/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c/,
+  );
+  assert.doesNotMatch(releaseJobs.release, /release-assets\/\*\.AppImage|release-assets\/\*\.deb/);
+  const desktopWorkflow = read("workflows/release-desktop.yml");
+  assert.doesNotMatch(desktopWorkflow, /Wait for Linux CLI archive/);
+  assert.match(desktopWorkflow, /Build Linux CLI archive for WSL/);
 });
 
 test("the release version bump is pushed by a job that installs nothing, with a token for this repository only", () => {

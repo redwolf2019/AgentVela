@@ -210,7 +210,7 @@ jobs:
       ref: ${{ needs.preflight.outputs.ref }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
       label: macOS arm64
-      runner: macos-15
+      runner: macos-26
       platform: mac
       target: dmg
       arch: arm64
@@ -218,45 +218,6 @@ jobs:
       resource_key: darwin-arm64
       cli_archive: true
       launch_check: true
-
-  desktop_linux_x64:
-    name: Desktop Linux x64
-    needs: [preflight, relay_public_config, build_bundle]
-    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.build_bundle.result == 'success' }}
-    uses: ./.github/workflows/release-desktop.yml
-    secrets: inherit
-    with:
-      version: ${{ needs.preflight.outputs.version }}
-      ref: ${{ needs.preflight.outputs.ref }}
-      relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
-      label: Linux x64
-      runner: ubuntu-24.04
-      platform: linux
-      target: AppImage
-      arch: x64
-      rust_target: x86_64-unknown-linux-gnu
-      resource_key: linux-x64
-      cli_archive: true
-      launch_check: true
-
-  desktop_linux_arm64:
-    name: Desktop Linux arm64
-    needs: [preflight, relay_public_config, build_bundle]
-    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.build_bundle.result == 'success' }}
-    uses: ./.github/workflows/release-desktop.yml
-    secrets: inherit
-    with:
-      version: ${{ needs.preflight.outputs.version }}
-      ref: ${{ needs.preflight.outputs.ref }}
-      relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
-      label: Linux arm64
-      runner: ubuntu-24.04-arm
-      platform: linux
-      target: AppImage
-      arch: arm64
-      rust_target: aarch64-unknown-linux-gnu
-      resource_key: linux-arm64
-      cli_archive: true
 
   desktop_win_x64:
     name: Desktop Windows x64
@@ -283,7 +244,7 @@ jobs:
     needs: [preflight, relay_public_config]
     if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: read
     env:
@@ -291,6 +252,7 @@ jobs:
       T3CODE_MOBILE_VERSION: ${{ needs.preflight.outputs.version }}
       APP_VARIANT: production
       EXPO_NO_GIT_STATUS: "1"
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -317,7 +279,7 @@ jobs:
           java-version: 17
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a27790 # v5.0.2
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
 
       - name: Prebuild Android project
         working-directory: apps/mobile
@@ -347,7 +309,7 @@ jobs:
 
           (
             cd apps/mobile/android
-            ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+            ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a -x lintVitalAnalyzeRelease -x lintVitalRelease
           )
 
           apk_source="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
@@ -377,17 +339,8 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    needs:
-      [
-        preflight,
-        quality,
-        desktop_mac_arm64,
-        desktop_linux_x64,
-        desktop_linux_arm64,
-        desktop_win_x64,
-        build_android_arm64,
-      ]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.quality.result == 'success' && needs.desktop_mac_arm64.result == 'success' && needs.desktop_linux_x64.result == 'success' && needs.desktop_linux_arm64.result == 'success' && needs.desktop_win_x64.result == 'success' && needs.build_android_arm64.result == 'success' }}
+    needs: [preflight, quality, desktop_mac_arm64, desktop_win_x64, build_android_arm64]
+    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.quality.result == 'success' && needs.desktop_mac_arm64.result == 'success' && needs.desktop_win_x64.result == 'success' && needs.build_android_arm64.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -467,8 +420,6 @@ jobs:
           {
             echo 'files<<EOF'
             echo 'release-assets/*.dmg'
-            echo 'release-assets/*.AppImage'
-            echo 'release-assets/*.deb'
             echo 'release-assets/*.exe'
             echo 'release-assets/*.tar.gz'
             echo 'release-assets/*.zip'

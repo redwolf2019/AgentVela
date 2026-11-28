@@ -56,6 +56,18 @@ export class ReleaseManifestValidationError extends Schema.TaggedError<ReleaseMa
 
 const encodeReleaseManifestJson = Schema.encodeEffect(fromJsonStringPretty(ReleaseManifestSchema));
 
+const REQUIRED_DESKTOP_ASSET_KEYS: ReadonlySet<DesktopReleaseAssetKey> = new Set([
+  "darwin-arm64-dmg",
+  "win32-x64-nsis",
+]);
+
+const REQUIRED_CLI_ASSET_KEYS: ReadonlySet<CliReleaseAssetKey> = new Set([
+  "darwin-arm64",
+  "win32-x64",
+]);
+
+const REQUIRED_ANDROID_ASSET_KEYS: ReadonlySet<AndroidReleaseAssetKey> = new Set(["arm64-v8a"]);
+
 function desktopCandidates(version: string): Record<DesktopReleaseAssetKey, ReadonlyArray<string>> {
   return {
     "darwin-arm64-dmg": [`AgentVela-${version}-arm64.dmg`],
@@ -106,7 +118,13 @@ const hashAndStatAsset = Effect.fn("generate-release-manifest.hashAndStatAsset")
 
 const collectAssetGroup = Effect.fn("generate-release-manifest.collectAssetGroup")(function* <
   K extends string,
->(dir: string, candidates: Record<K, ReadonlyArray<string>>, prefix: string, missing: string[]) {
+>(
+  dir: string,
+  candidates: Record<K, ReadonlyArray<string>>,
+  prefix: string,
+  requiredKeys: ReadonlySet<K>,
+  missing: string[],
+) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const result: Partial<Record<K, ReleaseManifestAsset>> = {};
@@ -123,7 +141,7 @@ const collectAssetGroup = Effect.fn("generate-release-manifest.collectAssetGroup
     if (matched) {
       result[key] = matched;
       found.push(matched);
-    } else {
+    } else if (requiredKeys.has(key)) {
       missing.push(`${prefix}.${key} (${names.join(" | ")})`);
     }
   }
@@ -156,9 +174,27 @@ export const generateReleaseManifest = Effect.fn("generate-release-manifest.run"
   const missing: string[] = [];
 
   const [desktopGroup, cliGroup, androidGroup] = yield* Effect.all([
-    collectAssetGroup(resolvedDir, desktopCandidates(input.version), "desktop", missing),
-    collectAssetGroup(resolvedDir, cliCandidates(input.version), "cli", missing),
-    collectAssetGroup(resolvedDir, androidCandidates(input.version), "android", missing),
+    collectAssetGroup(
+      resolvedDir,
+      desktopCandidates(input.version),
+      "desktop",
+      REQUIRED_DESKTOP_ASSET_KEYS,
+      missing,
+    ),
+    collectAssetGroup(
+      resolvedDir,
+      cliCandidates(input.version),
+      "cli",
+      REQUIRED_CLI_ASSET_KEYS,
+      missing,
+    ),
+    collectAssetGroup(
+      resolvedDir,
+      androidCandidates(input.version),
+      "android",
+      REQUIRED_ANDROID_ASSET_KEYS,
+      missing,
+    ),
   ]);
 
   if (input.requireAll && missing.length > 0) {
@@ -242,7 +278,7 @@ export const generateReleaseManifestCommand = Command.make(
     ),
     requireAll: Flag.Boolean("require-all").pipe(
       Flag.withDefault(false),
-      Flag.withDescription("Fail if any expected platform asset is absent."),
+      Flag.withDescription("Fail if any required release platform asset is absent."),
     ),
   },
   (flags) =>
