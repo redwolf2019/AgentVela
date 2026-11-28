@@ -515,7 +515,7 @@ jobs:
               echo "macOS signing disabled (missing Apple signing secrets); building unsigned DMG."
             fi
           elif [[ "${{ inputs.platform }}" == "win" ]]; then
-            args+=(--wsl-runtime "$GITHUB_WORKSPACE"/wsl-runtime/t3-*-linux-${{ inputs.arch }}.tar.gz)
+            args+=(--wsl-runtime "$GITHUB_WORKSPACE"/wsl-runtime/AgentVela-*-linux-${{ inputs.arch }}.tar.gz)
             if has_all \
               "$AZURE_TENANT_ID" \
               "$AZURE_CLIENT_ID" \

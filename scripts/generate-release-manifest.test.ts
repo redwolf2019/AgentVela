@@ -24,12 +24,15 @@ const ScriptTestLayer = Layer.mergeAll(NodeServices.layer, TestConsole.layer);
 const REQUIRED_FILES = [
   "AgentVela-1.2.3-arm64.dmg",
   "AgentVela-1.2.3-x64.exe",
-  "t3-1.2.3-darwin-arm64.tar.gz",
-  "t3-1.2.3-win32-x64.zip",
+  "AgentVela-1.2.3-darwin-arm64.tar.gz",
+  "AgentVela-1.2.3-win32-x64.zip",
   "AgentVela-1.2.3-android-arm64-v8a.apk",
 ] as const;
 
-const OPTIONAL_LINUX_FILES = ["AgentVela-1.2.3-x64.AppImage", "t3-1.2.3-linux-x64.tar.gz"] as const;
+const OPTIONAL_LINUX_FILES = [
+  "AgentVela-1.2.3-x64.AppImage",
+  "AgentVela-1.2.3-linux-x64.tar.gz",
+] as const;
 
 it.layer(ScriptTestLayer)("generate-release-manifest", (it) => {
   it.effect("writes validated release-manifest.json and SHA256SUMS for the 5 required assets", () =>
@@ -69,8 +72,11 @@ it.layer(ScriptTestLayer)("generate-release-manifest", (it) => {
           "AgentVela-1.2.3-x64.exe",
         );
         assert.equal(parsed.manifest.desktop["linux-x64-appimage"], undefined);
-        assert.equal(parsed.manifest.cli["darwin-arm64"]?.fileName, "t3-1.2.3-darwin-arm64.tar.gz");
-        assert.equal(parsed.manifest.cli["win32-x64"]?.fileName, "t3-1.2.3-win32-x64.zip");
+        assert.equal(
+          parsed.manifest.cli["darwin-arm64"]?.fileName,
+          "AgentVela-1.2.3-darwin-arm64.tar.gz",
+        );
+        assert.equal(parsed.manifest.cli["win32-x64"]?.fileName, "AgentVela-1.2.3-win32-x64.zip");
         assert.equal(parsed.manifest.cli["linux-x64"], undefined);
         assert.equal(
           parsed.manifest.android["arm64-v8a"]?.fileName,
@@ -107,7 +113,7 @@ it.layer(ScriptTestLayer)("generate-release-manifest", (it) => {
         result.manifest.desktop["linux-x64-appimage"]?.fileName,
         "AgentVela-1.2.3-x64.AppImage",
       );
-      assert.equal(result.manifest.cli["linux-x64"]?.fileName, "t3-1.2.3-linux-x64.tar.gz");
+      assert.equal(result.manifest.cli["linux-x64"]?.fileName, "AgentVela-1.2.3-linux-x64.tar.gz");
     }),
   );
 

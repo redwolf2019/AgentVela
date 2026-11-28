@@ -184,7 +184,7 @@ if ($version) {
   $version = $manifest.version
 }
 
-$stem = "t3-$version-win32-$arch"
+$stem = "AgentVela-$version-win32-$arch"
 $archive = "$stem.zip"
 $versionsDir = Join-Path $t3Home "runtime\versions"
 $targetDir = Join-Path $versionsDir $version

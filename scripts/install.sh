@@ -234,7 +234,7 @@ else
   [ -n "$version" ] && is_stable_semver "$version" || fail "could not resolve a valid release-manifest.json; set T3CODE_VERSION"
 fi
 
-stem="t3-${version}-${platform}-${arch}"
+stem="AgentVela-${version}-${platform}-${arch}"
 archive="${stem}.tar.gz"
 versions_dir="${t3_home}/runtime/versions"
 target_dir="${versions_dir}/${version}"

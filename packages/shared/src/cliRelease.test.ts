@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   CLI_RELEASES_PAGE_URL,
+  cliArchiveFileName,
   cliArchivePlatformKey,
   cliArchiveTarCommand,
   cliReleaseAssetUrl,
@@ -13,15 +14,21 @@ describe("cliRelease", () => {
   it("parses sha256sum output including binary-mode markers", () => {
     const checksums = parseChecksums(
       [
-        `${"a".repeat(64)}  t3-1.2.3-linux-x64.tar.gz`,
-        `${"B".repeat(64)} *t3-1.2.3-win32-x64.zip`,
+        `${"a".repeat(64)}  AgentVela-1.2.3-linux-x64.tar.gz`,
+        `${"B".repeat(64)} *AgentVela-1.2.3-win32-x64.zip`,
         "not a checksum line",
         "",
       ].join("\n"),
     );
-    expect(checksums.get("t3-1.2.3-linux-x64.tar.gz")).toBe("a".repeat(64));
-    expect(checksums.get("t3-1.2.3-win32-x64.zip")).toBe("b".repeat(64));
+    expect(checksums.get("AgentVela-1.2.3-linux-x64.tar.gz")).toBe("a".repeat(64));
+    expect(checksums.get("AgentVela-1.2.3-win32-x64.zip")).toBe("b".repeat(64));
     expect(checksums.size).toBe(2);
+  });
+
+  it("formats AgentVela CLI release archive filenames per platform", () => {
+    expect(cliArchiveFileName("1.2.3", "darwin-arm64")).toBe("AgentVela-1.2.3-darwin-arm64.tar.gz");
+    expect(cliArchiveFileName("1.2.3", "win32-x64")).toBe("AgentVela-1.2.3-win32-x64.zip");
+    expect(cliArchiveFileName("1.2.3", "linux-x64")).toBe("AgentVela-1.2.3-linux-x64.tar.gz");
   });
 
   it("extracts with the System32 bsdtar on Windows and plain tar elsewhere", () => {

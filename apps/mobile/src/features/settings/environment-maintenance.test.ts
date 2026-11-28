@@ -16,7 +16,7 @@ function makeManifest(version: string): ReleaseManifest {
     desktop: {},
     cli: {
       "linux-x64": {
-        fileName: `t3-${version}-linux-x64.tar.gz`,
+        fileName: `AgentVela-${version}-linux-x64.tar.gz`,
         sha256: "b".repeat(64),
         size: 1234,
       },

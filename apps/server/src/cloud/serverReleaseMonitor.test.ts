@@ -29,7 +29,7 @@ function makeManifest(version: string, notes = "Bug fixes") {
     desktop: {},
     cli: {
       "linux-x64": {
-        fileName: `t3-${version}-linux-x64.tar.gz`,
+        fileName: `AgentVela-${version}-linux-x64.tar.gz`,
         sha256: "a".repeat(64),
         size: 1024,
       },

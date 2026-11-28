@@ -81,10 +81,10 @@ function desktopCandidates(version: string): Record<DesktopReleaseAssetKey, Read
 
 function cliCandidates(version: string): Record<CliReleaseAssetKey, ReadonlyArray<string>> {
   return {
-    "darwin-arm64": [`t3-${version}-darwin-arm64.tar.gz`],
-    "linux-arm64": [`t3-${version}-linux-arm64.tar.gz`],
-    "linux-x64": [`t3-${version}-linux-x64.tar.gz`],
-    "win32-x64": [`t3-${version}-win32-x64.zip`],
+    "darwin-arm64": [`AgentVela-${version}-darwin-arm64.tar.gz`],
+    "linux-arm64": [`AgentVela-${version}-linux-arm64.tar.gz`],
+    "linux-x64": [`AgentVela-${version}-linux-x64.tar.gz`],
+    "win32-x64": [`AgentVela-${version}-win32-x64.zip`],
   };
 }
 

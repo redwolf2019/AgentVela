@@ -140,8 +140,8 @@ try {
   for (const fileName of [
     "AgentVela-9.9.9-arm64.dmg",
     "AgentVela-9.9.9-x64.exe",
-    "t3-9.9.9-darwin-arm64.tar.gz",
-    "t3-9.9.9-win32-x64.zip",
+    "AgentVela-9.9.9-darwin-arm64.tar.gz",
+    "AgentVela-9.9.9-win32-x64.zip",
     "AgentVela-9.9.9-android-arm64-v8a.apk",
   ]) {
     NodeFS.writeFileSync(NodePath.join(manifestDir, fileName), `fixture:${fileName}\n`);
@@ -174,8 +174,8 @@ try {
     "Manifest missing Android APK.",
   );
   const checksums = NodeFS.readFileSync(NodePath.join(manifestDir, "SHA256SUMS"), "utf8");
-  assertContains(checksums, "t3-9.9.9-win32-x64.zip", "SHA256SUMS missing Windows CLI.");
-  assertContains(checksums, "t3-9.9.9-darwin-arm64.tar.gz", "SHA256SUMS missing macOS CLI.");
+  assertContains(checksums, "AgentVela-9.9.9-win32-x64.zip", "SHA256SUMS missing Windows CLI.");
+  assertContains(checksums, "AgentVela-9.9.9-darwin-arm64.tar.gz", "SHA256SUMS missing macOS CLI.");
 
   Effect.runSync(Console.log("Release smoke checks passed."));
 } finally {

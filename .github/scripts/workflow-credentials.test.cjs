@@ -152,6 +152,8 @@ test("release workflows use standard GitHub runners, target redwolf2019/AgentVel
   const desktopWorkflow = read("workflows/release-desktop.yml");
   assert.doesNotMatch(desktopWorkflow, /Wait for Linux CLI archive/);
   assert.match(desktopWorkflow, /Build Linux CLI archive for WSL/);
+  assert.doesNotMatch(desktopWorkflow, /wsl-runtime\/t3-\*-linux-/);
+  assert.match(desktopWorkflow, /wsl-runtime\/AgentVela-\*-linux-/);
 });
 
 test("the release version bump is pushed by a job that installs nothing, with a token for this repository only", () => {

@@ -41,7 +41,7 @@ function makeSampleManifestJson(overrides: Record<string, unknown> = {}) {
     },
     cli: {
       "linux-x64": {
-        fileName: "t3-0.1.12-linux-x64.tar.gz",
+        fileName: "AgentVela-0.1.12-linux-x64.tar.gz",
         sha256: VALID_SHA256,
         size: 34567,
       },
@@ -94,7 +94,7 @@ describe("releaseManifest", () => {
         makeSampleManifestJson({
           cli: {
             "linux-x64": {
-              fileName: "t3-0.1.12-linux-x64.tar.gz",
+              fileName: "AgentVela-0.1.12-linux-x64.tar.gz",
               sha256: "not-hex",
               size: 10,
             },
