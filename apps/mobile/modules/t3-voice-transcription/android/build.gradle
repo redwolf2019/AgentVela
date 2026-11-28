@@ -25,6 +25,13 @@ dependencies {
   testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2'
 }
 
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+  compilerOptions {
+    // genai-speech-recognition:1.0.0-alpha2 ships Kotlin 2.4.0 metadata on Kotlin 2.2.10.
+    freeCompilerArgs.add("-Xskip-metadata-version-check")
+  }
+}
+
 tasks.withType(Test).configureEach {
   systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
   javaLauncher = javaToolchains.launcherFor {
