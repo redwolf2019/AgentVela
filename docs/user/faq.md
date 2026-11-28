@@ -46,7 +46,7 @@ Yes. On iPhone and Android, dictation uses on-device speech by default, with the
 
 ## Does it work on Windows, Mac, and Linux?
 
-Yes, across desktop, web, and CLI. Note that there is no standalone `t3` CLI binary for Intel Macs—use the desktop app or run the server from source via Node. Windows users can also run agents inside WSL. [Install](./install.md)
+Yes, across desktop, web, and CLI. Note that there is no standalone `agentvela` CLI binary for Intel Macs—use the desktop app or run the server from source via Node. Windows users can also run agents inside WSL. [Install](./install.md)
 
 ## Why is my provider not showing up?
 

@@ -10,7 +10,7 @@ import {
 } from "./appLinking";
 
 describe("shouldHandleAppLink", () => {
-  it.each(["t3code://", "t3code:///", "t3code-dev://", "t3code-preview://"])(
+  it.each(["agentvela://", "agentvela:///", "agentvela-dev://", "agentvela-preview://"])(
     "ignores scheme-only URL %s",
     (url) => {
       expect(shouldHandleAppLink(url, true)).toBe(false);
@@ -18,15 +18,15 @@ describe("shouldHandleAppLink", () => {
   );
 
   it.each([
-    "t3code://threads/env-1/thread-1",
-    "t3code://pair?pairingUrl=x",
-    "t3code-dev://settings/appearance",
-    "https://app.t3.codes/threads/env/thread?prompt=Fix%20expo-development-client%20and%20t3code://expo-sharing",
+    "agentvela://threads/env-1/thread-1",
+    "agentvela://pair?pairingUrl=x",
+    "agentvela-dev://settings/appearance",
+    "https://app.t3.codes/threads/env/thread?prompt=Fix%20expo-development-client%20and%20agentvela://expo-sharing",
   ])("handles path-bearing URL %s", (url) => {
     expect(shouldHandleAppLink(url, true)).toBe(true);
   });
 
-  it.each(["t3code://expo-development-client/?url=x", "t3code://expo-sharing/anything"])(
+  it.each(["agentvela://expo-development-client/?url=x", "agentvela://expo-sharing/anything"])(
     "ignores lifecycle URL %s",
     (url) => {
       expect(shouldHandleAppLink(url, true)).toBe(false);
@@ -36,10 +36,10 @@ describe("shouldHandleAppLink", () => {
 
 describe("cloud-only deep links", () => {
   it.each([
-    "t3code://connect-onboarding",
-    "t3code-dev://connect-onboarding/?source=x",
-    "t3code://settings/waitlist",
-    "t3code://settings/auth",
+    "agentvela://connect-onboarding",
+    "agentvela-dev://connect-onboarding/?source=x",
+    "agentvela://settings/waitlist",
+    "agentvela://settings/auth",
     "exp://192.168.1.2:8081/--/settings/auth",
   ])("ignores %s without cloud config", (url) => {
     expect(shouldHandleAppLink(url, false)).toBe(false);
@@ -47,11 +47,11 @@ describe("cloud-only deep links", () => {
   });
 
   it.each([
-    "t3code://settings",
-    "t3code://settings/authors",
-    "t3code://pair?next=settings/auth",
-    "t3code://threads/env/thread/files/scripts/connect-onboarding",
-    "t3code://new/draft/files/settings/auth",
+    "agentvela://settings",
+    "agentvela://settings/authors",
+    "agentvela://pair?next=settings/auth",
+    "agentvela://threads/env/thread/files/scripts/connect-onboarding",
+    "agentvela://new/draft/files/settings/auth",
     "exp://192.168.1.2:8081/--/threads/env/thread/files/settings/waitlist",
   ])("still handles %s without cloud config", (url) => {
     expect(shouldHandleAppLink(url, false)).toBe(true);

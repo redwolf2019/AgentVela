@@ -229,7 +229,12 @@ describe("ssh tunnel scripts", () => {
       const fs = yield* FileSystem.FileSystem;
       const home = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ssh-launch-log-" });
       const target = { alias: "devbox", hostname: "devbox", username: null, port: null };
-      const stateDir = NodePath.join(home, ".t3", "ssh-launch", yield* remoteStateKey(target));
+      const stateDir = NodePath.join(
+        home,
+        ".agentvela",
+        "ssh-launch",
+        yield* remoteStateKey(target),
+      );
       const bin = NodePath.join(home, "bin");
       yield* fs.makeDirectory(stateDir, { recursive: true });
       yield* fs.makeDirectory(bin);
@@ -327,7 +332,7 @@ describe("ssh tunnel scripts", () => {
           "#!/bin/sh\necho 'download attempt' >&2\necho 'curl: (6) Could not resolve host: github.com' >&2\nexit 6\n",
           { mode: 0o755 },
         );
-        const runner = NodePath.join(root, "run-t3.sh");
+        const runner = NodePath.join(root, "run-agentvela.sh");
         NodeFS.writeFileSync(runner, SshTunnel.buildRemoteT3RunnerScript(ARCHIVE));
         const result = NodeChildProcess.spawnSync("sh", [runner, "--version"], {
           encoding: "utf8",
@@ -344,7 +349,7 @@ describe("ssh tunnel scripts", () => {
           );
         } else {
           assert.notInclude(result.stderr, "download attempt");
-          assert.include(result.stderr, "has no t3 release archive.");
+          assert.include(result.stderr, "has no agentvela release archive.");
         }
       } finally {
         NodeFS.rmSync(root, { recursive: true, force: true });
@@ -364,7 +369,7 @@ describe("ssh tunnel scripts", () => {
         "#!/bin/sh\necho 'download attempt' >&2\nexit 1\n",
         { mode: 0o755 },
       );
-      const runner = NodePath.join(root, "run-t3.sh");
+      const runner = NodePath.join(root, "run-agentvela.sh");
       const script = SshTunnel.buildRemoteT3RunnerScript({
         archiveVersion: ARCHIVE.archiveVersion,
         disableArchiveDownload: true,
@@ -382,8 +387,8 @@ describe("ssh tunnel scripts", () => {
       assert.notInclude(blocked.stderr, "download attempt");
 
       NodeFS.writeFileSync(
-        NodePath.join(bin, "t3"),
-        `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "t3 v${ARCHIVE.archiveVersion}"; exit 0; fi\necho "ran-preinstalled"\n`,
+        NodePath.join(bin, "agentvela"),
+        `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "agentvela v${ARCHIVE.archiveVersion}"; exit 0; fi\necho "ran-preinstalled"\n`,
         { mode: 0o755 },
       );
       const preinstalled = NodeChildProcess.spawnSync("sh", [runner, "serve"], {
@@ -402,7 +407,7 @@ describe("ssh tunnel scripts", () => {
     { installed: ARCHIVE.archiveVersion, status: 1, reuses: false },
     { installed: "9.9.9", status: 0, reuses: false },
   ])(
-    "reuses a host t3 only at exactly the requested version: installed $installed, status $status",
+    "reuses a host agentvela only at exactly the requested version: installed $installed, status $status",
     ({ installed, status, reuses }) => {
       const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-ssh-runner-"));
       try {
@@ -416,11 +421,11 @@ describe("ssh tunnel scripts", () => {
           { mode: 0o755 },
         );
         NodeFS.writeFileSync(
-          NodePath.join(bin, "t3"),
-          `#!/bin/sh\ncase "$1" in --version) echo "t3 v${installed}"; exit ${status} ;; *) echo "host t3 $*" ;; esac\n`,
+          NodePath.join(bin, "agentvela"),
+          `#!/bin/sh\ncase "$1" in --version) echo "agentvela v${installed}"; exit ${status} ;; *) echo "host agentvela $*" ;; esac\n`,
           { mode: 0o755 },
         );
-        const runner = NodePath.join(root, "run-t3.sh");
+        const runner = NodePath.join(root, "run-agentvela.sh");
         NodeFS.writeFileSync(runner, SshTunnel.buildRemoteT3RunnerScript(ARCHIVE));
         const result = NodeChildProcess.spawnSync("sh", [runner, "serve"], {
           encoding: "utf8",
@@ -428,10 +433,10 @@ describe("ssh tunnel scripts", () => {
         });
         if (reuses) {
           assert.equal(result.status, 0);
-          assert.equal(result.stdout, "host t3 serve\n");
+          assert.equal(result.stdout, "host agentvela serve\n");
         } else {
           assert.notEqual(result.status, 0);
-          assert.include(result.stderr, "has no t3 release archive.");
+          assert.include(result.stderr, "has no agentvela release archive.");
         }
       } finally {
         NodeFS.rmSync(root, { recursive: true, force: true });
@@ -453,11 +458,15 @@ describe("ssh tunnel scripts", () => {
       const archive = `AgentVela-${ARCHIVE.archiveVersion}-linux-x64.tar.gz`;
       NodeFS.mkdirSync(bin);
       NodeFS.mkdirSync(home);
-      NodeFS.mkdirSync(NodePath.join(release, "t3"), { recursive: true });
-      NodeFS.writeFileSync(NodePath.join(release, "t3", "t3"), "#!/bin/sh\necho ok\n", {
-        mode: 0o755,
-      });
-      NodeChildProcess.execFileSync("tar", ["-czf", archive, "t3"], { cwd: release });
+      NodeFS.mkdirSync(NodePath.join(release, "agentvela"), { recursive: true });
+      NodeFS.writeFileSync(
+        NodePath.join(release, "agentvela", "agentvela"),
+        "#!/bin/sh\necho ok\n",
+        {
+          mode: 0o755,
+        },
+      );
+      NodeChildProcess.execFileSync("tar", ["-czf", archive, "agentvela"], { cwd: release });
       NodeChildProcess.execFileSync("sh", ["-c", `sha256sum ${archive} > SHA256SUMS`], {
         cwd: release,
       });
@@ -512,7 +521,7 @@ describe("ssh tunnel scripts", () => {
         `#!/bin/sh\nfor last; do :; done\nfor a; do case "$a" in http*) src="${release}/\${a##*/}" ;; esac; done\nexec cat "$src" > "$last"\n`,
         { mode: 0o755 },
       );
-      const runner = NodePath.join(root, "run-t3.sh");
+      const runner = NodePath.join(root, "run-agentvela.sh");
       NodeFS.writeFileSync(runner, SshTunnel.buildRemoteT3RunnerScript(ARCHIVE));
       const result = NodeChildProcess.spawnSync(NodePath.join(bin, "sh"), [runner, "--version"], {
         encoding: "utf8",
@@ -551,7 +560,7 @@ describe("ssh tunnel scripts", () => {
         '#!/bin/sh\necho "download attempt" >&2\nexit 1\n',
         { mode: 0o755 },
       );
-      const runner = NodePath.join(root, "run-t3.sh");
+      const runner = NodePath.join(root, "run-agentvela.sh");
       NodeFS.writeFileSync(runner, SshTunnel.buildRemoteT3RunnerScript(ARCHIVE));
       const result = NodeChildProcess.spawnSync(NodePath.join(bin, "sh"), [runner, "--version"], {
         encoding: "utf8",
@@ -1386,7 +1395,7 @@ describe("ssh tunnel scripts", () => {
 child.on("exit", (code) => process.exit(code ?? 1));`,
         );
         // A launch that died holding the lock must not block or double-admit later ones.
-        const launchLock = path.join(home, ".t3", "ssh-launch", ".launch.lock");
+        const launchLock = path.join(home, ".agentvela", "ssh-launch", ".launch.lock");
         yield* fs.makeDirectory(path.dirname(launchLock), { recursive: true });
         yield* fs.writeFileString(launchLock, "999999999\n");
         const targets = [
@@ -1404,7 +1413,7 @@ child.on("exit", (code) => process.exit(code ?? 1));`,
         ).pipe(Effect.provide(localRemoteShellLayer(home)));
 
         const ownerPid = Number(
-          yield* fs.readFileString(path.join(home, ".t3", "userdata", "server.lock")),
+          yield* fs.readFileString(path.join(home, ".agentvela", "userdata", "server.lock")),
         );
         assert.sameMembers(
           launches.map((launch) => launch.remoteServerKind),
@@ -1418,7 +1427,7 @@ child.on("exit", (code) => process.exit(code ?? 1));`,
           if (launch.remoteServerKind !== "managed") continue;
           const stateKey = yield* remoteStateKey(targets[index]!);
           const recordedPid = yield* fs.readFileString(
-            path.join(home, ".t3", "ssh-launch", stateKey, "pid"),
+            path.join(home, ".agentvela", "ssh-launch", stateKey, "pid"),
           );
           assert.equal(
             Number(recordedPid.trim()),
@@ -1521,7 +1530,7 @@ server.listen(Number(flag("--port") ?? 0), "127.0.0.1", () => {
         holderPort,
         sshAsLocalShell,
         staleId: staleId === "an unrelated process" ? holder.pid : tid,
-        stateDir: `${home}/.t3/ssh-launch/${yield* remoteStateKey(target)}`,
+        stateDir: `${home}/.agentvela/ssh-launch/${yield* remoteStateKey(target)}`,
       };
     });
 
@@ -1555,7 +1564,7 @@ server.listen(Number(flag("--port") ?? 0), "127.0.0.1", () => {
       // Reboot: our server is gone and its recorded PID now names something that
       // answers on the recorded port.
       process.kill(firstPid, "SIGKILL");
-      yield* fs.remove(`${home}/.t3/userdata/server-runtime.json`);
+      yield* fs.remove(`${home}/.agentvela/userdata/server-runtime.json`);
       yield* fs.writeFileString(`${stateDir}/pid`, `${staleId}\n`);
       yield* fs.writeFileString(`${stateDir}/port`, `${holderPort}\n`);
 
@@ -1620,7 +1629,7 @@ server.listen(Number(flag("--port") ?? 0), "127.0.0.1", () => {
           launcherId,
         ).pipe(Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, sshAsLocalShell));
       const runtimePid = fs
-        .readFileString(`${home}/.t3/userdata/server-runtime.json`)
+        .readFileString(`${home}/.agentvela/userdata/server-runtime.json`)
         .pipe(Effect.map((runtime) => Number(JSON.parse(runtime).pid)));
       const launchedPids: Array<number> = [];
       yield* Effect.addFinalizer(() =>
@@ -1697,7 +1706,7 @@ server.listen(Number(flag("--port") ?? 0), "127.0.0.1", () => {
             launcherId,
           ).pipe(Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, sshAsLocalShell));
         const runtimePid = fs
-          .readFileString(`${home}/.t3/userdata/server-runtime.json`)
+          .readFileString(`${home}/.agentvela/userdata/server-runtime.json`)
           .pipe(Effect.map((runtime) => Number(JSON.parse(runtime).pid)));
 
         assert.equal((yield* launch("a".repeat(32))).remoteServerKind, "managed");
@@ -1884,27 +1893,27 @@ const canBind = (port) =>
       const fs = yield* FileSystem.FileSystem;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-archive-launch-" });
       const home = `${root}/home`;
-      const stateDir = `${home}/.t3/ssh-launch/test-state`;
+      const stateDir = `${home}/.agentvela/ssh-launch/test-state`;
       const fakeT3 = `${root}/fake-t3.cjs`;
       yield* fs.makeDirectory(stateDir, { recursive: true });
       yield* fs.writeFileString(`${stateDir}/port`, `${yield* freeLoopbackPort}\n`);
       yield* fs.writeFileString(fakeT3, FAKE_T3);
       for (const version of versions) {
-        const runtimeDir = `${home}/.t3/runtime/versions/${version}`;
+        const runtimeDir = `${home}/.agentvela/runtime/versions/${version}`;
         yield* fs.makeDirectory(runtimeDir, { recursive: true });
         // The runner gets only HOME, so `node` would resolve on sh's default PATH, which may not have it.
         yield* fs.writeFileString(
-          `${runtimeDir}/t3`,
+          `${runtimeDir}/agentvela`,
           `#!/bin/sh\nexec '${process.execPath}' '${fakeT3}' '${version}' "$@"\n`,
         );
-        yield* fs.chmod(`${runtimeDir}/t3`, 0o755);
+        yield* fs.chmod(`${runtimeDir}/agentvela`, 0o755);
         yield* fs.writeFileString(`${runtimeDir}/.install-complete`, `${version}\n`);
       }
       const readManagedPid = fs
         .readFileString(`${stateDir}/pid`)
         .pipe(Effect.map((pid) => Number(pid.trim())));
       const readServerVersion = fs
-        .readFileString(`${home}/.t3/userdata/server-runtime.json`)
+        .readFileString(`${home}/.agentvela/userdata/server-runtime.json`)
         .pipe(Effect.map((raw) => (JSON.parse(raw) as { serverVersion: string }).serverVersion));
       // Launched servers outlive the script, so stop each PID it recorded.
       const launchedPids = new Set<number>();
@@ -1950,27 +1959,29 @@ const canBind = (port) =>
       }).pipe(Effect.provide(NodeServices.layer)),
   );
 
-  // An NFS home can carry a ~/.t3 symlink whose target exists only on another host.
-  it.live.skipIf(windowsHost)("launches through a ~/.t3 symlink whose target is missing", () =>
-    Effect.gen(function* () {
-      const fs = yield* FileSystem.FileSystem;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-dangling-home-" });
-      const home = `${root}/home`;
-      const target = `${root}/shared/t3`;
-      yield* fs.makeDirectory(home, { recursive: true });
-      yield* fs.symlink(target, `${home}/.t3`);
-      const launch = `${root}/launch.sh`;
-      yield* fs.writeFileString(
-        launch,
-        SshTunnel.buildRemoteLaunchScript({
-          archiveVersion: "0.1.6",
-          releaseBaseUrl: "http://127.0.0.1:9",
-        }),
-      );
-      const result = yield* runScript(home, [launch, "test-state"]);
-      assert.notInclude(result.stderr, "File exists");
-      assert.isTrue(yield* fs.exists(`${target}/ssh-launch/test-state`), result.stderr);
-    }).pipe(Effect.provide(NodeServices.layer)),
+  // An NFS home can carry a ~/.agentvela symlink whose target exists only on another host.
+  it.live.skipIf(windowsHost)(
+    "launches through a ~/.agentvela symlink whose target is missing",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-dangling-home-" });
+        const home = `${root}/home`;
+        const target = `${root}/shared/t3`;
+        yield* fs.makeDirectory(home, { recursive: true });
+        yield* fs.symlink(target, `${home}/.agentvela`);
+        const launch = `${root}/launch.sh`;
+        yield* fs.writeFileString(
+          launch,
+          SshTunnel.buildRemoteLaunchScript({
+            archiveVersion: "0.1.6",
+            releaseBaseUrl: "http://127.0.0.1:9",
+          }),
+        );
+        const result = yield* runScript(home, [launch, "test-state"]);
+        assert.notInclude(result.stderr, "File exists");
+        assert.isTrue(yield* fs.exists(`${target}/ssh-launch/test-state`), result.stderr);
+      }).pipe(Effect.provide(NodeServices.layer)),
   );
 
   it.live.skipIf(windowsHost)("a newer client still replaces an older managed server", () =>

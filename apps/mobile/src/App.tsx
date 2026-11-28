@@ -141,9 +141,9 @@ const hostedAppUrl = resolveHostedAppUrl();
 const appLinking = {
   prefixes: [
     Linking.createURL("/"),
-    "t3code://",
-    "t3code-dev://",
-    "t3code-preview://",
+    "agentvela://",
+    "agentvela-dev://",
+    "agentvela-preview://",
     ...(hostedAppUrl ? [hostedAppUrl] : []),
   ],
   config: { initialRouteName: "Home" },

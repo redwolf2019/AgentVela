@@ -334,7 +334,7 @@ export function makeCursorAgentOptions(input: {
   const policy = cursorRuntimeAgentPolicy(input.runtimePolicy, input.platform);
   return {
     model: cursorSdkModelSelection(input.modelSelection, input.models, input.sdkModels),
-    name: `T3 Code ${input.threadId}`,
+    name: `AgentVela ${input.threadId}`,
     mode: input.runtimePolicy.interactionMode === "plan" ? "plan" : "agent",
     ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
     local: {
@@ -371,7 +371,7 @@ function cursorBlockedMcpServersNotice(servers: ReadonlyArray<string>): string {
   return [
     ...(servers.includes(T3_MCP_SERVER)
       ? [
-          "Your Cursor team's MCP policy blocks T3 Code's MCP server, so Cursor runs in this thread without T3 Code tools such as delegation, thread tools, and device control. A Cursor team admin can allow the t3-code server.",
+          "Your Cursor team's MCP policy blocks AgentVela's MCP server, so Cursor runs in this thread without AgentVela tools such as delegation, thread tools, and device control. A Cursor team admin can allow the t3-code server.",
         ]
       : []),
     ...(others.length === 0

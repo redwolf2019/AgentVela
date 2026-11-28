@@ -40,10 +40,10 @@ it.each(["prod", ""])("rejects APP_VARIANT=%j before selecting production IDs", 
 });
 
 it.each([
-  [undefined, "com.t3tools.t3code"],
-  ["development", "com.t3tools.t3code.dev"],
-  ["preview", "com.t3tools.t3code.preview"],
-  ["production", "com.t3tools.t3code"],
+  [undefined, "io.github.redwolf2019.agentvela"],
+  ["development", "io.github.redwolf2019.agentvela.dev"],
+  ["preview", "io.github.redwolf2019.agentvela.preview"],
+  ["production", "io.github.redwolf2019.agentvela"],
 ])(
   "keeps identifiers, syncs version and Android versionCode, registers APK plugins, and disables Expo OTA for APP_VARIANT=%j",
   async (value, identifier) => {

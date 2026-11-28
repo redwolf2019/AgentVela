@@ -1,6 +1,6 @@
 # Appearance and themes
 
-Customize T3 Code's theme, light/dark appearance, math rendering, motion, and custom CSS. Appearance settings are saved per device or browser.
+Customize AgentVela's theme, light/dark appearance, math rendering, motion, and custom CSS. Appearance settings are saved per device or browser.
 
 ## Switch themes and appearance
 
@@ -28,7 +28,7 @@ Sidebars, the right panel, and the terminal drawer open immediately by default. 
 
 ## Custom themes
 
-On web and desktop, choose **Create theme** in **Settings → Appearance** to edit a palette, import a T3 Code or VS Code theme, or export your theme as JSON.
+On web and desktop, choose **Create theme** in **Settings → Appearance** to edit a palette, import an AgentVela or VS Code theme, or export your theme as JSON.
 
 ### Custom CSS
 
@@ -37,11 +37,11 @@ Open **Custom CSS** in the theme editor for styling beyond palette colors. Custo
 - Use `.dark` or `:root:not(.dark)` to target one appearance.
 - Target `data-slot` and other `data-` attributes (such as `[data-chat-header]` or `[data-slot="button"]`) rather than class names, which change between releases.
 - External resource loading (`@import`, `image-set()`, and non-`data:`/`#id` `url()`) is blocked for security. Use a [background image](#background-image) for full-size images.
-- **Recovery**: If custom CSS hides something you need, run `t3 theme set t3-chat` on the server or press `Cmd+Option+A` / `Ctrl+Alt+A` to switch themes.
+- **Recovery**: If custom CSS hides something you need, run `agentvela theme set t3-chat` on the server or press `Cmd+Option+A` / `Ctrl+Alt+A` to switch themes.
 
 ### Ask an agent
 
-An agent running on the same machine as the server in **Full access** mode can restyle T3 Code for you (for example, "give T3 Code a solarized theme"). It publishes an [environment theme](#environment-themes) and switches connected web and desktop clients to it. Ask the agent to switch back to a built-in theme to undo.
+An agent running on the same machine as the server in **Full access** mode can restyle AgentVela for you (for example, "give AgentVela a solarized theme"). It publishes an [environment theme](#environment-themes) and switches connected web and desktop clients to it. Ask the agent to switch back to a built-in theme to undo.
 
 ## Environment themes
 
@@ -52,16 +52,16 @@ Select a published theme in **Settings → Appearance** to track server updates,
 Manage the server default from the CLI:
 
 ```bash
-t3 theme set nightfall   # Set default and switch connected/reconnecting clients once
-t3 theme clear           # Remove the default without changing current client themes
-t3 theme show            # List the default and all published themes
+agentvela theme set nightfall   # Set default and switch connected/reconnecting clients once
+agentvela theme clear           # Remove the default without changing current client themes
+agentvela theme show            # List the default and all published themes
 ```
 
 ### Publish a theme
 
-Save an exported theme JSON into `~/.t3/userdata/themes/` on the server (or `themes/` under your custom state directory). The filename sets the theme ID (e.g. `nightfall.json` → `t3 theme set nightfall`). Avoid reserved IDs (`system`, `light`, `dark`, or built-in theme IDs).
+Save an exported theme JSON into `~/.agentvela/userdata/themes/` on the server (or `themes/` under your custom state directory). The filename sets the theme ID (e.g. `nightfall.json` → `agentvela theme set nightfall`). Avoid reserved IDs (`system`, `light`, `dark`, or built-in theme IDs).
 
-You can also use a minimal palette format—T3 Code generates the remaining tokens:
+You can also use a minimal palette format—AgentVela generates the remaining tokens:
 
 ```json
 {

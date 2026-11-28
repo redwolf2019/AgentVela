@@ -26,7 +26,7 @@ Open the command palette (`Cmd/Ctrl+K`) and run **Use AgentVela in another app (
 
 ## Approve access and permissions
 
-The first time an outside agent connects, approve its sign-in page (via the relay account the environment is linked to, an already-authorized browser, or a one-time pairing code from **Settings → Sharing & access** / `t3 auth pairing create`).
+The first time an outside agent connects, approve its sign-in page (via the relay account the environment is linked to, an already-authorized browser, or a one-time pairing code from **Settings → Sharing & access** / `agentvela auth pairing create`).
 
 - **Read only**: Inspect projects, threads, providers, and models.
 - **Supervised → Full access**: Also launch, message, and stop threads up to the granted permission mode. Managing [workflow runs](./workflows.md) or using approval-skipping agent modes requires **Full access** (or your policy's maximum mode).
@@ -34,21 +34,21 @@ The first time an outside agent connects, approve its sign-in page (via the rela
 
 ## Available tools and limits
 
-Tools that act as a running T3 thread (`delegate_task`, `create_threads`, `request_secret`, `html_render`, `preview_*`, `device_*`, `t3_worktree_handoff`) only work for agents running **inside** AgentVela.
+Tools that act as a running AgentVela thread (`delegate_task`, `create_threads`, `request_secret`, `html_render`, `preview_*`, `device_*`, `t3_worktree_handoff`) only work for agents running **inside** AgentVela.
 
 - Use `t3_thread_launch` + `t3_thread_wait` / `t3_thread_read` to run and follow work.
 - Pass `projectId` or `threadId` explicitly (or `allProjects: true` on `t3_thread_list`).
 - **MCP Events (`io.modelcontextprotocol/events`)**: Bots can poll, stream, or subscribe via HTTPS webhooks (up to 1-hour leases; latest 1,000 milestones buffered in memory) for turn, approval, guest, PR watch, and workflow events. For local webhook testing, set `T3CODE_MCP_WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1` on the server.
 
-## Host scripts (`t3 thread`)
+## Host scripts (`agentvela thread`)
 
 On the server machine itself, drive threads directly without OAuth:
 
 ```sh
-id=$(t3 thread start . "Find why the tests are slow")
-t3 thread send "$id" "Now fix it" --wait
-t3 thread show "$id"
-t3 thread list
+id=$(agentvela thread start . "Find why the tests are slow")
+agentvela thread send "$id" "Now fix it" --wait
+agentvela thread show "$id"
+agentvela thread list
 ```
 
 - Pass `--worktree <base-branch>`, `--title` / `--generate-title`, `--provider <id> --model <slug>`, `--option id=value` (e.g. `reasoningEffort=high` for Codex, `effort=high` for Claude), or `-` to read the prompt from stdin.

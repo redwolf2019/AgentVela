@@ -55,8 +55,8 @@ const SERVICE = {
   supported: true,
   installed: true,
   current: true,
-  unitPath: "/home/me/.config/systemd/user/t3code.service",
-  logPath: "/home/me/.t3/userdata/logs/boot-service.log",
+  unitPath: "/home/me/.config/systemd/user/agentvela.service",
+  logPath: "/home/me/.agentvela/userdata/logs/boot-service.log",
 } as const;
 
 // Prompts run only when both streams are terminals.
@@ -128,7 +128,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))
     },
     {
       label: "the local network opens",
-      prints: ["Run `t3 pair --base-dir <baseDir>`."],
+      prints: ["Run `agentvela pair --base-dir <baseDir>`."],
       installed: true,
       env: "T3CODE_LAN=false\n",
       args: ["--lan"],
@@ -147,7 +147,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))
     },
     {
       label: "a route turns off with no service to run",
-      prints: ["Run `t3 --base-dir <baseDir>` to use T3 Code here."],
+      prints: ["Run `agentvela --base-dir <baseDir>` to use AgentVela here."],
       installed: false,
       env: "T3CODE_LAN=true\n",
       args: ["--no-lan"],
@@ -168,7 +168,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))
     {
       label: "a failed update keeps service.env matching the old service",
       // The old service still runs, so no foreground server is offered.
-      prints: ["Fix that, then run `t3 up --base-dir <baseDir>` again."],
+      prints: ["Fix that, then run `agentvela up --base-dir <baseDir>` again."],
       installed: true,
       status: { current: false },
       installFails: true,
@@ -231,8 +231,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))
       installed: true,
       reportStatus: true,
       prints: [
-        "Turn it off: `t3 up --base-dir <baseDir> --no-lan`.",
-        "Change access: `t3 up --base-dir <baseDir>`.",
+        "Turn it off: `agentvela up --base-dir <baseDir> --no-lan`.",
+        "Change access: `agentvela up --base-dir <baseDir>`.",
       ],
       env: "",
       args: [],

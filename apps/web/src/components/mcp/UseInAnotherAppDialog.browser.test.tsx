@@ -60,7 +60,7 @@ describe("PrimaryAction", () => {
     await page.getByRole("button", { name: "Continue to Poke" }).click();
     expect(openExternal).toHaveBeenCalledTimes(1);
     expect(openExternal).toHaveBeenCalledWith(
-      `https://poke.com/integrations/new?name=T3%20Code&url=${encodeURIComponent(MCP_URL)}`,
+      `https://poke.com/integrations/new?name=AgentVela&url=${encodeURIComponent(MCP_URL)}`,
     );
 
     await screen.rerender(<PrimaryAction key="claude" app={claude} mcpUrl={MCP_URL} />);

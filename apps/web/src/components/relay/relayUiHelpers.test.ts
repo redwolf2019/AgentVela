@@ -17,7 +17,7 @@ describe("relayUiHelpers", () => {
     expect(formatRelayHostLabel("not a url")).toBe("not a url");
     expect(formatRelayHostLabel(null)).toBe("");
     expect(buildEnrollmentCommand("https://relay.example.com", "enroll-123")).toBe(
-      "t3 relay link --url https://relay.example.com --token enroll-123",
+      "agentvela relay link --url https://relay.example.com --token enroll-123",
     );
   });
 

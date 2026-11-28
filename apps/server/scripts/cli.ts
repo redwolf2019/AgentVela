@@ -169,13 +169,13 @@ const buildExeCmd = Command.make(
         yield* injectLinuxArm64Sea({
           bundlePath: bootstrapPath,
           cliAssetPath: cliMainPath,
-          outputPath: path.join(serverDir, "dist-exe/t3"),
+          outputPath: path.join(serverDir, "dist-exe/agentvela"),
           nodeVersion: rootPackageJson.engines.node,
           verbose: config.verbose,
         });
       }
       yield* Effect.log(
-        "[cli] Built dist-exe/t3 (expects client/, resource-monitor/, and the runtime-external node_modules beside it; scripts/build-cli-archive.ts assembles that tree)",
+        "[cli] Built dist-exe/agentvela (expects client/, resource-monitor/, and the runtime-external node_modules beside it; scripts/build-cli-archive.ts assembles that tree)",
       );
     }),
 ).pipe(
@@ -185,7 +185,7 @@ const buildExeCmd = Command.make(
 );
 
 const cli = Command.make("cli").pipe(
-  Command.withDescription("T3 server build CLI."),
+  Command.withDescription("AgentVela server build CLI."),
   Command.withSubcommands([buildCmd, buildExeCmd]),
 );
 

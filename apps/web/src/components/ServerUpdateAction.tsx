@@ -184,7 +184,7 @@ export function ServerUpdatesAction({
         const confirmed =
           (await requestConfirmDialog(
             gt(
-              "Update the T3 Code desktop apps on {servers}? They will close and relaunch on those machines.",
+              "Update the AgentVela desktop apps on {servers}? They will close and relaunch on those machines.",
               { servers: desktopTargets.map((target) => target.serverLabel).join(", ") },
             ),
             { initialFocus: "confirm" },
@@ -283,12 +283,15 @@ export function ServerUpdateAction({
         type: "success",
         title: updatesInstall ? gt("Update command copied") : gt("Relaunch command copied"),
         description: updatesInstall
-          ? gt("Run `{command}` on {serverLabel}, then restart t3 with your usual options.", {
-              command,
-              serverLabel,
-            })
+          ? gt(
+              "Run `{command}` on {serverLabel}, then restart agentvela with your usual options.",
+              {
+                command,
+                serverLabel,
+              },
+            )
           : gt(
-              "Stop t3 on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed t3 command.",
+              "Stop agentvela on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed agentvela command.",
               { command, serverLabel },
             ),
       });
@@ -313,7 +316,7 @@ export function ServerUpdateAction({
       const confirmed =
         (await requestConfirmDialog(
           gt(
-            "Update the T3 Code desktop app that runs the {serverLabel}? It will close and relaunch on that machine.",
+            "Update the AgentVela desktop app that runs the {serverLabel}? It will close and relaunch on that machine.",
             { serverLabel },
           ),
           { initialFocus: "confirm" },

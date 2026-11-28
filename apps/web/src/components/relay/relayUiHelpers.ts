@@ -32,7 +32,7 @@ export function formatRelayHostLabel(relayUrl: string | null): string {
 }
 
 export function buildEnrollmentCommand(relayUrl: string, enrollmentToken: string): string {
-  return `t3 relay link --url ${relayUrl} --token ${enrollmentToken}`;
+  return `agentvela relay link --url ${relayUrl} --token ${enrollmentToken}`;
 }
 
 export function formatRelayBytes(bytes: number): string {

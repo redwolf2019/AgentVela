@@ -139,7 +139,7 @@ it.layer(NodeServices.layer)("t3 update under a managed policy", (it) => {
   it.effect("refuses to update when updates are off", () =>
     Effect.gen(function* () {
       const error = yield* runWithPolicy({ mode: "off" });
-      assert.equal(error.message, "Example Corp manages T3 Code updates.");
+      assert.equal(error.message, "Example Corp manages AgentVela updates.");
     }),
   );
 
@@ -149,7 +149,7 @@ it.layer(NodeServices.layer)("t3 update under a managed policy", (it) => {
         { mode: "auto" },
         { requestedVersion: "1.2.0-nightly.20261028.1" },
       );
-      assert.include(error.message, "Only stable X.Y.Z t3 releases are supported");
+      assert.include(error.message, "Only stable X.Y.Z agentvela releases are supported");
     }),
   );
 
@@ -181,9 +181,9 @@ it.layer(NodeServices.layer)("t3 update launcher", (it) => {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-      const oldExe = path.join(root, "runtime/versions/1.0.0/t3");
-      const newExe = path.join(root, "runtime/versions/2.0.0/t3");
-      const launcher = path.join(root, "bin/t3");
+      const oldExe = path.join(root, "runtime/versions/1.0.0/agentvela");
+      const newExe = path.join(root, "runtime/versions/2.0.0/agentvela");
+      const launcher = path.join(root, "bin/agentvela");
       for (const file of [oldExe, newExe]) {
         yield* fs.makeDirectory(path.dirname(file), { recursive: true });
         yield* fs.writeFileString(file, "");
@@ -211,9 +211,9 @@ it.layer(NodeServices.layer)("t3 update launcher", (it) => {
       const root = yield* fs.makeTempDirectoryScoped();
       const baseDir = path.join(root, "home");
       const runtimeDir = path.join(baseDir, "runtime");
-      const launcher = path.join(root, "custom bin", "t3.cmd");
-      const launchedAs = path.join(runtimeDir, "versions", "1.0.0", "t3.exe");
-      const targetEntryPath = path.join(runtimeDir, "versions", "2.0.0", "t3.exe");
+      const launcher = path.join(root, "custom bin", "agentvela.cmd");
+      const launchedAs = path.join(runtimeDir, "versions", "1.0.0", "agentvela.exe");
+      const targetEntryPath = path.join(runtimeDir, "versions", "2.0.0", "agentvela.exe");
       yield* fs.makeDirectory(runtimeDir, { recursive: true });
       yield* fs.makeDirectory(path.dirname(launcher), { recursive: true });
       yield* fs.writeFileString(launcher, `@echo off\r\n"${launchedAs}" %*`);
@@ -242,15 +242,16 @@ it.layer(NodeServices.layer)("t3 update launcher", (it) => {
         );
         // A quote and a space in the home path exercise the script's quoting.
         const home = path.join(root, "it's home");
-        const entry = (version: string) => path.join(home, "runtime/versions", version, "t3");
+        const entry = (version: string) =>
+          path.join(home, "runtime/versions", version, "agentvela");
         for (const version of ["1.0.0", "2.0.0"]) {
           yield* fs.makeDirectory(path.dirname(entry(version)), { recursive: true });
           yield* fs.writeFileString(entry(version), '#!/bin/sh\nprintf \'[%s]\\n\' "$0" "$@"\n', {
             mode: 0o755,
           });
         }
-        const launcher = path.join(root, "bin/t3");
-        const alias = path.join(root, "alias/t3");
+        const launcher = path.join(root, "bin/agentvela");
+        const alias = path.join(root, "alias/agentvela");
         yield* fs.makeDirectory(path.dirname(launcher), { recursive: true });
         yield* fs.makeDirectory(path.dirname(alias), { recursive: true });
         yield* fs.writeFileString(launcher, posixLauncherScript(entry("1.0.0")), { mode: 0o755 });
@@ -304,12 +305,12 @@ it.layer(NodeServices.layer)("t3 update launcher", (it) => {
   it.effect.each([
     { name: "no launcher records", recorded: undefined },
     { name: "an empty launcher record", recorded: "" },
-    { name: "whole launcher records", recorded: "/opt/t3\n" },
-    { name: "Windows launcher records", recorded: "C:\\t3.cmd\r\n" },
+    { name: "whole launcher records", recorded: "/opt/agentvela\n" },
+    { name: "Windows launcher records", recorded: "C:\\agentvela.cmd\r\n" },
     // An interrupted append cut this record short.
-    { name: "an unterminated launcher record", recorded: "/opt/t" },
-    // Another process's append is cut short after t3 update reads the records.
-    { name: "a record cut short after the read", recorded: "/opt/t3\n", cut: "/opt/t" },
+    { name: "an unterminated launcher record", recorded: "/opt/agent" },
+    // Another process's append is cut short after agentvela update reads the records.
+    { name: "a record cut short after the read", recorded: "/opt/agentvela\n", cut: "/opt/agent" },
   ])("keeps the runtime a repointed launcher off PATH points at with $name", ({ recorded, cut }) =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
@@ -319,22 +320,22 @@ it.layer(NodeServices.layer)("t3 update launcher", (it) => {
       for (const version of ["1.0.0", "2.0.0"]) {
         const directory = path.join(root, "runtime/versions", version);
         yield* fs.makeDirectory(directory, { recursive: true });
-        yield* fs.writeFileString(path.join(directory, "t3"), "");
+        yield* fs.writeFileString(path.join(directory, "agentvela"), "");
         yield* fs.writeFileString(path.join(directory, ".install-complete"), `${version}\n`);
         yield* fs.utimes(path.join(directory, ".install-complete"), 0, 0);
       }
       if (recorded !== undefined) {
         yield* fs.writeFileString(path.join(root, "runtime/launchers"), recorded);
       }
-      // A launcher in the T3 home itself, which neither PATH nor the default bin dir reaches.
-      const launcher = path.join(root, "t3");
-      yield* fs.symlink(path.join(root, "runtime/versions/1.0.0/t3"), launcher);
+      // A launcher in the AgentVela home itself, which neither PATH nor the default bin dir reaches.
+      const launcher = path.join(root, "agentvela");
+      yield* fs.symlink(path.join(root, "runtime/versions/1.0.0/agentvela"), launcher);
 
       const launchersFile = path.join(root, "runtime/launchers");
       yield* repointLauncher({
         launchedAs: launcher,
         baseDir: root,
-        targetEntryPath: path.join(root, "runtime/versions/2.0.0/t3"),
+        targetEntryPath: path.join(root, "runtime/versions/2.0.0/agentvela"),
       }).pipe(
         Effect.provideService(FileSystem.FileSystem, {
           ...fs,
@@ -361,7 +362,7 @@ it.layer(NodeServices.layer)("t3 update launcher", (it) => {
       assert.deepStrictEqual(removed, ["1.0.0"]);
       assert.equal(
         yield* readPosixLauncherTarget(launcher),
-        path.join(root, "runtime/versions/2.0.0/t3"),
+        path.join(root, "runtime/versions/2.0.0/agentvela"),
       );
     }).pipe(Effect.provideService(HostProcess.Platform, "linux")),
   );
@@ -370,9 +371,9 @@ it.layer(NodeServices.layer)("t3 update launcher", (it) => {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-    const oldExe = path.join(root, "runtime/versions/1.0.0/t3");
-    const newExe = path.join(root, "runtime/versions/2.0.0/t3");
-    const launcher = path.join(root, "t3");
+    const oldExe = path.join(root, "runtime/versions/1.0.0/agentvela");
+    const newExe = path.join(root, "runtime/versions/2.0.0/agentvela");
+    const launcher = path.join(root, "agentvela");
     for (const file of [oldExe, newExe]) {
       yield* fs.makeDirectory(path.dirname(file), { recursive: true });
       yield* fs.writeFileString(file, "");
@@ -456,12 +457,12 @@ it.layer(NodeServices.layer)("t3 update launcher", (it) => {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-      const newExe = path.join(root, "runtime/versions/2.0.0/t3");
-      const copy = path.join(root, "copy/t3");
-      const foreign = path.join(root, "foreign/t3");
-      const elsewhere = path.join(root, "elsewhere/t3");
-      const otherHome = path.join(root, "other/runtime/versions/1.0.0/t3");
-      const otherLauncher = path.join(root, "other/bin/t3");
+      const newExe = path.join(root, "runtime/versions/2.0.0/agentvela");
+      const copy = path.join(root, "copy/agentvela");
+      const foreign = path.join(root, "foreign/agentvela");
+      const elsewhere = path.join(root, "elsewhere/agentvela");
+      const otherHome = path.join(root, "other/runtime/versions/1.0.0/agentvela");
+      const otherLauncher = path.join(root, "other/bin/agentvela");
       for (const file of [newExe, copy, elsewhere, otherHome]) {
         yield* fs.makeDirectory(path.dirname(file), { recursive: true });
         yield* fs.writeFileString(file, "");
@@ -490,24 +491,24 @@ it.layer(NodeServices.layer)("t3 update launcher", (it) => {
       const path = yield* Path.Path;
       const delimiter = (yield* HostProcess.Platform) === "win32" ? ";" : ":";
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-      const launcher = path.join(root, "bin/t3");
+      const launcher = path.join(root, "bin/agentvela");
       yield* fs.makeDirectory(path.dirname(launcher), { recursive: true });
       yield* fs.writeFileString(launcher, "", { mode: 0o755 });
 
       const bare = yield* resolveLauncherPath.pipe(
-        Effect.provideService(HostProcess.InvokedAs, "t3"),
+        Effect.provideService(HostProcess.InvokedAs, "agentvela"),
         Effect.provideService(HostProcess.Environment, {
           PATH: [path.join(root, "missing"), path.join(root, "bin")].join(delimiter),
         }),
         Effect.provideService(HostProcess.WorkingDirectory, root),
       );
       const relative = yield* resolveLauncherPath.pipe(
-        Effect.provideService(HostProcess.InvokedAs, "./bin/t3"),
+        Effect.provideService(HostProcess.InvokedAs, "./bin/agentvela"),
         Effect.provideService(HostProcess.Environment, { PATH: "" }),
         Effect.provideService(HostProcess.WorkingDirectory, root),
       );
       const absent = yield* resolveLauncherPath.pipe(
-        Effect.provideService(HostProcess.InvokedAs, "t3"),
+        Effect.provideService(HostProcess.InvokedAs, "agentvela"),
         Effect.provideService(HostProcess.Environment, { PATH: path.join(root, "missing") }),
         Effect.provideService(HostProcess.WorkingDirectory, root),
       );
@@ -549,7 +550,7 @@ it.layer(NodeServices.layer)("t3 update with a background service", (it) => {
       yield* fs.makeDirectory(runtime.versionDir, { recursive: true });
       yield* fs.writeFileString(runtime.entryPath, "");
       yield* fs.writeFileString(runtime.sentinelPath, `${version}\n`);
-      const unitPath = path.join(baseDir, "t3code.service");
+      const unitPath = path.join(baseDir, "agentvela.service");
       const logPath = path.join(baseDir, "boot-service.log");
       // An earlier `t3 update` pointed the service at this version without restarting it.
       const service = Layer.mock(BootService.BootService, {
@@ -609,7 +610,7 @@ it.layer(NodeServices.layer)("t3 update with a background service", (it) => {
 
       assert.include(
         output,
-        `Background service still running the version before ${version}. Run \`t3 service restart\` when you are ready to switch it to ${version}.`,
+        `Background service still running the version before ${version}. Run \`agentvela service restart\` when you are ready to switch it to ${version}.`,
       );
     }).pipe(
       Effect.provideService(HostProcess.Platform, "linux"),
@@ -629,7 +630,8 @@ it.layer(NodeServices.layer)("t3 update checks the database before switching", (
     stdoutInvalidUtf8: false,
     stderrInvalidUtf8: false,
   });
-  const blockedReason = "This database has migrations that t3@0.1.8 does not know: 79_example.";
+  const blockedReason =
+    "This database has migrations that agentvela@0.1.8 does not know: 79_example.";
 
   it.effect.each([
     {
@@ -656,7 +658,7 @@ it.layer(NodeServices.layer)("t3 update checks the database before switching", (
       launcherProtocol: 3,
       preflight: preflightOutput("", 1),
       failure:
-        "t3@0.1.8 could not confirm it supports this database (its check exited with code 1), so t3 did not switch to it.",
+        "agentvela@0.1.8 could not confirm it supports this database (its check exited with code 1), so agentvela did not switch to it.",
     },
     {
       // Newer builds keep accepting the current launcher protocol, which may drop 3.
@@ -687,7 +689,7 @@ it.layer(NodeServices.layer)("t3 update checks the database before switching", (
           supported: true,
           installed: false,
           current: false,
-          unitPath: path.join(baseDir, "t3code.service"),
+          unitPath: path.join(baseDir, "agentvela.service"),
           logPath: path.join(baseDir, "boot-service.log"),
         }),
       });
@@ -700,7 +702,7 @@ it.layer(NodeServices.layer)("t3 update checks the database before switching", (
           }
           // A target's --version always answers, whatever its database support.
           return input.args?.includes("--version") === true
-            ? Effect.succeed(preflightOutput(`t3 v${targetVersion}\n`))
+            ? Effect.succeed(preflightOutput(`agentvela v${targetVersion}\n`))
             : unrelatedLsof.run(input);
         },
       });

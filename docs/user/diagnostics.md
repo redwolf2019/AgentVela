@@ -1,6 +1,6 @@
 # Maintenance, power, and diagnostics
 
-Control how aggressively T3 Code runs background checks, keep your computer awake while agents work, inspect server health, and analyze local trace files.
+Control how aggressively AgentVela runs background checks, keep your computer awake while agents work, inspect server health, and analyze local trace files.
 
 ## Background activity and power
 
@@ -23,14 +23,14 @@ Open **Settings → Maintenance → Diagnostics** (select an environment) to ins
 
 On mobile, startup crashes from the last 7 days are recorded under **Settings → Diagnostics** for bug reports.
 
-## Inspect local trace files (`t3 trace`)
+## Inspect local trace files (`agentvela trace`)
 
 Summarize latency, rates, interrupts, and failures from the server's rotated trace files directly from the host terminal:
 
 ```sh
-t3 trace summary                    # Top 25 busiest spans
-t3 trace summary --since 30m        # Spans ended in the last 30 minutes
-t3 trace summary --since 2h --limit 50
+agentvela trace summary                    # Top 25 busiest spans
+agentvela trace summary --since 30m        # Spans ended in the last 30 minutes
+agentvela trace summary --since 2h --limit 50
 ```
 
 Pass `--base-dir <path>` (or set `T3CODE_HOME`) for a non-default data directory.

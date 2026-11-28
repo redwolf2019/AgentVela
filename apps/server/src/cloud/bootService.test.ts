@@ -61,17 +61,19 @@ const windowsTaskOptions = {
   conhostPath: "C:\\Windows\\System32\\conhost.exe",
 };
 
-it("reads the served T3 home and log back out of a rendered unit, plist, or task", () => {
+it("reads the served AgentVela home and log back out of a rendered unit, plist, or task", () => {
   const plan = (baseDir: string) => ({
-    program: [`${baseDir}/runtime/versions/1.2.3/t3`, "__service-launcher"],
+    program: [`${baseDir}/runtime/versions/1.2.3/agentvela`, "__service-launcher"],
     baseDir,
     logPath: `${baseDir}/userdata/logs/boot-service.log`,
-    unitPath: "/home/theo/.config/systemd/user/t3code.service",
+    unitPath: "/home/theo/.config/systemd/user/agentvela.service",
   });
 
   expect(
-    BootService.bootServiceBaseDirOf(BootService.renderBootServiceUnit(plan("/home/theo/.t3"))),
-  ).toBe("/home/theo/.t3");
+    BootService.bootServiceBaseDirOf(
+      BootService.renderBootServiceUnit(plan("/home/theo/.agentvela")),
+    ),
+  ).toBe("/home/theo/.agentvela");
   expect(
     BootService.bootServiceBaseDirOf(
       BootService.renderBootServiceUnit(plan("/home/theo/T3 Data/100%")),
@@ -106,10 +108,10 @@ it("reads the served T3 home and log back out of a rendered unit, plist, or task
 
 it("protects the server unit from agents under CPU and memory pressure", () => {
   const unit = BootService.renderBootServiceUnit({
-    program: ["/home/theo/.t3/runtime/versions/1.2.3/t3", "__service-launcher"],
-    baseDir: "/home/theo/.t3",
-    logPath: "/home/theo/.t3/userdata/logs/boot-service.log",
-    unitPath: "/home/theo/.config/systemd/user/t3code.service",
+    program: ["/home/theo/.agentvela/runtime/versions/1.2.3/agentvela", "__service-launcher"],
+    baseDir: "/home/theo/.agentvela",
+    logPath: "/home/theo/.agentvela/userdata/logs/boot-service.log",
+    unitPath: "/home/theo/.config/systemd/user/agentvela.service",
   });
   const service = unit.slice(unit.indexOf("[Service]"), unit.indexOf("[Install]"));
   for (const line of [
@@ -249,9 +251,9 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
       commands.push(command);
       const marker = path.join(baseDir, "runtime", DESKTOP_UPDATE_RESTART_MARKER_FILE);
       if (
-        command === "systemctl --user stop t3code.service" ||
-        command === "systemctl --user disable --now t3code.service" ||
-        command === "systemctl --user restart --no-block t3code.service" ||
+        command === "systemctl --user stop agentvela.service" ||
+        command === "systemctl --user disable --now agentvela.service" ||
+        command === "systemctl --user restart --no-block agentvela.service" ||
         command.startsWith("launchctl bootout --wait ") ||
         (input.command === SCHTASKS && input.args[0] === "/End")
       ) {
@@ -266,19 +268,20 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
       if (command === control.interruptCommand) return yield* Effect.interrupt;
       invocations.push(input);
       timeouts.set(command, input.timeout);
-      if (command === "systemctl --user reset-failed t3code.service") control.startLimitHit = false;
+      if (command === "systemctl --user reset-failed agentvela.service")
+        control.startLimitHit = false;
       const refusedStart = control.startLimitHit && command.startsWith("systemctl --user restart ");
       // `--no-block` only queues the job, so systemd reports success even when it refuses it.
       const failed =
         command === control.failCommand ||
-        (refusedStart && command === "systemctl --user restart t3code.service");
+        (refusedStart && command === "systemctl --user restart agentvela.service");
       if (!failed && command.startsWith("loginctl enable-linger --no-ask-password ")) {
         control.linger = "yes";
         control.managerReachable ||= control.lingerStartsManager;
       }
       if (
         !failed &&
-        (command === "systemctl --user enable t3code.service" ||
+        (command === "systemctl --user enable agentvela.service" ||
           command.startsWith("launchctl enable "))
       ) {
         control.enabled = true;
@@ -306,18 +309,18 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
       }
       // The manager loads units only from its own unit directory.
       const unitOutsideManager =
-        command === "systemctl --user enable t3code.service" &&
-        !(yield* fs.exists(path.join(managerUnitDir, "t3code.service")));
+        command === "systemctl --user enable agentvela.service" &&
+        !(yield* fs.exists(path.join(managerUnitDir, "agentvela.service")));
       // A timed-out stop may still stop the service.
       if (
-        command === "systemctl --user stop t3code.service" ||
+        command === "systemctl --user stop agentvela.service" ||
         command.startsWith("launchctl bootout --wait ")
       ) {
         control.active = false;
       }
       if (
         control.stateAfterStop !== undefined &&
-        (command === "systemctl --user stop t3code.service" ||
+        (command === "systemctl --user stop agentvela.service" ||
           command.startsWith("launchctl bootout --wait "))
       ) {
         yield* fs.writeFileString(statePath, control.stateAfterStop);
@@ -336,7 +339,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
                 ],
               })
             : input.args[0] === "--version"
-              ? `t3 v${/versions[\\/]([^\\/]+)[\\/]/.exec(input.command)?.[1] ?? "1.2.3"}\n`
+              ? `agentvela v${/versions[\\/]([^\\/]+)[\\/]/.exec(input.command)?.[1] ?? "1.2.3"}\n`
               : input.command === SCHTASKS && input.args.includes("/XML")
                 ? control.task?.enabled === false
                   ? disabledServiceTask(control.task.xml)
@@ -382,7 +385,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
     cliVersion = "1.2.3",
     serviceBaseDir = baseDir,
     insideService = false,
-    hostExecPath = "/usr/bin/t3",
+    hostExecPath = "/usr/bin/agentvela",
     underSudo = false,
     serviceInstallBinDir: string | null | undefined = installBinDir,
   ) =>
@@ -427,7 +430,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
                 ...(insideService
                   ? {
                       T3_BOOT_SERVICE_UNIT:
-                        platform === "win32" ? "t3code-task.xml" : "t3code.service",
+                        platform === "win32" ? "agentvela-task.xml" : "agentvela.service",
                     }
                   : {}),
                 ...(underSudo ? { SUDO_USER: "julius" } : {}),
@@ -480,7 +483,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         expect(markersAtStop).toEqual([true, true]);
         expect(yield* fs.exists(marker)).toBe(false);
 
-        control.failCommand = "systemctl --user stop t3code.service";
+        control.failCommand = "systemctl --user stop agentvela.service";
         const error = yield* next.restart.pipe(Effect.flip);
         expect(error._tag).toBe("BootServiceCommandError");
         expect(markersAtStop).toEqual([true, true, true]);
@@ -544,7 +547,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         );
         expect(yield* fs.readFileString(statePath)).toBe(before);
         expect(yield* fs.readFileString(plan.unitPath)).toBe(unit);
-        expect(commands).not.toContain("systemctl --user stop t3code.service");
+        expect(commands).not.toContain("systemctl --user stop agentvela.service");
       }),
   );
 
@@ -598,7 +601,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         _tag: "BootServicePrerequisiteError",
         problem: "user-manager-unavailable",
       });
-      expect(commands).not.toContain("systemctl --user enable t3code.service");
+      expect(commands).not.toContain("systemctl --user enable agentvela.service");
     }),
   );
 
@@ -635,7 +638,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
 
       const plan = yield* service.install();
 
-      const unitPath = path.join(home, ".config", "systemd", "user", "t3code.service");
+      const unitPath = path.join(home, ".config", "systemd", "user", "agentvela.service");
       expect(plan.unitPath).toBe(unitPath);
       expect(yield* service.status).toMatchObject({ current: true, unitPath });
     }),
@@ -817,7 +820,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
           : path.join(home, ".config"),
         "systemd",
         "user",
-        "t3code.service",
+        "agentvela.service",
       );
       expect(yield* service.status).toMatchObject({ installed: false, unitPath });
       const plan = yield* service.install();
@@ -864,7 +867,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
       expect(yield* fs.exists(unitPath)).toBe(false);
       expect((yield* discoveredService.status).installed).toBe(false);
       // systemd can take 90s to stop, exceeding the runner's 60s default.
-      expect(timeouts.get("systemctl --user disable --now t3code.service")).toEqual(
+      expect(timeouts.get("systemctl --user disable --now agentvela.service")).toEqual(
         Duration.seconds(120),
       );
     }),
@@ -943,12 +946,12 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         ).toEqual(
           platform === "linux"
             ? [
-                "systemctl --user stop t3code.service",
-                "systemctl --user reset-failed t3code.service",
-                "systemctl --user restart t3code.service",
+                "systemctl --user stop agentvela.service",
+                "systemctl --user reset-failed agentvela.service",
+                "systemctl --user restart agentvela.service",
               ]
             : [
-                "launchctl bootout --wait gui/501/com.t3tools.t3code.service",
+                "launchctl bootout --wait gui/501/io.github.redwolf2019.agentvela.service",
                 `launchctl bootstrap gui/501 ${plan.unitPath}`,
               ],
         );
@@ -1013,7 +1016,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
           protocol: SERVICE_LAUNCHER_PROTOCOL,
           activeVersion: "1.2.4",
         });
-        expect(yield* fs.readFileString(plan.unitPath)).toContain("versions/1.2.4/t3");
+        expect(yield* fs.readFileString(plan.unitPath)).toContain("versions/1.2.4/agentvela");
         expect(
           commands.filter(
             (command) =>
@@ -1035,7 +1038,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
           protocol: SERVICE_LAUNCHER_PROTOCOL,
           activeVersion: "1.2.5",
         });
-        expect(yield* fs.readFileString(plan.unitPath)).toContain("versions/1.2.5/t3");
+        expect(yield* fs.readFileString(plan.unitPath)).toContain("versions/1.2.5/agentvela");
         expect((yield* latest.status).current).toBe(true);
         expect(
           yield* fs.exists(path.join(path.dirname(statePath), SERVICE_RESTART_PENDING_FILE)),
@@ -1053,7 +1056,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         const unit = yield* fs.readFileString(plan.unitPath);
         yield* fs.writeFileString(
           plan.unitPath,
-          unit.replace("versions/1.2.3/t3", "versions/1.2.2/t3"),
+          unit.replace("versions/1.2.3/agentvela", "versions/1.2.2/agentvela"),
         );
         yield* fs.writeFileString(
           statePath,
@@ -1181,7 +1184,7 @@ process.disconnect();
           protocol: SERVICE_LAUNCHER_PROTOCOL,
           activeVersion: "1.2.4",
         });
-        expect(yield* fs.readFileString(plan.unitPath)).toContain("versions/1.2.4/t3");
+        expect(yield* fs.readFileString(plan.unitPath)).toContain("versions/1.2.4/agentvela");
         expect(
           yield* fs.readFileString(
             path.join(path.dirname(statePath), SERVICE_RESTART_PENDING_FILE),
@@ -1251,7 +1254,7 @@ process.disconnect();
       expect(markersAtStop).toEqual([false]);
       expect(control.active).toBe(true);
 
-      control.failCommand = "systemctl --user stop t3code.service";
+      control.failCommand = "systemctl --user stop agentvela.service";
       let ran = false;
       const stopFailure = yield* service
         .withStopped(
@@ -1272,12 +1275,12 @@ process.disconnect();
       commands.length = 0;
       yield* service.withStopped(Effect.sync(() => commands.push("repair")));
       expect(commands).toEqual([
-        "systemctl --user is-enabled t3code.service",
-        "systemctl --user is-active t3code.service",
-        "systemctl --user stop t3code.service",
+        "systemctl --user is-enabled agentvela.service",
+        "systemctl --user is-active agentvela.service",
+        "systemctl --user stop agentvela.service",
         "repair",
-        "systemctl --user reset-failed t3code.service",
-        "systemctl --user restart t3code.service",
+        "systemctl --user reset-failed agentvela.service",
+        "systemctl --user restart agentvela.service",
       ]);
       expect(control.active).toBe(true);
       control.enabled = false;
@@ -1287,8 +1290,8 @@ process.disconnect();
       control.enabled = false;
       commands.length = 0;
       yield* service.withStopped(Effect.sync(() => commands.push("repair")));
-      expect(commands).toContain("systemctl --user stop t3code.service");
-      expect(commands).not.toContain("systemctl --user restart t3code.service");
+      expect(commands).toContain("systemctl --user stop agentvela.service");
+      expect(commands).not.toContain("systemctl --user restart agentvela.service");
       expect(control.active).toBe(false);
       control.enabled = true;
       control.active = true;
@@ -1310,7 +1313,7 @@ process.disconnect();
       const path = yield* Path.Path;
       const otherHome = yield* fs.makeTempDirectoryScoped({ prefix: "t3-other-home-" });
 
-      const other = yield* makeService(undefined, "1.2.3", path.join(otherHome, ".t3"));
+      const other = yield* makeService(undefined, "1.2.3", path.join(otherHome, ".agentvela"));
       commands.length = 0;
       expect(yield* other.restart).toBe("skipped");
       const refused = yield* other.install().pipe(Effect.flip);
@@ -1346,7 +1349,7 @@ process.disconnect();
       expect(yield* alias.restart).toBe("restarted");
       commands.length = 0;
       yield* alias.withStopped(Effect.void);
-      expect(commands).toContain("systemctl --user stop t3code.service");
+      expect(commands).toContain("systemctl --user stop agentvela.service");
       expect((yield* alias.install()).baseDir).toBe(aliasDir);
       expect(yield* service.status).toMatchObject({ current: true });
       expect((yield* service.status).otherBaseDir).toBeUndefined();
@@ -1372,7 +1375,7 @@ process.disconnect();
 
       expect(yield* fs.readFileString(statePath)).toBe(state);
       expect(yield* fs.readFileString(plan.unitPath)).toBe(unit);
-      expect(commands).not.toContain("systemctl --user stop t3code.service");
+      expect(commands).not.toContain("systemctl --user stop agentvela.service");
       expect(result).toMatchObject({ handedOff: true, logPath: plan.logPath });
       const handoffs = invocations.filter(({ command }) => command === "systemd-run");
       expect(handoffs).toHaveLength(1);
@@ -1398,7 +1401,7 @@ process.disconnect();
       expect(yield* fs.readFileString(statePath)).toBe(state);
       expect(yield* fs.readFileString(plan.unitPath)).toBe(unit);
       expect(control.active).toBe(true);
-      expect(commands).not.toContain("systemctl --user stop t3code.service");
+      expect(commands).not.toContain("systemctl --user stop agentvela.service");
     }),
   );
 
@@ -1433,7 +1436,7 @@ process.disconnect();
         expect(markersAtPreparation.at(-1)).toBe(false);
         expect(markersAtStop).toEqual([]);
 
-        const queueCommand = "systemctl --user restart --no-block t3code.service";
+        const queueCommand = "systemctl --user restart --no-block agentvela.service";
         control.failCommand = queueCommand;
         expect((yield* inside.restart.pipe(Effect.flip))._tag).toBe("BootServiceCommandError");
         expect(markersAtStop).toEqual([true]);
@@ -1453,9 +1456,9 @@ process.disconnect();
         expect(commands).toEqual([
           "systemctl --user daemon-reload",
           `/bin/sh -c ${RESTORE_OOMD_WATCH_SCRIPT}`,
-          "systemctl --user enable t3code.service",
-          "systemctl --user reset-failed t3code.service",
-          "systemctl --user restart --no-block t3code.service",
+          "systemctl --user enable agentvela.service",
+          "systemctl --user reset-failed agentvela.service",
+          "systemctl --user restart --no-block agentvela.service",
         ]);
         expect(outcome).toBe("queued");
         expect(markersAtStop).toEqual([true, true, true]);
@@ -1499,10 +1502,10 @@ process.disconnect();
           (command) => command.startsWith("systemctl ") && !command.includes("show-environment"),
         ),
       ).toEqual([
-        "systemctl --user stop t3code.service",
+        "systemctl --user stop agentvela.service",
         "systemctl --user daemon-reload",
-        "systemctl --user reset-failed t3code.service",
-        "systemctl --user restart t3code.service",
+        "systemctl --user reset-failed agentvela.service",
+        "systemctl --user restart agentvela.service",
       ]);
     }),
   );
@@ -1534,9 +1537,9 @@ process.disconnect();
             (command) => command.startsWith("systemctl ") && !command.includes("show-environment"),
           ),
         ).toEqual([
-          "systemctl --user stop t3code.service",
-          "systemctl --user reset-failed t3code.service",
-          "systemctl --user restart t3code.service",
+          "systemctl --user stop agentvela.service",
+          "systemctl --user reset-failed agentvela.service",
+          "systemctl --user restart agentvela.service",
         ]);
       }
     }),
@@ -1551,7 +1554,7 @@ process.disconnect();
 
       expect(
         plan.unitPath.endsWith(
-          path.join("Library", "LaunchAgents", "com.t3tools.t3code.service.plist"),
+          path.join("Library", "LaunchAgents", "io.github.redwolf2019.agentvela.service.plist"),
         ),
       ).toBe(true);
       expect(yield* fs.readFileString(plan.unitPath)).toContain(
@@ -1585,9 +1588,9 @@ process.disconnect();
       expect((yield* service.status).installed).toBe(false);
       expect(commands.some((command) => command.startsWith("systemctl "))).toBe(false);
       // launchd can take 90s to bootout; the runner's 60s default could let bootstrap race it.
-      expect(timeouts.get("launchctl bootout --wait gui/501/com.t3tools.t3code.service")).toEqual(
-        Duration.seconds(120),
-      );
+      expect(
+        timeouts.get("launchctl bootout --wait gui/501/io.github.redwolf2019.agentvela.service"),
+      ).toEqual(Duration.seconds(120));
     }),
   );
 
@@ -1599,7 +1602,13 @@ process.disconnect();
       const task = decodeServiceUnit(yield* fs.readFile(plan.unitPath));
 
       expect(plan.unitPath).toBe(
-        path.join(path.dirname(plan.baseDir), "AppData", "Local", "t3code", "t3code-task.xml"),
+        path.join(
+          path.dirname(plan.baseDir),
+          "AppData",
+          "Local",
+          "agentvela",
+          "agentvela-task.xml",
+        ),
       );
       expect(BootService.bootServiceProgramOf(task)).toBe(runtime.entryPath);
       expect(BootService.bootServiceBaseDirOf(task)).toBe(plan.baseDir);
@@ -1612,8 +1621,8 @@ process.disconnect();
         activeVersion: "1.2.3",
       });
       expect(commands.filter((command) => command.startsWith(`${SCHTASKS} `))).toEqual([
-        `${SCHTASKS} /Create /XML ${plan.unitPath} /TN t3code-PC-theo /F`,
-        `${SCHTASKS} /Run /TN t3code-PC-theo`,
+        `${SCHTASKS} /Create /XML ${plan.unitPath} /TN agentvela-PC-theo /F`,
+        `${SCHTASKS} /Run /TN agentvela-PC-theo`,
       ]);
       // No launcher holds the lock here.
       expect(yield* service.status).toMatchObject({
@@ -1623,7 +1632,7 @@ process.disconnect();
       });
 
       // A task that Task Scheduler refuses to delete stays installed, so a retry finds it.
-      control.failCommand = `${SCHTASKS} /Delete /TN t3code-PC-theo /F`;
+      control.failCommand = `${SCHTASKS} /Delete /TN agentvela-PC-theo /F`;
       expect((yield* service.uninstall.pipe(Effect.flip))._tag).toBe("BootServiceCommandError");
       expect((yield* service.status).installed).toBe(true);
       control.failCommand = undefined;
@@ -1631,9 +1640,9 @@ process.disconnect();
       commands.length = 0;
       expect(yield* service.uninstall).toBe(true);
       expect(commands).toEqual([
-        `${SCHTASKS} /Change /TN t3code-PC-theo /DISABLE`,
-        `${SCHTASKS} /End /TN t3code-PC-theo`,
-        `${SCHTASKS} /Delete /TN t3code-PC-theo /F`,
+        `${SCHTASKS} /Change /TN agentvela-PC-theo /DISABLE`,
+        `${SCHTASKS} /End /TN agentvela-PC-theo`,
+        `${SCHTASKS} /Delete /TN agentvela-PC-theo /F`,
       ]);
       expect(control.task).toBeUndefined();
       expect((yield* service.status).installed).toBe(false);
@@ -1673,11 +1682,11 @@ process.disconnect();
       commands.length = 0;
       yield* service.withStopped(Effect.sync(() => commands.push("repair")));
       expect(commands.filter((command) => !command.includes("/Query"))).toEqual([
-        `${SCHTASKS} /Change /TN t3code-PC-theo /DISABLE`,
-        `${SCHTASKS} /End /TN t3code-PC-theo`,
+        `${SCHTASKS} /Change /TN agentvela-PC-theo /DISABLE`,
+        `${SCHTASKS} /End /TN agentvela-PC-theo`,
         "repair",
-        `${SCHTASKS} /Change /TN t3code-PC-theo /ENABLE`,
-        `${SCHTASKS} /Run /TN t3code-PC-theo`,
+        `${SCHTASKS} /Change /TN agentvela-PC-theo /ENABLE`,
+        `${SCHTASKS} /Run /TN agentvela-PC-theo`,
       ]);
     }),
   );
@@ -1698,9 +1707,9 @@ process.disconnect();
       const inside = yield* makeService(undefined, "1.2.4", undefined, true);
       const relayMarker = `${plan.baseDir}/runtime/${DESKTOP_UPDATE_RESTART_MARKER_FILE}`;
       const handoff = [
-        `${SCHTASKS} /Create /XML ${plan.unitPath} /TN t3code-PC-theo /F`,
-        `${SCHTASKS} /End /TN t3code-PC-theo`,
-        `${SCHTASKS} /Run /TN t3code-PC-theo`,
+        `${SCHTASKS} /Create /XML ${plan.unitPath} /TN agentvela-PC-theo /F`,
+        `${SCHTASKS} /End /TN agentvela-PC-theo`,
+        `${SCHTASKS} /Run /TN agentvela-PC-theo`,
       ];
       commands.length = 0;
 
@@ -1810,7 +1819,8 @@ process.disconnect();
     Effect.gen(function* () {
       const { service, control } = yield* makeHarness("darwin");
       yield* service.install();
-      control.failCommand = "launchctl bootout --wait gui/501/com.t3tools.t3code.service";
+      control.failCommand =
+        "launchctl bootout --wait gui/501/io.github.redwolf2019.agentvela.service";
 
       yield* service.install();
       expect((yield* service.status).current).toBe(true);

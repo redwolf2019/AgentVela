@@ -31,7 +31,7 @@ import { isExactServiceVersion, parseServiceState, SERVICE_STATE_FILE } from "./
 const PINNED_RUNTIME_DIR = "runtime";
 const PINNED_RUNTIME_INSTALL_TIMEOUT = Duration.minutes(10);
 const PINNED_RUNTIME_DOWNLOAD_STALL_TIMEOUT = Duration.minutes(1);
-const PINNED_RUNTIME_ARCHIVE_FILE = "t3-runtime-archive";
+const PINNED_RUNTIME_ARCHIVE_FILE = "agentvela-runtime-archive";
 // Separate layers share one install lock across this process.
 const pinnedRuntimeInstallLock = Semaphore.makeUnsafe(1);
 
@@ -61,7 +61,7 @@ export function pinnedRuntimePaths(
   const versionDir = path.join(pinnedRuntimeVersionsDir(path, baseDir), version);
   return {
     versionDir,
-    entryPath: path.join(versionDir, platform === "win32" ? "t3.exe" : "t3"),
+    entryPath: path.join(versionDir, platform === "win32" ? "agentvela.exe" : "agentvela"),
     sentinelPath: path.join(versionDir, ".install-complete"),
   };
 }
@@ -267,7 +267,7 @@ const downloadArchive = Effect.fn("cloud.pinned_runtime.download_archive")(funct
   const platformKey = cliArchivePlatformKey(input.platform, input.arch);
   if (platformKey === undefined) {
     return yield* new PinnedRuntimeInstallError({
-      step: `selecting a t3 release archive for ${input.platform}-${input.arch}`,
+      step: `selecting an agentvela release archive for ${input.platform}-${input.arch}`,
     });
   }
   const httpClient = input.httpClient;
@@ -276,7 +276,7 @@ const downloadArchive = Effect.fn("cloud.pinned_runtime.download_archive")(funct
   const archive = yield* fetchReleaseAsset(
     httpClient,
     cliReleaseAssetUrl(input.version, fileName, input.releaseBaseUrl),
-    "downloading the t3 release archive",
+    "downloading the agentvela release archive",
     true,
     input.onProgress,
   );
@@ -284,11 +284,11 @@ const downloadArchive = Effect.fn("cloud.pinned_runtime.download_archive")(funct
   const digest = yield* Effect.tryPromise({
     try: () => crypto.subtle.digest("SHA-256", archive),
     catch: (cause) =>
-      new PinnedRuntimeInstallError({ step: "verifying the t3 release archive", cause }),
+      new PinnedRuntimeInstallError({ step: "verifying the agentvela release archive", cause }),
   });
   if (Hex.encode(new Uint8Array(digest)) !== expected) {
     return yield* new PinnedRuntimeInstallError({
-      step: "verifying the t3 release archive checksum",
+      step: "verifying the agentvela release archive checksum",
     });
   }
   return archive;
@@ -305,12 +305,13 @@ const installFromArchive = Effect.fn("cloud.pinned_runtime.install_archive")(fun
     .writeFile(archivePath, archive)
     .pipe(
       Effect.mapError(
-        (cause) => new PinnedRuntimeInstallError({ step: "writing the t3 release archive", cause }),
+        (cause) =>
+          new PinnedRuntimeInstallError({ step: "writing the agentvela release archive", cause }),
       ),
     );
   input.onProgress?.({ stage: "extract" });
-  const extractStep = "extracting the t3 release archive";
-  // Strip the archive's stem directory so the executable lands at <versionDir>/t3.
+  const extractStep = "extracting the agentvela release archive";
+  // Strip the archive's stem directory so the executable lands at <versionDir>/agentvela.
   yield* input.runner
     .run({
       command: cliArchiveTarCommand(input.platform, process.env),
@@ -344,7 +345,7 @@ const publishedArchive = Effect.fn("cloud.pinned_runtime.published_archive")(fun
       yield* fetchReleaseAsset(
         input.httpClient,
         cliReleaseAssetUrl(input.version, CLI_RELEASE_CHECKSUMS_FILE, input.releaseBaseUrl),
-        "downloading the t3 release checksums",
+        "downloading the agentvela release checksums",
         false,
       ),
     ),
@@ -352,7 +353,7 @@ const publishedArchive = Effect.fn("cloud.pinned_runtime.published_archive")(fun
   const expected = checksums.get(fileName);
   if (expected === undefined) {
     return yield* new PinnedRuntimeInstallError({
-      step: `finding ${fileName} in the t3 release checksums`,
+      step: `finding ${fileName} in the agentvela release checksums`,
     });
   }
   return { fileName, expected };
@@ -364,7 +365,7 @@ const isPinnedRuntimeInstallError = Schema.is(PinnedRuntimeInstallError);
 export const isUnpublishedRelease = (error: unknown): error is PinnedRuntimeInstallError =>
   isPinnedRuntimeInstallError(error) &&
   (error.step.startsWith("finding ") ||
-    (error.step.startsWith("downloading the t3 release") &&
+    (error.step.startsWith("downloading the agentvela release") &&
       HttpClientError.isHttpClientError(error.cause) &&
       error.cause.response?.status === 404));
 
@@ -389,7 +390,7 @@ const installPinnedRuntime = Effect.fn("cloud.pinned_runtime.ensure_installed")(
       const platformKey = cliArchivePlatformKey(input.platform, input.arch);
       if (platformKey === undefined) {
         return yield* new PinnedRuntimeInstallError({
-          step: `selecting a t3 release archive for ${input.platform}-${input.arch}`,
+          step: `selecting an agentvela release archive for ${input.platform}-${input.arch}`,
         });
       }
       yield* publishedArchive(input, platformKey);
@@ -585,10 +586,10 @@ export function isVersionExecutable(
 ): boolean {
   const relative = path.relative(versionsDir, path.resolve(candidate));
   // On another Windows drive, relative() returns the absolute path, like `D:\t3.exe`.
-  return !path.isAbsolute(relative) && /^(?!\.\.)[^\\/]+[\\/]t3(?:\.exe)?$/i.test(relative);
+  return !path.isAbsolute(relative) && /^(?!\.\.)[^\\/]+[\\/]agentvela(?:\.exe)?$/i.test(relative);
 }
 
-/** The executable a `t3.cmd` shim written by the install script or `t3 update` runs. */
+/** The executable an `agentvela.cmd` shim written by the install script or `agentvela update` runs. */
 export const windowsShimTarget = (contents: string) => /^"([^"]+)"/m.exec(contents)?.[1];
 
 /** Like {@link windowsShimTarget}, but only for a shim exactly as written; never a user's wrapper. */
@@ -650,15 +651,15 @@ export const findPosixLauncher = Effect.fn("cloud.pinned_runtime.find_posix_laun
     const cwd = yield* HostProcess.WorkingDirectory;
     const searchPath = environment["PATH"] ?? "";
     const candidates = [
-      // PATH first, resolved like the shell does: it decides which t3 the user runs. An empty
+      // PATH first, resolved like the shell does: it decides which agentvela the user runs. An empty
       // entry of a nonempty PATH is the working directory; an empty PATH searches nothing.
       ...(searchPath.length === 0 ? [] : searchPath.split(":")).map((directory) =>
-        path.resolve(cwd, directory || ".", "t3"),
+        path.resolve(cwd, directory || ".", "agentvela"),
       ),
       path.join(
         environment["T3CODE_INSTALL_BIN_DIR"] ||
           path.join(yield* HostProcess.HomeDirectory, ".local", "bin"),
-        "t3",
+        "agentvela",
       ),
       ...recorded.split(/\r?\n/),
     ].filter((candidate) => path.isAbsolute(candidate));
@@ -688,7 +689,7 @@ export const writePosixLauncher = Effect.fn("cloud.pinned_runtime.write_posix_la
     const path = yield* Path.Path;
     const staging = yield* fs.makeTempFileScoped({
       directory: path.dirname(input.launcher),
-      prefix: ".t3-",
+      prefix: ".agentvela-",
     });
     yield* fs.writeFileString(staging, posixLauncherScript(input.executable));
     yield* fs.chmod(staging, 0o755);
@@ -706,7 +707,7 @@ const shellLauncherTargets = Effect.fn("cloud.pinned_runtime.shell_launcher_targ
   const platform = yield* HostProcess.Platform;
   const environment = yield* HostProcess.Environment;
   const home = yield* HostProcess.HomeDirectory;
-  const launcherName = platform === "win32" ? "t3.cmd" : "t3";
+  const launcherName = platform === "win32" ? "agentvela.cmd" : "agentvela";
   const launchersFile = path.join(baseDir, PINNED_RUNTIME_DIR, PINNED_RUNTIME_LAUNCHERS_FILE);
   const recorded = (yield* fs.readFileString(launchersFile).pipe(Effect.orElseSucceed(() => "")))
     .split(/\r?\n/)
@@ -917,7 +918,7 @@ const selectUnusedRuntimes = Effect.fn("cloud.pinned_runtime.select_unused")(fun
       Effect.andThen(fs.rename(versionDir, target)),
       Effect.andThen(Effect.sync(() => pruned.add(target))),
       Effect.catch((cause) =>
-        Effect.logWarning("Could not remove an unused t3 runtime.", { version, cause }),
+        Effect.logWarning("Could not remove an unused agentvela runtime.", { version, cause }),
       ),
     );
   }
@@ -952,7 +953,7 @@ export const prunePinnedRuntimes = Effect.fn("cloud.pinned_runtime.prune")(funct
         }),
       ),
       Effect.catch((cause) =>
-        Effect.logWarning("Could not remove an unused t3 runtime.", { target, cause }),
+        Effect.logWarning("Could not remove an unused agentvela runtime.", { target, cause }),
       ),
     );
   }

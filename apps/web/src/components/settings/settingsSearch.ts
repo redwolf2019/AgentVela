@@ -981,7 +981,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "cli-command",
-    title: msg("t3 command"),
+    title: msg("agentvela command"),
     to: "/settings/about",
     searchTerms: [msg("cli terminal shell path install command line")],
     desktopOnly: true,
@@ -1214,7 +1214,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "pull-request-links-open-in-app",
-    title: msg("Open pull requests in T3 Code"),
+    title: msg("Open pull requests in AgentVela"),
     to: "/settings/diffs",
     searchTerms: [
       `pr commit links ${SOURCE_CONTROL_HOST_LABELS} browser external click default pull request view panel`,
@@ -1419,7 +1419,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: msg("Headless host enrollment"),
     to: "/settings/relay",
     targetId: "relay-enrollment",
-    searchTerms: [msg("enrollment token cli t3 relay link headless linux")],
+    searchTerms: [msg("enrollment token cli agentvela relay link headless linux")],
     cloudOnly: true,
   },
   {

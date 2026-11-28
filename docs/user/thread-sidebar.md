@@ -1,6 +1,6 @@
 # Working with threads
 
-Use a separate thread for each task. Choose **New worktree** when a task needs its own Git branch and working directory; threads sharing a checkout share its branch, so T3 Code blocks branch switches while one is running.
+Use a separate thread for each task. Choose **New worktree** when a task needs its own Git branch and working directory; threads sharing a checkout share its branch, so AgentVela blocks branch switches while one is running.
 
 ## Start a thread
 
@@ -10,7 +10,7 @@ Use a separate thread for each task. Choose **New worktree** when a task needs i
 
 ### Start without a project
 
-Threads don't require a project. Pick **No project** (or press `mod+alt+n` on web/desktop) to start a scratch thread in `~/.t3/scratch/<date>-<slug>-<id>`.
+Threads don't require a project. Pick **No project** (or press `mod+alt+n` on web/desktop) to start a scratch thread in `~/.agentvela/scratch/<date>-<slug>-<id>`.
 
 - Deleting a scratch thread leaves its folder on disk.
 - Git branch, worktree, and diff controls are hidden (and scratch threads are unavailable if your T3 data directory itself is inside a Git repo).
@@ -68,7 +68,7 @@ The server automatically links open PRs matching an unsettled thread's branch. O
 ## Find and reference work
 
 - **Command palette** (`Cmd/Ctrl+K`): Searches threads across connected environments by title, branch, PR, project, and message contents (use `"exact phrase"` for exact matches). On mobile, use the thread list search (or `Cmd+K` on iPad with a keyboard).
-- **Copy reference**: Copies the linked PR URL if one exists, otherwise a thread link that pastes into any composer as a thread chip. Use **Copy → Thread** (or **Copy thread** on mobile) to force a thread link, or **Thread ID** for scripts and the `t3` CLI.
+- **Copy reference**: Copies the linked PR URL if one exists, otherwise a thread link that pastes into any composer as a thread chip. Use **Copy → Thread** (or **Copy thread** on mobile) to force a thread link, or **Thread ID** for scripts and the `agentvela` CLI.
 
 ## Usage limits, subagents, and thread details
 

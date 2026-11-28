@@ -64,7 +64,7 @@ export function RelayDeviceAuthPage() {
                 username: session.user.username,
                 relayUrl: session.relayUrl,
               })
-            : gt("Sign in to your Relay account to approve `t3 relay login`.")
+            : gt("Sign in to your Relay account to approve `agentvela relay login`.")
         }
       />
 

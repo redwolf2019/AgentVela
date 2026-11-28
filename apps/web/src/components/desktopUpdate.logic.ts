@@ -96,7 +96,7 @@ export function getArm64IntelBuildWarningDescription(
   if (action === "download") {
     return resolve(
       msg(
-        "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. Download the available update to switch to the native Apple Silicon build.",
+        "This Mac has Apple Silicon, but AgentVela is still running the Intel build under Rosetta. Download the available update to switch to the native Apple Silicon build.",
       ),
     );
   }
@@ -104,18 +104,18 @@ export function getArm64IntelBuildWarningDescription(
     return isDesktopManualInstaller(state)
       ? resolve(
           msg(
-            "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. Open the downloaded Apple Silicon installer to replace it.",
+            "This Mac has Apple Silicon, but AgentVela is still running the Intel build under Rosetta. Open the downloaded Apple Silicon installer to replace it.",
           ),
         )
       : resolve(
           msg(
-            "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. Restart to install the downloaded Apple Silicon build.",
+            "This Mac has Apple Silicon, but AgentVela is still running the Intel build under Rosetta. Restart to install the downloaded Apple Silicon build.",
           ),
         );
   }
   return resolve(
     msg(
-      "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. The next app update will replace it with the native Apple Silicon build.",
+      "This Mac has Apple Silicon, but AgentVela is still running the Intel build under Rosetta. The next app update will replace it with the native Apple Silicon build.",
     ),
   );
 }
@@ -217,13 +217,13 @@ export function getDesktopUpdateInstallConfirmationMessage(
   return version
     ? resolve(
         msg(
-          "Install update {version} and restart T3 Code?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.",
+          "Install update {version} and restart AgentVela?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.",
           { version },
         ),
       )
     : resolve(
         msg(
-          "Install update and restart T3 Code?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.",
+          "Install update and restart AgentVela?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.",
         ),
       );
 }

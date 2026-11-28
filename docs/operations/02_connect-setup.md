@@ -107,18 +107,18 @@ Every host running `apps/server` connects outward to the relay using one of thre
 - **Interactive CLI:** authenticate and link on machines with a terminal:
 
   ```sh
-  t3 relay login --url https://relay.example.com
-  t3 relay link
-  t3 relay status
+  agentvela relay login --url https://relay.example.com
+  agentvela relay link
+  agentvela relay status
   ```
 
 - **Headless Linux / SSH / Docker:** mint a short-TTL one-time enrollment token from the Web or Desktop Settings page, then paste the generated command on the remote machine without exposing your account password:
 
   ```sh
-  t3 relay link --url https://relay.example.com --token <enroll-token>
+  agentvela relay link --url https://relay.example.com --token <enroll-token>
   ```
 
-Use `t3 up --relay` (paired with [`t3 service`](../../apps/server/src/cloud/bootService.ts)) to keep the host server and its outbound tunnel running across reboots, and `t3 relay unlink` to revoke the host's relay registration.
+Use `agentvela up --relay` (paired with [`agentvela service`](../../apps/server/src/cloud/bootService.ts)) to keep the host server and its outbound tunnel running across reboots, and `agentvela relay unlink` to revoke the host's relay registration.
 
 ## Connecting Clients & Transport Rules
 

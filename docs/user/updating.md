@@ -25,7 +25,7 @@ Server restarts disconnect active clients temporarily and can interrupt active a
 
 - **Desktop (Linux AppImage / `.deb`, Windows NSIS `.exe`):** Click **Download** then **Install** in the sidebar update pill or **Settings → About**. The updater verifies SHA-256 before launching the platform update installer.
 - **Desktop (macOS `darwin-arm64` DMG):** Because macOS builds may be unsigned, AgentVela downloads and SHA-256-verifies `AgentVela-<version>-arm64.dmg` into Downloads and opens it in Finder (**Open Installer**) without quitting active desktop backends. Drag `AgentVela.app` into `/Applications` when ready.
-- **CLI & background service (`t3`):** Run `t3 update` (or `t3 update --version X.Y.Z`) to download, verify `SHA256SUMS`, and install the matching platform archive from the configured release feed.
+- **CLI & background service (`agentvela`):** Run `agentvela update` (or `agentvela update --version X.Y.Z`) to download, verify `SHA256SUMS`, and install the matching platform archive from the configured release feed.
 - **Remote / connected server:** Use **Update server** in the sidebar update pill, **Settings → About**, or Mobile **Settings → Environments**.
 
 ## When versions don't match
@@ -42,7 +42,7 @@ A client and server must speak the same orchestration protocol. If they do not, 
 | **Copy update command**    | Run the command on the named host to update the detected install, then restart the server with your usual options.                                                                              |
 | **Copy relaunch command**  | Stop the command-line server on its host and relaunch with the copied command, keeping your usual subcommand and options.                                                                       |
 
-For a server you started by hand, stop it and start it again afterwards with your usual options such as `--host` or `--tailscale-serve`. Only one server can use an AgentVela home directory (`~/.t3` by default) at a time.
+For a server you started by hand, stop it and start it again afterwards with your usual options such as `--host` or `--tailscale-serve`. Only one server can use an AgentVela home directory (`~/.agentvela` by default) at a time.
 
 ## Providers
 

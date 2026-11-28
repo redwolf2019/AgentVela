@@ -107,7 +107,7 @@ export const pruneRuntimesOnStart = Effect.fn("cloud.server_self_update.prune_on
       references,
     });
     if (removed.length > 0) {
-      yield* Effect.logInfo("Removed unused t3 runtimes.", { versions: removed });
+      yield* Effect.logInfo("Removed unused agentvela runtimes.", { versions: removed });
     }
     return removed;
   },
@@ -154,23 +154,25 @@ export const make = Effect.fn("cloud.server_self_update.make")(function* () {
         return yield* desktopAppUpdate.run(reportProgress);
       }
       return yield* failWith(
-        "This server is managed by the T3 Code desktop app on its machine; update the desktop app to update it.",
+        "This server is managed by the AgentVela desktop app on its machine; update the desktop app to update it.",
       );
     }
     // The target must accept the launcher that will run it, which can be older than this server.
     const launcherProtocol = launcher.protocol;
     if (capability === null || launcherProtocol === undefined) {
       return yield* failWith(
-        "Remote updates require the T3 Code background service. Run `t3 service install` on the server machine.",
+        "Remote updates require the AgentVela background service. Run `agentvela service install` on the server machine.",
       );
     }
 
     const targetVersion = input.targetVersion.trim();
     if (!isExactServiceVersion(targetVersion)) {
-      return yield* failWith(`'${targetVersion}' is not an exact t3 version.`);
+      return yield* failWith(`'${targetVersion}' is not an exact agentvela version.`);
     }
     if (!isStableReleaseVersion(targetVersion)) {
-      return yield* failWith(`Only stable X.Y.Z t3 releases are supported ('${targetVersion}').`);
+      return yield* failWith(
+        `Only stable X.Y.Z agentvela releases are supported ('${targetVersion}').`,
+      );
     }
     const settings = yield* serverSettings.getSettings.pipe(
       Effect.orElseSucceed(() => ({ updateMirrorUrl: null as string | null })),
@@ -220,7 +222,7 @@ export const make = Effect.fn("cloud.server_self_update.make")(function* () {
           }
           if (mirror !== undefined && isUnpublishedRelease(error)) {
             return failWith(
-              `${mirror.organization}'s update mirror has no t3@${targetVersion} for this machine.`,
+              `${mirror.organization}'s update mirror has no agentvela@${targetVersion} for this machine.`,
               error,
             );
           }
@@ -231,7 +233,7 @@ export const make = Effect.fn("cloud.server_self_update.make")(function* () {
             .filter((part) => part !== undefined)
             .join(" ");
           return failWith(
-            `Could not prepare t3@${targetVersion} while ${error.step}${downloadFailure ? ` (${downloadFailure})` : ""}.`,
+            `Could not prepare agentvela@${targetVersion} while ${error.step}${downloadFailure ? ` (${downloadFailure})` : ""}.`,
             error,
           );
         }),

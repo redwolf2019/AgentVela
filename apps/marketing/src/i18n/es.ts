@@ -2,14 +2,14 @@ import type { Messages } from "./en";
 
 export const es: Messages = {
   layout: {
-    defaultTitle: "T3 Code",
+    defaultTitle: "AgentVela",
     defaultDescription:
-      "T3 Code. El panel de control de código abierto para agentes de programación.",
+      "AgentVela. El panel de control de código abierto para agentes de programación.",
     socialImageAlt:
-      "T3 Code: el panel de control de código abierto para agentes de programación, con Claude Code, Codex, Cursor, OpenCode, Grok y Antigravity.",
-    homeLabel: "Inicio de T3 Code",
+      "AgentVela: el panel de control de código abierto para agentes de programación, con Claude Code, Codex, Cursor, OpenCode, Grok y Antigravity.",
+    homeLabel: "Inicio de AgentVela",
     download: "Descargar",
-    starsLabel: "Dale una estrella a T3 Code en GitHub, {stars} estrellas",
+    starsLabel: "Dale una estrella a AgentVela en GitHub, {stars} estrellas",
     githubStars: "{stars} estrellas en GitHub",
     language: "Idioma",
     mitLicensed: "Licencia MIT",
@@ -20,8 +20,8 @@ export const es: Messages = {
     security: "Seguridad",
   },
   home: {
-    title: "T3 Code | El panel de control de código abierto para agentes de programación",
-    description: "T3 Code. El panel de control de código abierto para agentes de programación.",
+    title: "AgentVela | El panel de control de código abierto para agentes de programación",
+    description: "AgentVela. El panel de control de código abierto para agentes de programación.",
     heroTitle: ["El panel de control", "de código abierto", "para agentes de código."],
     heroSub:
       "Orquesta Claude Code, Codex, Antigravity, OpenCode, Cursor y Grok desde un solo lugar. Usa tu propia suscripción. Haz un fork del proyecto entero.",
@@ -32,14 +32,15 @@ export const es: Messages = {
     downloadForAndroid: "Descargar para Android",
     sourceLink: "Roba nuestro código (legalmente)",
     alsoOnPhone: "También en tu teléfono:",
-    screenshotAlt: "T3 Code ejecutando subagentes de Claude, Codex, Muse y Gemini en un mismo hilo",
+    screenshotAlt:
+      "AgentVela ejecutando subagentes de Claude, Codex, Muse y Gemini en un mismo hilo",
     endorsementsTitle: "Tolerado por más de {users} desarrolladores",
     endorsementsSub: "Algunos hasta tuitearon cosas buenas.",
     endorsementsLabel: "Opiniones de desarrolladores",
     readPost: "Leer la publicación de {handle} en X",
     harnessTitle: "Trae tu propia suscripción",
     harnessBody:
-      "T3 Code no revende tokens. Conecta Claude Code, Codex, Antigravity, OpenCode, Cursor o Grok con las credenciales que ya tienes. Nosotros los orquestamos, tú conservas tu plan.",
+      "AgentVela no revende tokens. Conecta Claude Code, Codex, Antigravity, OpenCode, Cursor o Grok con las credenciales que ya tienes. Nosotros los orquestamos, tú conservas tu plan.",
     googleSignIn: "Inicio de sesión con Google",
     harnessPoints: [
       "Sin venta de claves. Sin límites de cuota.",
@@ -47,7 +48,7 @@ export const es: Messages = {
       "Nuevas integraciones cada semana.",
     ],
     gitVisualLabel:
-      "Ilustración del flujo de Git en T3 Code: revisar un diff, hacer commit y push de los cambios y abrir un pull request.",
+      "Ilustración del flujo de Git en AgentVela: revisar un diff, hacer commit y push de los cambios y abrir un pull request.",
     prReady: "Listo",
     prCommits: "3 commits",
     viewDiff: "Ver diff",
@@ -73,15 +74,15 @@ export const es: Messages = {
     browseSource: "Ver el código",
     ctaTitle: "Tus agentes merecen algo mejor que una terminal.",
     ctaSub:
-      "T3 Code es gratis, de código abierto y rápido. Instálalo, conecta la herramienta que ya pagas y deja que tus agentes se pongan a trabajar.",
+      "AgentVela es gratis, de código abierto y rápido. Instálalo, conecta la herramienta que ya pagas y deja que tus agentes se pongan a trabajar.",
     otherPlatforms: "Otras plataformas",
   },
   download: {
-    title: "Descarga T3 Code para macOS, Windows y Linux | T3 Code",
+    title: "Descarga AgentVela para macOS, Windows y Linux | AgentVela",
     description:
       "Descarga la app de escritorio de AgentVela para macOS, Windows o Linux desde GitHub Releases o este sitio, o consigue las apps para iOS y Android.",
     breadcrumb: "Descargar",
-    heading: "Descargar T3 Code",
+    heading: "Descargar AgentVela",
     channelLabel: "Canal de versiones",
     stable: "Estable",
     nightly: "Nightly",

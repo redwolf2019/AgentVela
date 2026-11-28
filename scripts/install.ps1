@@ -1,16 +1,16 @@
-# Installs the T3 Code CLI from a GitHub Release archive on Windows. Needs
+# Installs the AgentVela CLI from a GitHub Release archive on Windows. Needs
 # only PowerShell 5.1+; no Node, npm, or compiler.
 #
 #   irm https://github.com/redwolf2019/AgentVela/releases/latest/download/install.ps1 | iex
 #
 # Environment:
 #   T3CODE_VERSION           exact stable X.Y.Z version to install (default: latest release)
-#   T3CODE_HOME              T3 home directory (default: ~\.t3)
-#   T3CODE_INSTALL_BIN_DIR   where t3.exe is linked (default: ~\.local\bin)
+#   T3CODE_HOME              AgentVela home directory (default: ~\.agentvela)
+#   T3CODE_INSTALL_BIN_DIR   where agentvela.exe is linked (default: ~\.local\bin)
 #   T3CODE_RELEASE_BASE_URL  mirror for releases or downloads (default: GitHub)
 #
 # The archive is unpacked into $T3CODE_HOME\runtime\versions\<version>, the
-# same layout `t3 service install` uses, so the service reuses this download
+# same layout `agentvela service install` uses, so the service reuses this download
 # instead of fetching the release again.
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -18,7 +18,7 @@ $ErrorActionPreference = "Stop"
 $repo = "redwolf2019/AgentVela"
 $rawBase = if ($env:T3CODE_RELEASE_BASE_URL) { $env:T3CODE_RELEASE_BASE_URL.TrimEnd("/") } else { "https://github.com/$repo/releases" }
 if ($rawBase -match '^(?i)(off|false)$') {
-  Write-Error "t3 install: downloads are disabled by T3CODE_RELEASE_BASE_URL=$rawBase"
+  Write-Error "agentvela install: downloads are disabled by T3CODE_RELEASE_BASE_URL=$rawBase"
   exit 1
 }
 if ($rawBase -match '/releases/download$') {
@@ -31,13 +31,13 @@ if ($rawBase -match '/releases/download$') {
   $releasesBase = $rawBase
   $downloadBase = $rawBase
 }
-$t3Home = if ($env:T3CODE_HOME) { $env:T3CODE_HOME } else { Join-Path $HOME ".t3" }
+$t3Home = if ($env:T3CODE_HOME) { $env:T3CODE_HOME } else { Join-Path $HOME ".agentvela" }
 $binDir = if ($env:T3CODE_INSTALL_BIN_DIR) { $env:T3CODE_INSTALL_BIN_DIR } else { Join-Path $HOME ".local\bin" }
 # Absolute, so PATH never gets a folder that changes with the working directory.
 $binDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($binDir)
 
 function Fail([string] $message) {
-  Write-Error "t3 install: $message"
+  Write-Error "agentvela install: $message"
   exit 1
 }
 
@@ -145,7 +145,7 @@ if ($interactive) {
   [Console]::Error.WriteLine()
   for ($i = 0; $i -lt $mark.Length; $i++) {
     $row = $mark[$i].Replace('#', [char]0x2588).Replace('^', [char]0x2580).Replace('_', [char]0x2584)
-    $label = if ($i -eq 1) { "     ${bold}T3 Code$reset" } elseif ($i -eq 2) { "     ${muted}CLI installer$reset" } else { "" }
+    $label = if ($i -eq 1) { "     ${bold}AgentVela$reset" } elseif ($i -eq 2) { "     ${muted}CLI installer$reset" } else { "" }
     [Console]::Error.WriteLine("  $bold$row$reset$label")
   }
   [Console]::Error.WriteLine()
@@ -198,14 +198,14 @@ if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $version)) {
   New-Item -ItemType Directory -Path $staging | Out-Null
   try {
     if ($interactive) { [Console]::Error.Write("`r$esc[2K") }
-    [Console]::Error.WriteLine("  ${muted}Installing$reset T3 Code $bold$version$reset`n")
+    [Console]::Error.WriteLine("  ${muted}Installing$reset AgentVela $bold$version$reset`n")
     Step "Downloading..."
     try {
       Fetch "$downloadBase/v$version/SHA256SUMS" (Join-Path $staging "SHA256SUMS")
     } catch {
       $status = if ($_.Exception.Response) { $_.Exception.Response.StatusCode.value__ } else { 0 }
       if ($status -eq 404) {
-        Fail "t3 $version has no release checksums (HTTP 404)"
+        Fail "agentvela $version has no release checksums (HTTP 404)"
       }
       throw
     }
@@ -219,7 +219,7 @@ if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $version)) {
     $actual = (Get-FileHash -Algorithm SHA256 (Join-Path $staging $archive)).Hash.ToLowerInvariant()
     if ($actual -ne $expected) { Fail "checksum mismatch for $archive" }
 
-    Step "Extracting T3 Code..."
+    Step "Extracting AgentVela..."
     # The archive module reads the global preference, not the caller's local scope.
     $savedProgress = $global:ProgressPreference
     try {
@@ -229,7 +229,7 @@ if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $version)) {
     Get-ChildItem (Join-Path $staging $stem) | Move-Item -Destination $staging
     Remove-Item (Join-Path $staging $stem), (Join-Path $staging $archive), (Join-Path $staging "SHA256SUMS") -Recurse -Force
 
-    & (Join-Path $staging "t3.exe") --version | Out-Null
+    & (Join-Path $staging "agentvela.exe") --version | Out-Null
     if ($LASTEXITCODE -ne 0) { Fail "the downloaded executable does not run" }
     Set-Content -Path (Join-Path $staging ".install-complete") -Value $version -NoNewline
 
@@ -241,29 +241,29 @@ if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $version)) {
   }
 }
 
-Step "Setting up the t3 command..."
+Step "Setting up the agentvela command..."
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
-$shim = Join-Path $binDir "t3.cmd"
-# Replace only a shim that runs a version in this home; never the desktop app's or another t3.
+$shim = Join-Path $binDir "agentvela.cmd"
+# Replace only a shim that runs a version in this home; never the desktop app's or another agentvela.
 if (Test-Path -LiteralPath $shim) {
   $existingTarget = ""
   # The shim is UTF-8 without a BOM; Windows PowerShell 5.1 reads files as ANSI by default.
-  # Only a shim exactly as written here counts; a user's wrapper that also runs t3.exe does not.
+  # Only a shim exactly as written here counts; a user's wrapper that also runs agentvela.exe does not.
   $existing = [System.IO.File]::ReadAllText($shim, [System.Text.Encoding]::UTF8)
   if ($existing -match '^@echo off\r?\n"([^"]+)" %\*\s*$') { $existingTarget = $Matches[1] }
   # Full paths, so a target like versions\..\other cannot pass as ours.
   $ownedPrefix = [System.IO.Path]::GetFullPath($versionsDir).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
   if ($existingTarget) { $existingTarget = [System.IO.Path]::GetFullPath($existingTarget) }
-  # Exactly <version>\t3.exe, never another program inside a version.
+  # Exactly <version>\agentvela.exe, never another program inside a version.
   $owned = $existingTarget.StartsWith($ownedPrefix, [System.StringComparison]::OrdinalIgnoreCase) -and
-    ($existingTarget.Substring($ownedPrefix.Length) -match '^[^\\/]+\\t3\.exe$')
+    ($existingTarget.Substring($ownedPrefix.Length) -match '^[^\\/]+\\agentvela\.exe$')
   if (-not $owned) {
-    Fail "another t3 is already at $shim. Remove it and run this again, or run $(Join-Path $targetDir 't3.exe') directly."
+    Fail "another agentvela is already at $shim. Remove it and run this again, or run $(Join-Path $targetDir 'agentvela.exe') directly."
   }
 }
 # UTF-8 without a BOM: cmd.exe reads the shim as-is, and ASCII would corrupt
 # non-ASCII characters in the user's home path.
-[System.IO.File]::WriteAllText($shim, "@echo off`r`n`"$(Join-Path $targetDir 't3.exe')`" %*", (New-Object System.Text.UTF8Encoding $false))
+[System.IO.File]::WriteAllText($shim, "@echo off`r`n`"$(Join-Path $targetDir 'agentvela.exe')`" %*", (New-Object System.Text.UTF8Encoding $false))
 # Pruning keeps what this shim points at; a background service cannot see $binDir otherwise.
 $launchers = Join-Path $t3Home "runtime\launchers"
 $shimPath = (Resolve-Path -LiteralPath $shim).Path
@@ -271,23 +271,23 @@ if (-not ((Test-Path $launchers) -and ((Get-Content $launchers) -contains $shimP
   [System.IO.File]::AppendAllText($launchers, "$shimPath`r`n", (New-Object System.Text.UTF8Encoding $false))
 }
 if ($interactive) { [Console]::Error.Write("`r$esc[2K") }
-[Console]::Error.WriteLine("  ${green}Installed T3 Code $version$reset`n")
+[Console]::Error.WriteLine("  ${green}Installed AgentVela $version$reset`n")
 if ($binDir.Contains(";")) {
   # PATH would split the folder at the `;`, so name the command in full instead.
   Write-Host "  Run ${bold}& '$($shim.Replace("'", "''"))'$reset to get started.`n"
 } else {
   # Either side may end in a separator. Trim only here: a drive root keeps its `\` for Join-Path.
   $added = ($env:PATH -split ";" | ForEach-Object { $_.TrimEnd('\', '/') }) -notcontains $binDir.TrimEnd('\', '/')
-  # `irm | iex` runs in the user's own session, so t3 works in this window right away.
-  # Last, so it never shadows another t3.
+  # `irm | iex` runs in the user's own session, so agentvela works in this window right away.
+  # Last, so it never shadows another agentvela.
   if ($added) { $env:Path = "$env:Path;$binDir" }
-  # A t3 earlier on PATH runs instead, so name this one in full.
-  $first = Get-Command t3 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  # An agentvela earlier on PATH runs instead, so name this one in full.
+  $first = Get-Command agentvela -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($first -and [System.IO.Path]::GetFullPath($first.Source) -ne [System.IO.Path]::GetFullPath($shimPath)) {
-    Write-Host "  Another t3 at $($first.Source) runs first, so run ${bold}& '$($shim.Replace("'", "''"))'$reset to use this one.`n"
+    Write-Host "  Another agentvela at $($first.Source) runs first, so run ${bold}& '$($shim.Replace("'", "''"))'$reset to use this one.`n"
   } elseif ($added) {
-    Write-Host "  Run ${bold}t3$reset to get started. For new windows, add $binDir to your PATH.`n"
+    Write-Host "  Run ${bold}agentvela$reset to get started. For new windows, add $binDir to your PATH.`n"
   } else {
-    Write-Host "  Run ${bold}t3$reset to use T3 Code here, or ${bold}t3 up$reset to use it from your other devices.`n"
+    Write-Host "  Run ${bold}agentvela$reset to use AgentVela here, or ${bold}agentvela up$reset to use it from your other devices.`n"
   }
 }

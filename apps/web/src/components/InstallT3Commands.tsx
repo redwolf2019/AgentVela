@@ -26,9 +26,9 @@ export function InstallT3Commands({
       <CommandBlock command={command} />
       <p className="text-xs text-muted-foreground">
         <T>
-          Skip the install if you already have <code className="font-mono">t3</code>. If{" "}
-          <code className="font-mono">t3</code> is not found after installing, add the folder the
-          installer names to your PATH.
+          Skip the install if you already have <code className="font-mono">agentvela</code>. If{" "}
+          <code className="font-mono">agentvela</code> is not found after installing, add the folder
+          the installer names to your PATH.
         </T>
       </p>
     </div>

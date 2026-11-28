@@ -193,7 +193,7 @@ it.layer(NodeServices.layer)("ServerReleaseMonitor", (it) => {
         });
         const policyErr = yield* policyOff.monitor.checkNow().pipe(Effect.flip);
         expect(isServerCheckForUpdateError(policyErr)).toBe(true);
-        assert.equal(policyErr.reason, "Example Corp manages T3 Code updates.");
+        assert.equal(policyErr.reason, "Example Corp manages AgentVela updates.");
         assert.deepStrictEqual(policyOff.requests, []);
 
         const disabledEnv = yield* makeHarness({

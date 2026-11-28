@@ -7,7 +7,9 @@ export function providerAuthReturnUrl(
   if (!value) return undefined;
   try {
     const url = new URL(value);
-    const desktop = ["t3code:", "t3code-dev:"].includes(url.protocol) && url.host === "app";
+    const desktop =
+      ["agentvela:", "agentvela-dev:", "agentvela-preview:"].includes(url.protocol) &&
+      url.host === "app";
     const web =
       ["http:", "https:"].includes(url.protocol) &&
       (isLoopbackHost(url.hostname) || Boolean(allowedOrigins?.includes(url.origin)));

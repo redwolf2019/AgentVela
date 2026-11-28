@@ -31,7 +31,7 @@ export const formatSetup = (setup: UpSetup, hints: UpHints): string => {
   const { service } = setup;
   if (service.otherBaseDir !== undefined) {
     return [
-      `  ${"Service".padEnd(15)}installed for another T3 home · ${service.otherBaseDir}`,
+      `  ${"Service".padEnd(15)}installed for another AgentVela home · ${service.otherBaseDir}`,
       "",
       `Pass \`${BootService.formatBootServiceBaseDirOption(service.otherBaseDir)}\` to manage it.`,
     ].join("\n");
@@ -42,7 +42,7 @@ export const formatSetup = (setup: UpSetup, hints: UpHints): string => {
       !service.supported
         ? "unavailable"
         : service.installed
-          ? `installed · t3@${service.installedVersion ?? packageJson.version}`
+          ? `installed · agentvela@${service.installedVersion ?? packageJson.version}`
           : "not installed",
     ],
     ...(setup.relay.linked
@@ -93,12 +93,12 @@ export const formatNextSteps = (
       ? []
       : [
           serviceInstalled
-            ? "Remote access is off. T3 Code still runs here in the background."
-            : `Remote access is off. Run \`${hints.run}\` to use T3 Code here.`,
+            ? "Remote access is off. AgentVela still runs here in the background."
+            : `Remote access is off. Run \`${hints.run}\` to use AgentVela here.`,
         ]),
   ].join("\n");
 
-/** `t3 status --json`, for scripts and agents. */
+/** `agentvela status --json`, for scripts and agents. */
 export const setupJson = (setup: UpSetup): string =>
   JSON.stringify(
     {

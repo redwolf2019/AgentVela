@@ -71,7 +71,7 @@ const make = Effect.gen(function* () {
           Effect.as<UpdatePolicy>({
             mode: "off",
             feedUrl: undefined,
-            message: `Updates are off because T3 Code cannot use the managed policy at ${error.path}. Contact your administrator.`,
+            message: `Updates are off because AgentVela cannot use the managed policy at ${error.path}. Contact your administrator.`,
           }),
         ),
     }),

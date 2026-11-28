@@ -13,7 +13,7 @@ AgentVela defaults to a fail-closed network posture so self-hosted, LAN, Tailsca
 
 ## Release Mirror Precedence & Overrides
 
-All update surfaces (Desktop, Server auto-check & self-update, `t3 update`, `install.sh` / `install.ps1`, and Android/Mobile environment checks) resolve their release base URL in strict fail-closed order:
+All update surfaces (Desktop, Server auto-check & self-update, `agentvela update`, `install.sh` / `install.ps1`, and Android/Mobile environment checks) resolve their release base URL in strict fail-closed order:
 
 1. `ManagedPolicy.limits.updates.feedUrl` (enterprise policy override; highest priority)
 2. `T3CODE_RELEASE_BASE_URL` environment variable (CLI/server/installer override)
@@ -40,7 +40,7 @@ Any invalid override rejects the update check cleanly instead of silently fallin
 Enterprise `ManagedPolicy` enforces offline and privacy restrictions across subsystems:
 
 - `limits.telemetry: false`: drops trace/metric spans, log exports, `/api/otlp/v1/traces` proxy requests, and OTLP endpoint check probes with HTTP 403 (`Rejected`) before making outbound requests.
-- `limits.updates.mode: "off"`: blocks Desktop app updates, Server release checks/self-updates, and Desktop SSH remote CLI archive downloads, while continuing to allow preinstalled `t3` on the remote host.
+- `limits.updates.mode: "off"`: blocks Desktop app updates, Server release checks/self-updates, and Desktop SSH remote CLI archive downloads, while continuing to allow preinstalled `agentvela` on the remote host.
 - `limits.updates.feedUrl`: overrides the release base URL across Desktop updates, Server release checks/self-updates, and SSH CLI archive downloads (takes precedence over `T3CODE_RELEASE_BASE_URL` and UI mirror settings).
 
 ## Air-Gapped Baseline Example

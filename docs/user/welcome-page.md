@@ -14,13 +14,13 @@ AgentVela lists detected agents first (ready ones on top), followed by **Add mor
 - **Claude Code**: **Install** or **Sign in** opens a setup terminal using the vendor's installer (so **Update now** keeps working in Settings).
 - **Codex**: **Set up** offers ChatGPT sign-in or your existing Codex CLI.
 - **Outdated or other agents**: **Update** or selecting the agent opens its page in **Settings → Providers**. **Browse** opens the ACP Registry.
-- **Desktop CLI**: Click **Add to PATH** if the `t3` command isn't yet on your shell `PATH`.
+- **Desktop CLI**: Click **Add to PATH** if the `agentvela` command isn't yet on your shell `PATH`.
 
 Click **Start** once at least one agent is ready, or **Start without an agent** to enter the app immediately (checked projects still import).
 
 ## Phone
 
-If you build and install the mobile app from source, connect it via **Settings → Sharing & access** using a pairing link or QR code, or sign in to the same self-hosted relay URL (`t3 relay link` on the host) under **Settings → Environments**.
+If you build and install the mobile app from source, connect it via **Settings → Sharing & access** using a pairing link or QR code, or sign in to the same self-hosted relay URL (`agentvela relay link` on the host) under **Settings → Environments**.
 
 ## Projects and conversation import
 

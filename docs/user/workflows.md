@@ -6,16 +6,16 @@ Use a **scheduled task** for a single prompt on a timer or webhook; use a **work
 
 ## Enable workflows
 
-Turn on **Settings → Labs → Workflows** on the server that will run them (or set `"workflowsEnabled": true` in `~/.t3/userdata/settings.json` on headless servers). Existing runs pause while disabled and resume when re-enabled.
+Turn on **Settings → Labs → Workflows** on the server that will run them (or set `"workflowsEnabled": true` in `~/.agentvela/userdata/settings.json` on headless servers). Existing runs pause while disabled and resume when re-enabled.
 
 ## Create a workflow
 
-Place `.ts` files in `~/.t3/workflows/` (or the path in `T3CODE_WORKFLOWS`). The server watches the folder and hot-reloads valid edits.
+Place `.ts` files in `~/.agentvela/workflows/` (or the path in `T3CODE_WORKFLOWS`). The server watches the folder and hot-reloads valid edits.
 
 - **With an agent (recommended)**: Copy the [`t3-workflows` skill](../../skills/t3-workflows/SKILL.md) into your agent's skills folder (e.g. `~/.claude/skills/` or `~/.agents/skills/`) and describe what you want.
-- **Directly**: Edit files in `~/.t3/workflows/` or use **Definitions** on the Workflows page (**Open workflows** in the command palette; saving/deleting in the app requires terminal access).
+- **Directly**: Edit files in `~/.agentvela/workflows/` or use **Definitions** on the Workflows page (**Open workflows** in the command palette; saving/deleting in the app requires terminal access).
 
-Example (`~/.t3/workflows/release.ts`):
+Example (`~/.agentvela/workflows/release.ts`):
 
 ```ts
 const { workflow, step, ask, stop, title } = T3;
@@ -43,18 +43,18 @@ export default workflow(
 ## CLI commands
 
 ```sh
-t3 workflow start <name> --input '<json>' --key <key>
-t3 workflow list [--status paused] [--tag <tag>] [--subject <url or id>]
-t3 workflow show <run>
-t3 workflow resume <run>
-t3 workflow cancel <run> [--reason '<why>']
-t3 workflow questions [--kind <kind>]
-t3 workflow signal '{"choice":"yes"}' --run <run> --wait <name>
-t3 workflow signal '<json>' --workflow <name> --channel <channel>
-t3 workflow withdraw --run <run> --wait <name> [--reason '<why>']
-t3 workflow hooks
-t3 workflow store list
-t3 workflow store set <key> '<json>'
+agentvela workflow start <name> --input '<json>' --key <key>
+agentvela workflow list [--status paused] [--tag <tag>] [--subject <url or id>]
+agentvela workflow show <run>
+agentvela workflow resume <run>
+agentvela workflow cancel <run> [--reason '<why>']
+agentvela workflow questions [--kind <kind>]
+agentvela workflow signal '{"choice":"yes"}' --run <run> --wait <name>
+agentvela workflow signal '<json>' --workflow <name> --channel <channel>
+agentvela workflow withdraw --run <run> --wait <name> [--reason '<why>']
+agentvela workflow hooks
+agentvela workflow store list
+agentvela workflow store set <key> '<json>'
 ```
 
 - `--key` deduplicates starts across retries and version bumps.
@@ -64,9 +64,9 @@ t3 workflow store set <key> '<json>'
 
 ## Questions, tags, and subjects
 
-- **Question kinds & tags**: Declare `asks: { kindKey: "Label" }` in workflow options and pass `kind` to `ask(...)` to filter open questions under **Needs you** (and `t3 workflow questions --kind <kind>`). Use `tags([...])` to label runs for filtering.
+- **Question kinds & tags**: Declare `asks: { kindKey: "Label" }` in workflow options and pass `kind` to `ask(...)` to filter open questions under **Needs you** (and `agentvela workflow questions --kind <kind>`). Use `tags([...])` to label runs for filtering.
 - **Rich choices & links**: Pass `links: [{ label, url }]` and choice objects `{ value, description, requireReason }` to require an explanation before answering. Answers record `answeredAt` and `answeredBy`.
-- **Subjects**: Call `subject(issueOrPrOrThreadOrUrl)` (or pass `{ subject }` to `start(...)`) to display and link the target item in run lists, issue/PR views, and `t3 workflow list --subject <url>`.
+- **Subjects**: Call `subject(issueOrPrOrThreadOrUrl)` (or pass `{ subject }` to `start(...)`) to display and link the target item in run lists, issue/PR views, and `agentvela workflow list --subject <url>`.
 
 ## Concurrency limits
 
@@ -77,7 +77,7 @@ t3 workflow store set <key> '<json>'
 ## Triggers
 
 - **Schedules**: `every` runs on an interval; `daily` runs at a local time of day (skipped if missed by >10 minutes while offline).
-- **Webhooks**: Run `t3 workflow hooks` to get each hook's secret path (prepend your server URL). Deduplicates retries by delivery header (e.g. `X-GitHub-Delivery`), rejects bodies >1 MiB, and rate-limits to 60 runs/min (`429`). Blocked if managed policy disables webhooks.
+- **Webhooks**: Run `agentvela workflow hooks` to get each hook's secret path (prepend your server URL). Deduplicates retries by delivery header (e.g. `X-GitHub-Delivery`), rejects bodies >1 MiB, and rate-limits to 60 runs/min (`429`). Blocked if managed policy disables webhooks.
 - **Issues & PRs**: Triggers automatically on new issues or PRs via **Settings → Source control & issues** (polled ~every minute; only items opened after the workflow first loads).
 
 ## Follow runs, agent threads, and failures

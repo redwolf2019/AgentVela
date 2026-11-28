@@ -10,14 +10,14 @@ Prebuilt releases are published on [`redwolf2019/AgentVela` GitHub Releases](htt
 
 ## Install prebuilt binaries
 
-### CLI & background service (`t3`)
+### CLI & background service (`agentvela`)
 
 ```bash
 curl -fsSL https://github.com/redwolf2019/AgentVela/releases/latest/download/install.sh | sh
 # Windows PowerShell: irm https://github.com/redwolf2019/AgentVela/releases/latest/download/install.ps1 | iex
 ```
 
-Both installers verify `SHA256SUMS` against `release-manifest.json` before installing `t3`, and honor `T3CODE_RELEASE_BASE_URL` for custom mirrors.
+Both installers verify `SHA256SUMS` against `release-manifest.json` before installing `agentvela`, and honor `T3CODE_RELEASE_BASE_URL` for custom mirrors.
 
 ## Build from source
 
@@ -39,24 +39,24 @@ Open the pairing URL printed in the terminal to authenticate your browser sessio
 
 ## Command line
 
-Once built or installed locally, the `t3` command manages the local server, relay linking, and background service:
+Once built or installed locally, the `agentvela` command manages the local server, relay linking, and background service:
 
-| Task                                  | Command                                                                 |
-| ------------------------------------- | ----------------------------------------------------------------------- |
-| Start the server and open the web app | `t3`                                                                    |
-| Start the server without a browser    | `t3 serve`                                                              |
-| Use it from your other devices        | `t3 up` ([details](./remote-access.md))                                 |
-| Keep it running in the background     | `t3 service install` ([details](./background-service.md))               |
-| Reclaim database space                | `t3 doctor` ([details](./background-service.md#reclaim-database-space)) |
-| Remove the background service         | `t3 uninstall`                                                          |
+| Task                                  | Command                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------ |
+| Start the server and open the web app | `agentvela`                                                                    |
+| Start the server without a browser    | `agentvela serve`                                                              |
+| Use it from your other devices        | `agentvela up` ([details](./remote-access.md))                                 |
+| Keep it running in the background     | `agentvela service install` ([details](./background-service.md))               |
+| Reclaim database space                | `agentvela doctor` ([details](./background-service.md#reclaim-database-space)) |
+| Remove the background service         | `agentvela uninstall`                                                          |
 
-Run `t3 help` or `t3 --help` for the full reference. To start in a new working directory, pass an explicit path such as `t3 ./my-project`.
+Run `agentvela help` or `agentvela --help` for the full reference. To start in a new working directory, pass an explicit path such as `agentvela ./my-project`.
 
-If `t3` or `t3 start` reports an already running server, run the `t3 pair` command it names and open the pairing URL to connect to that server. Stop it before starting a replacement, or use a different `--base-dir` for an independent server.
+If `agentvela` or `agentvela start` reports an already running server, run the `agentvela pair` command it names and open the pairing URL to connect to that server. Stop it before starting a replacement, or use a different `--base-dir` for an independent server.
 
-### The `t3` command
+### The `agentvela` command
 
-Desktop builds include the `t3` command-line tool. A new install sets it up on first launch; after an update, or any time, choose **Install** next to **t3 command** in **Settings → About**. On macOS and Linux it adds a `t3` link in `~/.local/bin` (or `~/bin`); on Windows it adds the app's command folder to your `PATH`. Open a new terminal afterwards. If the folder is not on your `PATH`, **Add to PATH** on the Welcome page or in **Settings → About** adds one line to your shell's startup file. **Remove** takes it off, and the app does not add it again. If you already have another `t3`, it leaves that file untouched.
+Desktop builds include the `agentvela` command-line tool. A new install sets it up on first launch; after an update, or any time, choose **Install** next to **agentvela command** in **Settings → About**. On macOS and Linux it adds an `agentvela` link in `~/.local/bin` (or `~/bin`); on Windows it adds the app's command folder to your `PATH`. Open a new terminal afterwards. If the folder is not on your `PATH`, **Add to PATH** on the Welcome page or in **Settings → About** adds one line to your shell's startup file. **Remove** takes it off, and the app does not add it again. If you already have another `agentvela`, it leaves that file untouched.
 
 ### Windows Subsystem for Linux
 
@@ -67,14 +67,14 @@ Choose a WSL distro in **Settings → Sharing & access** to run agents and proje
 With the desktop app already running on the same machine:
 
 ```bash
-t3 app
+agentvela app
 ```
 
-This opens a new thread for the current directory, adding the project if needed. Pass a path, such as `t3 app ../my-project`, to open another directory. It requires the desktop app, so a standalone server or an SSH session is not enough. If the command cannot reach the app, start or update the desktop app and try again.
+This opens a new thread for the current directory, adding the project if needed. Pass a path, such as `agentvela app ../my-project`, to open another directory. It requires the desktop app, so a standalone server or an SSH session is not enough. If the command cannot reach the app, start or update the desktop app and try again.
 
 ### Drop a folder on the sidebar
 
-Drag one or more folders from Finder, Explorer, or your file manager onto the sidebar. Each one opens as a project on this computer, the same as `t3 app`. Files dropped on a thread still attach to that thread. Browsers do not share folder paths, so in the web app use **Add project** instead.
+Drag one or more folders from Finder, Explorer, or your file manager onto the sidebar. Each one opens as a project on this computer, the same as `agentvela app`. Files dropped on a thread still attach to that thread. Browsers do not share folder paths, so in the web app use **Add project** instead.
 
 ## Mobile app
 
@@ -119,7 +119,7 @@ For provider-specific setup and accounts, see [Codex](./providers-codex.md), [Cl
 If a provider works in its CLI but AgentVela reports a timeout while checking it, allow more time in the AgentVela server's environment. For example, give Codex and Claude readiness checks 60 seconds:
 
 ```bash
-T3CODE_CODEX_PROBE_TIMEOUT_MS=60000 T3CODE_CLAUDE_PROBE_TIMEOUT_MS=60000 t3 serve
+T3CODE_CODEX_PROBE_TIMEOUT_MS=60000 T3CODE_CLAUDE_PROBE_TIMEOUT_MS=60000 agentvela serve
 ```
 
 For a remote environment, set these on the machine running the AgentVela server. Keep them in your launcher or service configuration to retain them across updates, then restart the server. For systemd, add `Environment=T3CODE_CODEX_PROBE_TIMEOUT_MS=60000` under `[Service]` in a service override, reload systemd, and restart the service. Provider instances can also set their own overrides in Settings → Providers.
