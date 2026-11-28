@@ -27,6 +27,11 @@ import { BrokerService, layerBrokerService } from "./environments/BrokerService.
 import { EnvironmentService, layerEnvironmentService } from "./environments/EnvironmentService.ts";
 import { layerPresenceHub, PresenceHub } from "./environments/PresenceHub.ts";
 import { INTERNAL_CLIENT_IP_HEADER, layerAgentVelaRelayHttpApi } from "./http/apiHandlers.ts";
+import {
+  applyRelayApiCorsHeaders,
+  isRelayBrowserApiPath,
+  writeRelayApiCorsPreflight,
+} from "./http/cors.ts";
 import { handleHookHttpForward } from "./http/hookHandler.ts";
 import {
   handleEndpointHttpProxy,
@@ -282,7 +287,15 @@ export async function startRelayServer(config: ResolvedRelayConfig): Promise<Rel
   const httpServer = NodeHttp.createServer(async (req, res) => {
     try {
       const pathname = (req.url ?? "/").split("?", 1)[0] ?? "/";
-      if (pathname === RELAY_PRESENCE_EVENTS_PATH && (req.method ?? "GET") === "GET") {
+      const method = (req.method ?? "GET").toUpperCase();
+      if (isRelayBrowserApiPath(pathname)) {
+        if (method === "OPTIONS") {
+          writeRelayApiCorsPreflight(req, res);
+          return;
+        }
+        applyRelayApiCorsHeaders(res);
+      }
+      if (pathname === RELAY_PRESENCE_EVENTS_PATH && method === "GET") {
         await handlePresenceSse(req, res, {
           auth: services.auth,
           presence: services.presence,

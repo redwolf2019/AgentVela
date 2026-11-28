@@ -550,7 +550,7 @@
   "20f09d67a1095bc6": "This browser cannot receive the device's WebRTC stream.",
   "49907227ef347b64": "This browser cannot decode the Android stream (WebCodecs unavailable).",
   "0108edbdb5f27c83": "This browser cannot decode this device's stream (WebCodecs unavailable).",
-  "eabffa063b9244f8": "Your DNS or firewall may be blocking T3 Connect. Try another network, such as a different Wi-Fi or mobile data.",
+  "0e0d8b312c6a122c": "Your DNS or firewall may be blocking the relay server. Try another network, such as a different Wi-Fi or mobile data.",
   "c039a54c8238eafe": "It may be overloaded, asleep, or off the network.",
   "3c4391a7f6421455": "{host} did not confirm the message within 60 seconds.",
   "204ac030de627c0a": "Git URL",

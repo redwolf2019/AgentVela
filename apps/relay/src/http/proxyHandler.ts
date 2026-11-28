@@ -5,6 +5,7 @@ import type * as NodeStream from "node:stream";
 import type { TunnelHttpMethod } from "@t3tools/contracts/agentVelaRelay";
 import type { WebSocket } from "ws";
 
+import { RELAY_API_CORS_RESPONSE_HEADERS } from "./cors.ts";
 import {
   HOP_BY_HOP_HEADERS,
   parseEndpointProxyTarget,
@@ -69,9 +70,11 @@ export async function handleEndpointHttpProxy(
   if (!target) {
     return false;
   }
+  const errorCorsHeaders =
+    target.targetPath.split("?", 1)[0] === "/mcp" ? undefined : RELAY_API_CORS_RESPONSE_HEADERS;
   const method = (req.method ?? "GET").toUpperCase() as TunnelHttpMethod;
   if (!FORWARDED_METHODS.has(method)) {
-    sendJsonError(res, 405, { code: "method_not_allowed" });
+    sendJsonError(res, 405, { code: "method_not_allowed" }, errorCorsHeaders);
     return true;
   }
   const rate = deps.rateLimiter.allowProxy(target.endpointKey);
@@ -80,7 +83,7 @@ export async function handleEndpointHttpProxy(
       res,
       429,
       { code: "rate_limited", retryAfterSeconds: rate.retryAfterSeconds },
-      { "retry-after": String(rate.retryAfterSeconds) },
+      { ...errorCorsHeaders, "retry-after": String(rate.retryAfterSeconds) },
     );
     return true;
   }
@@ -112,11 +115,11 @@ export async function handleEndpointHttpProxy(
   } catch (cause) {
     const tag = (cause as { _tag?: string } | null)?._tag;
     if (tag === "RelayNotFoundError") {
-      sendJsonError(res, 404, { code: "not_found", resource: "environment" });
+      sendJsonError(res, 404, { code: "not_found", resource: "environment" }, errorCorsHeaders);
     } else if (tag === "RelayEndpointTimedOutError") {
-      sendJsonError(res, 504, { code: "endpoint_timed_out" });
+      sendJsonError(res, 504, { code: "endpoint_timed_out" }, errorCorsHeaders);
     } else {
-      sendJsonError(res, 502, { code: "tunnel_offline" });
+      sendJsonError(res, 502, { code: "tunnel_offline" }, errorCorsHeaders);
     }
   } finally {
     res.off("close", onClose);

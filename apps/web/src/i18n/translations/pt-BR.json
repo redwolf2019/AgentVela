@@ -550,7 +550,7 @@
   "20f09d67a1095bc6": "Este navegador não consegue receber o stream WebRTC do dispositivo.",
   "49907227ef347b64": "Este navegador não consegue decodificar o stream do Android (WebCodecs indisponível).",
   "0108edbdb5f27c83": "Este navegador não consegue decodificar o stream deste dispositivo (WebCodecs indisponível).",
-  "eabffa063b9244f8": "Seu DNS ou firewall pode estar bloqueando o T3 Connect. Tente outra rede, como outro Wi-Fi ou dados móveis.",
+  "0e0d8b312c6a122c": "Seu DNS ou firewall pode estar bloqueando o servidor de relay. Tente outra rede, como outro Wi-Fi ou dados móveis.",
   "c039a54c8238eafe": "Ele pode estar sobrecarregado, em repouso ou fora da rede.",
   "3c4391a7f6421455": "{host} não confirmou a mensagem em 60 segundos.",
   "204ac030de627c0a": "URL do Git",

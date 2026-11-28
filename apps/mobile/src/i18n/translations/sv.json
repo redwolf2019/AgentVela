@@ -550,7 +550,7 @@
   "20f09d67a1095bc6": "Den här webbläsaren kan inte ta emot enhetens WebRTC-ström.",
   "49907227ef347b64": "Den här webbläsaren kan inte avkoda Android-strömmen (WebCodecs är inte tillgängligt).",
   "0108edbdb5f27c83": "Den här webbläsaren kan inte avkoda enhetens ström (WebCodecs är inte tillgängligt).",
-  "eabffa063b9244f8": "Din DNS eller brandvägg kanske blockerar T3 Connect. Prova ett annat nätverk, till exempel ett annat wifi eller mobildata.",
+  "0e0d8b312c6a122c": "Din DNS eller brandvägg kanske blockerar reläservern. Prova ett annat nätverk, till exempel ett annat wifi eller mobildata.",
   "c039a54c8238eafe": "Den kan vara överbelastad, i viloläge eller utanför nätverket.",
   "3c4391a7f6421455": "{host} bekräftade inte meddelandet inom 60 sekunder.",
   "204ac030de627c0a": "Git-URL",

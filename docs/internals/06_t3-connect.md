@@ -36,6 +36,8 @@ Like `frps`, `agent-vela-relay` multiplexes every HTTP and WebSocket surface beh
 | `/v1/tunnel/connect`  | Host tunnel entry                 | Persistent outbound WSS endpoint from `apps/server`                                                                                                           |
 | `/e/:endpointKey/...` | Reverse HTTP/WS proxy             | Forwards REST/auth, RPC `/ws`, signed assets, Desktop Preview Tunnel, and Guest Share Links to the target host                                                |
 
+Relay control-plane endpoints (`/health`, `/v1/events`, and `/v1/*` excluding `/v1/hooks/*` and `/v1/tunnel/connect`) serve wildcard non-credentialed browser CORS headers and `OPTIONS` preflights (including originless packaged Electron Desktop requests and Private Network Access preflights), while `/e/:endpointKey/...` preserves host CORS policies and emits wildcard CORS only on relay-generated proxy errors outside `/mcp`.
+
 Path routing needs one DNS A/AAAA record and one standard HTTP-01 TLS certificate—no wildcard DNS records or DNS-01 automation, and plain IP+port setups work on LANs. Three parts of the stack handle the `/e/:endpointKey` prefix:
 
 - **Client endpoint joining.** [`environmentEndpointUrl`](../../packages/client-runtime/src/environment/endpoint.ts) and WebSocket URL builders across `packages/client-runtime` preserve and append onto base path prefixes such as `/e/:endpointKey`.

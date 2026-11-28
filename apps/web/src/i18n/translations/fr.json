@@ -550,7 +550,7 @@
   "20f09d67a1095bc6": "Ce navigateur ne peut pas recevoir le flux WebRTC de l’appareil.",
   "49907227ef347b64": "Ce navigateur ne peut pas décoder le flux Android (WebCodecs indisponible).",
   "0108edbdb5f27c83": "Ce navigateur ne peut pas décoder le flux de cet appareil (WebCodecs indisponible).",
-  "eabffa063b9244f8": "Votre DNS ou votre pare-feu bloque peut-être T3 Connect. Essayez un autre réseau, comme un autre Wi-Fi ou les données mobiles.",
+  "0e0d8b312c6a122c": "Votre DNS ou votre pare-feu bloque peut-être le serveur relais. Essayez un autre réseau, comme un autre Wi-Fi ou les données mobiles.",
   "c039a54c8238eafe": "Il est peut-être surchargé, en veille ou hors réseau.",
   "3c4391a7f6421455": "{host} n’a pas confirmé le message dans les 60 secondes.",
   "204ac030de627c0a": "URL Git",
