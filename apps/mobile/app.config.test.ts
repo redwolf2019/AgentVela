@@ -1,3 +1,5 @@
+import * as NodeModule from "node:module";
+
 import { computeAndroidVersionCode } from "@t3tools/shared/releaseManifest";
 import { DEFAULT_HOSTED_APP_URL } from "@t3tools/shared/connectAuth";
 import { afterEach, expect, it, vi } from "vite-plus/test";
@@ -85,4 +87,12 @@ it("enables universal/app links only when T3CODE_HOSTED_APP_URL is configured", 
   expect(config.android?.intentFilters?.[0]?.data).toEqual([
     { scheme: "https", host, pathPrefix: "/threads/" },
   ]);
+});
+
+it("resolves @t3tools/shared/releaseManifest through Node CommonJS require for Expo", () => {
+  const require = NodeModule.createRequire(import.meta.url);
+  const releaseManifest =
+    require("@t3tools/shared/releaseManifest") as typeof import("@t3tools/shared/releaseManifest");
+  expect(releaseManifest.isStableReleaseVersion("0.1.13")).toBe(true);
+  expect(releaseManifest.computeAndroidVersionCode("0.1.13")).toBe(1_013);
 });
